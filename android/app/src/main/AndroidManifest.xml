@@ -22,6 +22,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- v3.5: deep link untuk log masuk Google dalam APK.
+                 Supabase redirect ke com.kebunku.app://login-callback dan
+                 plugin Capacitor App (appUrlOpen) menangkap tokennya.
+                 URL ini MESTI didaftarkan dalam Supabase > Authentication >
+                 URL Configuration > Redirect URLs. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.kebunku.app" android:host="login-callback" />
+            </intent-filter>
+
         </activity>
 
         <provider

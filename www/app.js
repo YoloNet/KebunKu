@@ -88,7 +88,11 @@ function composeDos(k) {
 }
 function dosPaparan(k) { var c = composeDos(k); return c || "-"; }
 
-function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung" }; }
+function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung", mod: "", namaPaparan: "", namaDitanya: false }; }
+/* mod: "" (belum pilih) | "tetamu" (guest, tempatan sahaja) | "akaun" (log masuk).
+   namaPaparan: nama yang dipaparkan pada dashboard; namaDitanya: true bila
+   prompt nama sudah ditunjuk / dilangkau / disimpan, supaya tidak mengganggu
+   setiap kali aplikasi dibuka. */
 function normalKerja(k) {
   var r = Object.assign({ nextTarikh: "", nextPilihan: "", image: null, updatedAt: 0, contoh: false,
     zon: "Semua Zon", bahanId: "", dosJumlah: "", dosUnit: "", dosPer: "",
@@ -147,6 +151,9 @@ function normalData(d) {
   if (d.settings && typeof d.settings === "object") {
     if (typeof d.settings.notifikasiHidup === "boolean") r.settings.notifikasiHidup = d.settings.notifikasiHidup;
     if (typeof d.settings.backend === "string" && d.settings.backend) r.settings.backend = d.settings.backend;
+    if (typeof d.settings.mod === "string") r.settings.mod = d.settings.mod;
+    if (typeof d.settings.namaPaparan === "string") r.settings.namaPaparan = d.settings.namaPaparan;
+    if (typeof d.settings.namaDitanya === "boolean") r.settings.namaDitanya = d.settings.namaDitanya;
   }
   return r;
 }
@@ -163,7 +170,8 @@ var Sync = {
       kerjas: x.kerjas.map(function (k) {
         var c = Object.assign({}, k); c.image = null; return c;
       }),
-      settings: { notifikasiHidup: x.settings.notifikasiHidup, backend: x.settings.backend }
+      settings: { notifikasiHidup: x.settings.notifikasiHidup, backend: x.settings.backend, namaPaparan: x.settings.namaPaparan || "" }
+      /* mod TIDAK di-sync — mod tetamu/akaun ialah keadaan peranti ini sahaja. */
     };
   },
   fromCloudPayload: function (payload, tempatan) {
@@ -397,19 +405,96 @@ var SB = {
       }
     }, 1000);
   },
-  /* ===== Google login (OAuth implicit flow Supabase) =====
-     Aplikasi hanya membina URL authorize dan membaca token daripada hash
-     selepas Google memulangkan pengguna ke sini. Tiada client secret dalam
-     aplikasi — secret itu hanya dalam dashboard Supabase (lihat README). */
+  /* Terima token daripada mana-mana URL yang membawa access_token — deep link
+     APK (com.kebunku.app://login-callback#access_token=...) atau hash web.
+     Boleh diuji tanpa Capacitor: beri URL sebagai rentetan. Mengembalikan
+     Promise { ok:true, email, metadata } | { ralat } | null (tiada token). */
+  terimaTokenDariUrl: function (urlString) {
+    var self = this;
+    var token = "", refresh = "", tamat = 3600;
+    try {
+      var u = new URL(urlString);
+      var h = new URLSearchParams((u.hash || "").replace(/^#/, ""));
+      var q = u.searchParams;
+      token = h.get("access_token") || q.get("access_token") || "";
+      refresh = h.get("refresh_token") || q.get("refresh_token") || "";
+      tamat = Number(h.get("expires_in") || q.get("expires_in")) || 3600;
+      var ralat = h.get("error") || q.get("error");
+      if (ralat) return Promise.resolve({ ralat: /access_denied/i.test(ralat) ? "Log masuk Google dibatalkan." : "Log masuk Google gagal: " + ralat });
+    } catch (e) { return Promise.resolve({ ralat: "Pautan log masuk tidak sah." }); }
+    if (!token) return Promise.resolve(null);
+    var cfg;
+    try { cfg = this.sahkanCfg(this.cfg()); } catch (e2) { return Promise.resolve({ ralat: "Sesi Google diterima, tetapi aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi." }); }
+    return this.panggilAuth(cfg, "GET", "/auth/v1/user", null, token).then(function (pengguna) {
+      var email = (pengguna && pengguna.email) || "";
+      var uid = (pengguna && pengguna.id) || "";
+      self.simpanSesi({ access_token: token, refresh_token: refresh, user_id: uid, email: email,
+        expires_at: Date.now() + (tamat * 1000), kaedah: "google" });
+      return { ok: true, email: email, metadata: (pengguna && pengguna.user_metadata) || {} };
+    }).catch(function (e) {
+      return { ralat: "Sesi Google diterima tetapi tidak dapat disahkan: " + (e.message || e) };
+    });
+  },
+  /* ===== Google login (OAuth) — web + APK Android =====
+     Web: redirect penuh ke authorize, token dibaca daripada hash semasa
+     kembali (kendaliOAuthCallback). APK (Capacitor): buka authorize dalam
+     pelayar sistem melalui plugin Browser, dan tangkap redirect deep link
+     com.kebunku.app://login-callback melalui plugin App (appUrlOpen) —
+     WebView sendiri tidak boleh menerima redirect itu. Tiada client secret
+     dalam aplikasi — secret itu hanya dalam dashboard Supabase.
+     Pemilik MESTI tambah com.kebunku.app://login-callback ke Supabase
+     Authentication > URL Configuration > Redirect URLs (lihat README). */
   googleLogin: function () {
     var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
     var balik = (location.protocol === "file:")
       ? location.href.split("#")[0].split("?")[0]
       : location.origin + location.pathname;
+    var cap = (typeof window !== "undefined" && window.Capacitor) || null;
+    var plugins = cap && cap.Plugins ? cap.Plugins : {};
+    var Browser = plugins.Browser, App = plugins.App;
+    if (cap && Browser && Browser.open && App && App.addListener) {
+      var redirect = "com.kebunku.app://login-callback";
+      var url = cfg.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(redirect);
+      var self = this;
+      var selesai = false;
+      var tutup = function () { try { if (Browser.close) Browser.close(); } catch (e) {} };
+      var pendengar = App.addListener("appUrlOpen", function (d) {
+        if (selesai || !d || !d.url) return;
+        if (d.url.indexOf("com.kebunku.app://login-callback") !== 0) return;
+        selesai = true;
+        try { if (pendengar && pendengar.remove) pendengar.remove(); } catch (e2) {}
+        tutup();
+        self.terimaTokenDariUrl(d.url).then(function (hasil) {
+          if (typeof selepasGoogleDeepLink === "function") selepasGoogleDeepLink(hasil);
+        });
+      });
+      Browser.open({ url: url }).catch(function () {
+        try { if (pendengar && pendengar.remove) pendengar.remove(); } catch (e3) {}
+        location.href = url;
+      });
+      return;
+    }
     location.href = cfg.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(balik);
   },
-  kendaliOAuthCallback: function () {
+  /* Baca profil pengguna semasa (untuk nama paparan daripada user_metadata).
+     Kegagalan mengembalikan null — ia tidak membatalkan log masuk. */
+  ambilProfil: function () {
+    var cfg = this.cfg();
     var self = this;
+    return this.tokenSah().then(function (token) {
+      return self.panggilAuth(cfg, "GET", "/auth/v1/user", null, token);
+    }).catch(function () { return null; });
+  },
+  /* Simpan nama paparan ke akaun (PUT /auth/v1/user { data: { nama_paparan } }).
+     Best effort — kegagalan tidak menghalang simpanan tempatan. */
+  simpanNamaKeAkaun: function (nama) {
+    var cfg = this.cfg();
+    var self = this;
+    return this.tokenSah().then(function (token) {
+      return self.panggilAuth(cfg, "PUT", "/auth/v1/user", { data: { nama_paparan: nama } }, token);
+    });
+  },
+  kendaliOAuthCallback: function () {
     var hash = (location.hash || "").replace(/^#/, "");
     var carian = new URLSearchParams(location.search || "");
     var h = new URLSearchParams(hash);
@@ -424,20 +509,10 @@ var SB = {
     }
     var token = h.get("access_token");
     if (!token) return Promise.resolve(null);
-    var cfg;
-    try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.resolve({ ralat: "Sesi Google diterima, tetapi aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi." }); }
-    return this.panggilAuth(cfg, "GET", "/auth/v1/user", null, token).then(function (pengguna) {
-      var email = (pengguna && pengguna.email) || "";
-      var uid = (pengguna && pengguna.id) || "";
-      self.simpanSesi({ access_token: token, refresh_token: h.get("refresh_token") || "",
-        user_id: uid, email: email,
-        expires_at: Date.now() + ((Number(h.get("expires_in")) || 3600) * 1000),
-        kaedah: "google" });
+    /* Token dalam hash web — sahkan melalui laluan yang sama seperti deep link APK. */
+    return this.terimaTokenDariUrl(location.href).then(function (hasil) {
       try { history.replaceState(null, "", location.pathname + location.search); } catch (e2) {}
-      return { ok: true, email: email };
-    }).catch(function (e) {
-      try { history.replaceState(null, "", location.pathname + location.search); } catch (e2) {}
-      return { ralat: "Sesi Google diterima tetapi tidak dapat disahkan: " + (e.message || e) };
+      return hasil;
     });
   },
   daftar: function () {
@@ -528,6 +603,8 @@ var SB = {
     if (this._lastSyncComplete && (Date.now() - this._lastSyncComplete < 5000)) return;
     var st = this.syncState();
     if (!st.autoSync) return;
+    /* v3.5 Mod Tetamu: data tetamu tidak pernah dihantar ke awan. */
+    try { if (typeof data !== "undefined" && data && data.settings && data.settings.mod === "tetamu") return; } catch (e) {}
     if (!this.sesi() || !this.cfg().url) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     var self = this;
@@ -542,6 +619,8 @@ var SB = {
     var self = this;
     var cfg;
     try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.reject(e); }
+    /* v3.5 Mod Tetamu: tolak sync terus — data tetamu kekal tempatan sahaja. */
+    try { if (typeof data !== "undefined" && data && data.settings && data.settings.mod === "tetamu") return Promise.reject(new Error("Mod Tetamu — data hanya dalam peranti ini. Log masuk untuk backup data anda ke cloud.")); } catch (e2) {}
     if (this.syncSedangBerjalan) return Promise.reject(new Error("Sync sedang berjalan. Sila tunggu."));
     this.syncSedangBerjalan = true;
     var state = this.syncState();
@@ -960,6 +1039,8 @@ function renderNotifikasiStatus() {
 }
 function renderAkaunStatus() {
   var el = $("akaunStatus"); if (!el) return;
+  var inpNama = $("akaunNamaPaparan");
+  if (inpNama && document.activeElement !== inpNama) inpNama.value = namaPaparan();
   var sbSesi = null, sbCfgAda = false, sbAkhir = "belum pernah";
   try {
     if (typeof SB !== "undefined" && SB) {
@@ -969,6 +1050,7 @@ function renderAkaunStatus() {
   } catch (e) {}
   if (sbSesi && sbSesi.email) {
     el.innerHTML = "<p><b>Status sandaran:</b> Anda log masuk sebagai " + esc(sbSesi.email) +
+      (namaPaparan() ? " (Nama paparan: " + esc(namaPaparan()) + ")" : "") +
       ". Terakhir sync: " + esc(sbAkhir) + ". Data tanpa gambar di-sync ke akaun ini.</p>" +
       "<p><b>Jika tukar telefon:</b> log masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>" +
       "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> dihantar dalam versi ini (untuk jimat storan).</p>";
@@ -1156,7 +1238,117 @@ function renderRingkasan() {
       }).join("") : "<p class=\"hint\">Belum ada kerja siap bulan ini.</p>");
   }
 }
-function renderAll() { refreshSelects(); refreshBahanSelect(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} }
+function renderAll() { refreshSelects(); refreshBahanSelect(); renderDashboard(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} tunjukOnboarding(); kemaskiniUiTetamu(); }
+
+/* ===== v3.5 — Dashboard, onboarding (tetamu vs log masuk), nama paparan ===== */
+function salamWaktu() { var jam = new Date().getHours(); if (jam < 12) return "Selamat pagi"; if (jam < 15) return "Selamat tengah hari"; if (jam < 19) return "Selamat petang"; return "Selamat malam"; }
+function namaPaparan() { return (data.settings && data.settings.namaPaparan) ? data.settings.namaPaparan.trim() : ""; }
+function renderDashboard() {
+  var el = $("dashboardSalam"); if (!el) return;
+  var t = todayStr();
+  var nama = namaPaparan();
+  var tarikh = new Date().toLocaleDateString("ms-MY", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  el.innerHTML = "<p class=\"salam-teks\">" + esc(salamWaktu()) + (nama ? ", " + esc(nama) : "") + "</p><p class=\"salam-tarikh\">" + esc(tarikh) + "</p>";
+  var stat = $("dashboardStat"); if (!stat) return;
+  var hariIni = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === t; }).length;
+  var tertunggak = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang < t; }).length;
+  var siapHariIni = data.kerjas.filter(function (k) { return k.status === "Siap" && (k.tarikhSiap || k.tarikhRancang) === t; }).length;
+  stat.innerHTML = "<div class=\"stat mini\"><p class=\"num\">" + hariIni + "</p><p class=\"lbl\">Kerja Hari Ini</p></div>" +
+    "<div class=\"stat mini danger\"><p class=\"num\">" + tertunggak + "</p><p class=\"lbl\">Tertunggak</p></div>" +
+    "<div class=\"stat mini\"><p class=\"num\">" + siapHariIni + "</p><p class=\"lbl\">Siap Hari Ini</p></div>";
+}
+/* Onboarding — hanya pada pemasangan baharu: tiada sesi DAN mod belum dipilih.
+   Pengguna lama yang sudah log masuk tidak pernah nampaknya; pengguna dengan
+   data tempatan tetapi tiada sesi dan tiada mod nampaknya sekali sehingga
+   mereka memilih. */
+var _onboardingDitutupSesi = false;
+function perluOnboarding() {
+  if (_onboardingDitutupSesi) return false;
+  var sesi = null; try { sesi = SB.sesi(); } catch (e) {}
+  return !sesi && !(data.settings && data.settings.mod);
+}
+function tunjukOnboarding() {
+  var el = $("onboardingOverlay"); if (!el) return;
+  el.hidden = !perluOnboarding();
+}
+function tutupOnboarding() { _onboardingDitutupSesi = true; var el = $("onboardingOverlay"); if (el) el.hidden = true; }
+function pilihTetamu() {
+  data.settings = data.settings || tetapanLalai(); data.settings.mod = "tetamu"; save();
+  tutupOnboarding(); renderAll(); toast("Mod Tetamu — data hanya dalam telefon ini.");
+}
+/* Mod Tetamu dalam UI: Sync Sekarang dilumpuhkan dengan hint, suis sync
+   automatik dilumpuhkan, dan kad Akaun menunjukkan butang log masuk. */
+function kemaskiniUiTetamu() {
+  var tetamu = !!(data.settings && data.settings.mod === "tetamu");
+  var syncBtn = $("sbSyncBtn");
+  if (syncBtn) syncBtn.disabled = tetamu;
+  var hint = $("sbSyncHint");
+  if (hint) { hint.hidden = !tetamu; if (tetamu) hint.textContent = "Log masuk untuk backup data anda ke cloud."; }
+  var auto = $("sbAutoToggle");
+  if (auto) auto.disabled = tetamu;
+  var akaunTetamu = $("akaunTetamu");
+  if (akaunTetamu) akaunTetamu.hidden = !tetamu;
+}
+/* Nama paparan — ditanya sekali selepas log masuk jika belum ada. */
+function tunjukNamaModal() {
+  var m = $("namaModal"); if (!m) return;
+  var inp = $("namaPaparanInput"); if (inp) inp.value = namaPaparan();
+  m.hidden = false;
+}
+function sembunyiNamaModal() { var m = $("namaModal"); if (m) m.hidden = true; }
+function simpanNamaPaparan(nama, senyap) {
+  nama = (nama || "").trim();
+  data.settings = data.settings || tetapanLalai();
+  data.settings.namaPaparan = nama; data.settings.namaDitanya = true; save();
+  sembunyiNamaModal(); renderAll();
+  var sesi = null; try { sesi = SB.sesi(); } catch (e) {}
+  if (nama && sesi && sesi.access_token) {
+    /* Best effort — kegagalan tidak menghalang simpanan tempatan. */
+    SB.simpanNamaKeAkaun(nama).catch(function () {});
+  }
+  if (!senyap) toast(nama ? "Nama paparan disimpan." : "Nama paparan dikosongkan.");
+}
+/* Selepas log masuk: jika tiada nama paparan, cuba ambil daripada akaun
+   (user_metadata.nama_paparan, atau full_name untuk Google); jika masih
+   tiada, tunjuk prompt sekali sahaja (namaDitanya dicatat bila dilangkau
+   atau disimpan, supaya tidak mengganggu setiap kali dibuka). */
+function semakNamaPaparan() {
+  var sesi = null; try { sesi = SB.sesi(); } catch (e) {}
+  if (!sesi) return;
+  if (namaPaparan()) return;
+  SB.ambilProfil().then(function (pengguna) {
+    var md = (pengguna && pengguna.user_metadata) || {};
+    var nama = (md.nama_paparan || md.full_name || "").trim();
+    if (nama) {
+      data.settings = data.settings || tetapanLalai();
+      data.settings.namaPaparan = nama; save(); renderAll(); return;
+    }
+    if (data.settings && data.settings.namaDitanya) return;
+    tunjukNamaModal();
+  }).catch(function () {
+    if (data.settings && !data.settings.namaDitanya) tunjukNamaModal();
+  });
+}
+/* Log masuk Google yang berjaya — web (hash) dan APK (deep link) berkongsi
+   laluan ini: tandakan mod akaun, ambil nama daripada metadata jika ada,
+   dan tunjuk prompt nama jika masih tiada. */
+function selepasGoogleBerjaya(hasil) {
+  data.settings = data.settings || tetapanLalai();
+  data.settings.backend = "Supabase"; data.settings.mod = "akaun"; save(); renderAll();
+  var md = (hasil && hasil.metadata) || {};
+  var nama = (md.nama_paparan || md.full_name || "").trim();
+  if (nama && !namaPaparan()) { data.settings.namaPaparan = nama; save(); renderAll(); }
+  else { try { semakNamaPaparan(); } catch (e) {} }
+  sbSetStatus("Log masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ". Tekan Sync Sekarang untuk muat turun / hantar data.");
+  toast("Log masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ".");
+}
+/* Dipanggil oleh listener AppUrlOpen (plugin App) dalam APK selepas Google
+   memulangkan pengguna melalui deep link com.kebunku.app://login-callback. */
+function selepasGoogleDeepLink(hasil) {
+  if (!hasil) return;
+  if (hasil.ok) { selepasGoogleBerjaya(hasil); sbJalankanSync(true); }
+  else if (hasil.ralat) { sbSetStatus(hasil.ralat); toast(hasil.ralat); }
+}
 
 function setTab(name) {
   document.querySelectorAll(".tab").forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
@@ -1580,9 +1772,14 @@ function sbTunjukLangkah(nama) {
 }
 function sbEmailUtama() { return $("sbEmail") ? $("sbEmail").value.trim() : ""; }
 function sbSelepasLogMasuk(kaedahLabel) {
-  data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save(); renderAll();
+  data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase";
+  /* v3.5: log masuk berjaya menamatkan onboarding — mod direkodkan supaya
+     overlay pilihan tidak muncul lagi, dan tetamu lama yang log masuk akan
+     sync data tempatannya ke cloud (last-updated-wins, seperti biasa). */
+  data.settings.mod = "akaun"; save(); renderAll();
   sbSetStatus("Log masuk berjaya (" + kaedahLabel + "). Tekan Sync Sekarang untuk muat turun / hantar data.");
   toast("Log masuk berjaya.");
+  try { semakNamaPaparan(); } catch (e) {}
 }
 /* Google — butang di atas kad Supabase. */
 var _sbGoogle = $("sbGoogleBtn");
@@ -1686,7 +1883,13 @@ var _sbOtpLoginTukar = $("sbOtpLoginTukarEmailBtn");
 if (_sbOtpLoginTukar) _sbOtpLoginTukar.addEventListener("click", function () { sbTunjukLangkah("utama"); });
 var _sbLogout = $("sbLogoutBtn");
 if (_sbLogout) _sbLogout.addEventListener("click", function () {
-  SB.logKeluar().then(function () { renderAll(); toast("Log keluar. Data tempatan dikekalkan; data awan tidak dipadam."); });
+  SB.logKeluar().then(function () {
+    /* v3.5: log keluar memadam mod — pengguna kembali ke pilihan onboarding
+       (Log Masuk atau Teruskan sebagai Tetamu) pada paparan seterusnya. */
+    data.settings = data.settings || tetapanLalai(); data.settings.mod = ""; save();
+    _onboardingDitutupSesi = false;
+    renderAll(); toast("Log keluar. Data tempatan dikekalkan; data awan tidak dipadam.");
+  });
 });
 var _sbSync = $("sbSyncBtn");
 if (_sbSync) _sbSync.addEventListener("click", function () { sbJalankanSync(true); });
@@ -1703,6 +1906,8 @@ if (_sbClear) _sbClear.addEventListener("click", function () {
   if (!confirm("Log keluar dan padam sesi dari peranti ini? Data dalam akaun anda TIDAK akan dipadam.")) return;
   SB.logKeluar().then(function () {
     var em = $("sbEmail"); if (em) em.value = ""; var pw = $("sbPassword"); if (pw) pw.value = "";
+    data.settings = data.settings || tetapanLalai(); data.settings.mod = ""; save();
+    _onboardingDitutupSesi = false;
     renderAll();
     sbSetStatus("Sesi sudah dipadam dari peranti ini. Log masuk semula untuk sync.");
     toast("Sesi dipadam dari peranti ini.");
@@ -1723,14 +1928,41 @@ if (_impC) _impC.addEventListener("click", function () {
 });
 var _kn = $("kerjaNext"); if (_kn) _kn.addEventListener("change", toggleNextCustom);
 toggleNextCustom(); syncPeratusStatus(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
+/* v3.5 — onboarding, nama paparan, mod tetamu. */
+var _onbLogin = $("onbLoginBtn");
+if (_onbLogin) _onbLogin.addEventListener("click", function () {
+  tutupOnboarding();
+  setTab("ringkasan");
+  sbTunjukLangkah("utama");
+  var em = $("sbEmail"); if (em) em.focus();
+});
+var _onbGuest = $("onbGuestBtn");
+if (_onbGuest) _onbGuest.addEventListener("click", pilihTetamu);
+var _guestLogin = $("akaunGuestLoginBtn");
+if (_guestLogin) _guestLogin.addEventListener("click", function () {
+  sbTunjukLangkah("utama");
+  var em = $("sbEmail"); if (em) em.focus();
+});
+var _namaSimpan = $("namaSimpanBtn");
+if (_namaSimpan) _namaSimpan.addEventListener("click", function () {
+  simpanNamaPaparan($("namaPaparanInput") ? $("namaPaparanInput").value : "");
+});
+var _namaLangkau = $("namaLangkauBtn");
+if (_namaLangkau) _namaLangkau.addEventListener("click", function () {
+  data.settings = data.settings || tetapanLalai(); data.settings.namaDitanya = true; save();
+  sembunyiNamaModal();
+});
+var _akaunNamaSimpan = $("akaunNamaSimpanBtn");
+if (_akaunNamaSimpan) _akaunNamaSimpan.addEventListener("click", function () {
+  simpanNamaPaparan($("akaunNamaPaparan") ? $("akaunNamaPaparan").value : "");
+});
 /* Mula: semak dahulu sama ada pelayar baru pulang daripada Google OAuth
    (token dalam hash URL). Jika ya, sesi Google disimpan dan hash dibersihkan
    sebelum paparan pertama; jika tidak, terus render seperti biasa. */
 SB.kendaliOAuthCallback().then(function (hasil) {
   renderAll();
   if (hasil && hasil.ok) {
-    sbSetStatus("Log masuk Google berjaya sebagai " + (hasil.email || "") + ". Tekan Sync Sekarang untuk muat turun / hantar data.");
-    toast("Log masuk Google berjaya sebagai " + (hasil.email || "") + ".");
+    selepasGoogleBerjaya(hasil);
     sbJalankanSync(true);
   } else if (hasil && hasil.ralat) {
     sbSetStatus(hasil.ralat);

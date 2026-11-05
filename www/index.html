@@ -9,6 +9,30 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- v3.5: Onboarding — pilihan pertama untuk pemasangan baharu (Log Masuk / Tetamu).
+     Hanya ditunjukkan bila tiada sesi dan mod belum dipilih; lihat app.js (tunjukOnboarding). -->
+<div id="onboardingOverlay" class="overlay" hidden>
+  <div class="overlay-card">
+    <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="72" height="72">
+    <h2>Selamat Datang ke KebunKu</h2>
+    <p class="hint">Log kerja kebun anda — kebun, blok, bahan dan dos — semuanya dalam satu tempat, walaupun tanpa internet.</p>
+    <button type="button" class="btn primary besar" id="onbLoginBtn">Log Masuk</button>
+    <button type="button" class="btn secondary besar" id="onbGuestBtn">Teruskan sebagai Tetamu</button>
+    <p class="hint">Data tetamu hanya dalam telefon ini dan tidak di-backup ke cloud. Anda boleh log masuk kemudian.</p>
+  </div>
+</div>
+<!-- v3.5: Prompt nama paparan — ditunjuk sekali selepas log masuk jika tiada nama disimpan. -->
+<div id="namaModal" class="overlay" hidden>
+  <div class="overlay-card">
+    <h2>Nama yang anda ingin gunakan?</h2>
+    <p class="hint">Nama ini dipaparkan pada dashboard anda. Anda boleh ubahnya kemudian dalam Ringkasan &gt; Akaun.</p>
+    <label>Nama Paparan
+      <input type="text" id="namaPaparanInput" placeholder="cth: Jean" autocomplete="name">
+    </label>
+    <button type="button" class="btn primary besar" id="namaSimpanBtn">Simpan Nama</button>
+    <p><button type="button" class="linkbtn" id="namaLangkauBtn">Langkau</button></p>
+  </div>
+</div>
 <header class="top">
   <div class="brand">
     <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="52" height="52">
@@ -33,7 +57,10 @@
 
   <!-- HARI INI -->
   <section id="view-hariini" class="view active">
+    <div id="dashboardSalam" class="salam"></div>
+    <div id="dashboardStat" class="statgrid tiga"></div>
     <h2>Hari Ini</h2>
+    <p class="section-label">Kerja hari ini &amp; tertunggak</p>
     <p class="hint">Kerja yang dirancang hari ini, ditambah kerja tertunggak yang belum siap. Kerja tertunggak tidak akan hilang — ia dibawa ke hadapan sehingga siap.</p>
     <div id="peringatanList"></div>
     <div id="hariIniList"></div>
@@ -406,6 +433,17 @@
       <h3>Akaun</h3>
       <div id="akaunStatus"></div>
 
+      <div id="akaunTetamu" hidden>
+        <p><b>Mod Tetamu</b> — data hanya dalam peranti ini dan tidak di-backup ke cloud.</p>
+        <button type="button" class="btn primary" id="akaunGuestLoginBtn">Log Masuk untuk Backup</button>
+      </div>
+
+      <label>Nama Paparan
+        <input type="text" id="akaunNamaPaparan" placeholder="cth: Jean" autocomplete="name">
+      </label>
+      <div class="row"><button type="button" class="btn secondary" id="akaunNamaSimpanBtn">Simpan Nama</button></div>
+      <p class="hint">Nama ini dipaparkan pada dashboard (Hari Ini) dan disimpan dalam akaun anda bila log masuk.</p>
+
       <button type="button" class="btn google" id="sbGoogleBtn"><span class="gbadge">G</span> Log Masuk dengan Google</button>
       <p class="hint">Paling senang — tiada kata laluan baharu. Anda akan dibawa ke Google, kemudian kembali ke KebunKu.</p>
       <p class="result" id="sbStatus">Belum log masuk.</p>
@@ -463,6 +501,7 @@
         <button type="button" class="btn secondary" id="sbLogoutBtn">Log Keluar</button>
         <button type="button" class="btn danger" id="sbClearBtn">Log Keluar &amp; Padam Sesi Dari Peranti Ini</button>
       </div>
+      <p class="hint" id="sbSyncHint" hidden></p>
       <p class="hint">Butang ini hanya memadam sesi log masuk dari peranti ini sahaja. Tetapan aplikasi kekal, dan data anda dalam akaun <b>tidak</b> dipadam. Untuk dapatkan data semula pada peranti baharu, log masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
     </div>
 
@@ -489,7 +528,8 @@
 </main>
 
 <footer>
-  <p>KebunKu v3.4 — offline-first. Log masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
+  <p>KebunKu v3.5 — offline-first. Log masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
+  <p>© 2026 RJ TECH SOLUTIONS — Hak cipta terpelihara. &nbsp;<a href="privacy.html">Privasi</a></p>
 </footer>
 
 <script src="supabase-config.js"></script>

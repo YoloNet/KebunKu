@@ -2,7 +2,7 @@
 
 **KebunKu** ialah aplikasi log kerja kebun untuk petani yang bekerja sendiri — direka untuk menggantikan catatan dalam notes yang susah dicari balik.
 
-> English summary: KebunKu is an offline-first farm work-log app for solo farmers. Android first (via Capacitor WebView), web now, iOS later. No backend and no login yet in this MVP — all data is stored on the device.
+> English summary: KebunKu is an offline-first farm work-log app for solo farmers. Android first (via Capacitor WebView), web now, iOS later. Supabase cloud sync + Google/email/OTP login (v3.3–v3.5) — all data is stored on the device first, then synced to the user's own account when logged in.
 
 ## Untuk siapa?
 
@@ -23,6 +23,41 @@ v3 dibina daripada fail log Excel sebenar pengguna (13 rekod kerja 2010). Matlam
 7. **Sejarah & Ringkasan** — tapisan baharu: Bahan dan Zon; carian kini meliputi bahan dan dos. Ringkasan kini visual, bukan teks sahaja (v3.2): 4 kad nombor besar (Siap / Belum Siap / Tertunggak / Kos bulan ini), carta donut % siap bulan ini, bar kerja siap 7 hari terakhir, bar kemajuan ikut kebun, dan bar "Bahan Paling Kerap Digunakan — Bulan Ini". Semua carta dibina dengan SVG + CSS sahaja (tiada CDN), supaya kekal offline.
 8. **Muat Contoh Log Lama** — dalam Ringkasan → Data Saya, butang "Muat Contoh Log Lama (13 rekod)" memuatkan 13 rekod kerja sebenar daripada log Excel lama (2010) ke dalam kebun "Kebun Contoh — Log Lama" (5 blok ikut kumpulan tanaman), dengan bahan/dos/zon dan kerja seterusnya + syarat yang sudah dihuraikan. Ia hanya dimuatkan sekali (tekan lagi tidak menduakan) dan boleh dibuang dengan "Padam Data Contoh Sahaja". Nota: fail Excel itu mengandungi 13 rekod kerja, bukan 17 — 20 baris fail termasuk tajuk dan baris kosong pemisah.
 9. **Migrasi automatik v2 → v3** — data lama dikekalkan sepenuhnya; teks dos lama dihuraikan kepada bahagian berstruktur bila boleh ("200g/pokok" → 200/g//pokok, "5ml/sprayer", "1 karung semua kawasan" → 1/karung//kawasan); teks yang tidak dapat dihuraikan ("Ikut label") dikekalkan sebagai teks. Data disimpan dengan kunci `kebunku_data_v3`.
+
+## KebunKu v3.5 — Android / Play Store: onboarding, nama paparan, dashboard, deep link Google
+
+v3.5 menyediakan aplikasi untuk build Android dan muat naik Play Store (Fasa 1 — perubahan aplikasi; build AAB dijalankan dalam Fasa 2 melalui GitHub Actions):
+
+1. **Onboarding — Log Masuk atau Tetamu.** Pada pemasangan baharu (tiada sesi dan mod belum dipilih), skrin penuh "Selamat Datang ke KebunKu" muncul dengan dua pilihan: **Log Masuk** (pergi ke Ringkasan &gt; Akaun) atau **Teruskan sebagai Tetamu** (`settings.mod = "tetamu"`). Pengguna yang sudah log masuk tidak pernah nampak skrin ini. Log keluar memadam `mod`, jadi pengguna kembali ke pilihan ini.
+2. **Mod Tetamu (tempatan sahaja).** Bila `mod = "tetamu"`, `syncPenuh()` dan `jadualAutoSync()` menolak sync terus — data tetamu tidak pernah dihantar ke Supabase. Butang **Sync Sekarang** dilumpuhkan dengan hint "Log masuk untuk backup data anda ke cloud", dan kad Akaun menunjukkan "Mod Tetamu — data hanya dalam peranti ini" + butang **Log Masuk untuk Backup**. Jika tetamu kemudian log masuk, data tempatannya digabungkan ke cloud melalui sync biasa (last-updated-wins).
+3. **Nama paparan.** Selepas sebarang log masuk yang berjaya (Google/email/OTP), jika tiada nama disimpan, aplikasi cuba ambil `user_metadata.nama_paparan` (atau `full_name` untuk Google); jika masih tiada, modal "Nama yang anda ingin gunakan?" muncul sekali sahaja — butang **Langkau** mencatatkan `namaDitanya` supaya tidak mengganggu setiap kali dibuka. Nama disimpan dalam `settings.namaPaparan` DAN ke akaun melalui `PUT /auth/v1/user { data: { nama_paparan } }` (best effort — kegagalan tidak menghalang simpanan tempatan). Medan "Nama Paparan" + "Simpan Nama" juga ada dalam kad Akaun untuk diubah bila-bila masa. Nama dipaparkan dalam sapaan dashboard dan baris status Akaun.
+4. **Dashboard Hari Ini.** Blok sapaan di atas tab Hari Ini: sapaan ikut masa (Selamat pagi &lt;12, Selamat tengah hari 12–15, Selamat petang 15–19, Selamat malam ≥19) + nama jika ada + tarikh hari ini; di bawahnya 3 jubin mini: Kerja Hari Ini / Tertunggak / Siap Hari Ini. Senarai peringatan, senarai kerja dan Rekod Pantas tidak berubah.
+5. **Hak cipta.** Footer setiap paparan: "© 2026 RJ TECH SOLUTIONS — Hak cipta terpelihara." + pautan **Privasi** ke `www/privacy.html`. `package.json` kini ada `"author": "RJ TECH SOLUTIONS"`.
+6. **Google login dalam APK (deep link).** Butang Google kini mengesan Capacitor: dalam APK ia membuka URL authorize melalui plugin **Browser** (`@capacitor/browser`) dan mendengar redirect `com.kebunku.app://login-callback` melalui plugin **App** (`@capacitor/app`, `appUrlOpen`). Token dihurai oleh fungsi `SB.terimaTokenDariUrl(url)` — fungsi yang sama digunakan oleh aliran hash web — dan sesi disimpan sama seperti sebelum ini. `AndroidManifest.xml` ada intent-filter kedua untuk skema `com.kebunku.app` / hos `login-callback` (intent-filter MAIN/LAUNCHER asal tidak disentuh). Aliran web tidak berubah bila Capacitor tiada. **Setup yang Jean MESTI buat:** tambah `com.kebunku.app://login-callback` ke Supabase **Authentication &gt; URL Configuration &gt; Redirect URLs**. Deep link ini diuji dengan URL mock, bukan dengan build APK sebenar (Fasa 2).
+7. **Ikon / splash / aset.** PNG tidak boleh dihantar melalui snapshot push, jadi aset binari **tidak di-commit**. Skrip `scripts/make-assets.py` (Python + PIL, tanpa rangkaian) menjana semula aset daripada `www/assets/logo.svg`: `assets/icon.png` (512×512), `assets/splash.png` (1024×1024 atas krim), dan grafik ciri Play Store 1024×500 ke `~/workspace/kebunku-play-assets/feature-graphic.png` (di luar repo — Jean muat naik manual dalam Play Console). Jalankan dengan `python3 scripts/make-assets.py`. Build GitHub Actions menjalankan skrip ini SEBELUM `npx @capacitor/assets generate`. `capacitor.config.json` kini ada tetapan SplashScreen (`backgroundColor #F7F4EC`, `launchShowDuration 1500`).
+8. **Versi Android.** `android/app/build.gradle`: `versionCode 2`, `versionName "3.5.0"` (daripada 1 / "1.0"). SDK (daripada `android/variables.gradle`): `compileSdk 34`, `targetSdk 34`, `minSdk 22`. `package.json` versi `3.5.0`.
+
+### Play Store — senarai semak
+
+- **AAB, bukan APK debug.** Play Store memerlukan Android App Bundle yang ditandatangani: `./gradlew bundleRelease`. APK debug tidak diterima.
+- **Keystore milik Jean.** Keystore release dicipta oleh Jean sendiri (`keytool -genkeypair ...`) dan **TIDAK PERNAH di-commit**. Build release membacanya daripada GitHub Secrets (lihat bawah) — kata laluan keystore juga rahsia.
+- **versionCode naik setiap release.** Setiap AAB baharu mesti ada `versionCode` lebih tinggi daripada yang sebelumnya (kini 2). `versionName` pula untuk paparan (kini 3.5.0).
+- **Tahap API sasaran (target API level).** Kini `targetSdk 34` (Android 14). Semak keperluan Play Store semasa sebelum hantar — jika Play memerlukan tahap lebih baharu, naikkan `targetSdkVersion` dalam `android/variables.gradle` dan uji semula.
+- **Dasar privasi (URL).** Hoskan `www/privacy.html` (contoh: di hosting web anda) dan tampal URL penuhnya dalam Play Console &gt; App content &gt; Privacy policy. Fail itu menerangkan: email, nama paparan, log kerja kebun; simpanan Supabase dengan RLS (setiap pengguna hanya nampak datanya sendiri); log masuk Google; tiada iklan; tiada jualan data; cara memadam akaun/data (log keluar + hubungi pemilik).
+- **Ikon aplikasi 512×512** — `assets/icon.png` (dijana oleh `scripts/make-assets.py`).
+- **Grafik ciri 1024×500** — `kebunku-play-assets/feature-graphic.png` (dijana oleh skrip yang sama; muat naik manual dalam Play Console &gt; Store listing).
+- **Penilaian kandungan (content rating).** Jawab soal selidik dalam Play Console &gt; App content &gt; Content rating — KebunKu tiada kandungan sensitif, tiada iklan, tiada pembelian dalam aplikasi.
+- **Borang Data Safety.** Isytiharkan: data yang dikumpul ialah email, nama paparan, dan log kerja kebun; data disulitkan semasa transit (HTTPS); tiada iklan; data tidak dikongsi dengan pihak ketiga untuk pengiklanan; pengguna boleh meminta pemadaman akaun/data (hubungi pemilik, lihat `privacy.html`).
+
+### Kunci Supabase dalam aplikasi Android (tepat)
+
+Aplikasi Android membaca fail yang **sama**, `www/supabase-config.js`, yang dibundel ke dalam APK oleh `npx cap sync` — tiada fail config berasingan untuk Android. Untuk build release GitHub Actions (Fasa 2), workflow menulis fail itu daripada GitHub Secrets, supaya kunci tidak masuk ke dalam repo:
+
+- Repo **Settings &gt; Secrets and variables &gt; Actions &gt; New repository secret**:
+  - `SUPABASE_URL` — Project URL Supabase (cth. `https://abcxyz.supabase.co`)
+  - `SUPABASE_ANON_KEY` — anon public key (bukan `service_role` — jangan sesekali guna service_role key dalam aplikasi)
+- Workflow menulis `www/supabase-config.js` dengan dua nilai itu sebelum `npx cap sync`. Fail yang di-commit dalam repo ini kekal KOSONG (placeholder sahaja).
+- **Juga tambah dalam Supabase:** Authentication &gt; URL Configuration &gt; Redirect URLs — `com.kebunku.app://login-callback` (untuk log masuk Google dalam APK).
 
 ## KebunKu v3.4 — Ringkasan untuk pengguna akhir: tiada kunci dalam UI + panduan Cara Guna
 
@@ -62,7 +97,7 @@ v3.3 menambah log masuk pengguna ke kad Supabase dalam Ringkasan → Akaun & San
 - **Kod salah / kod tamat tempoh:** kod OTP Supabase hanya sah beberapa minit. Tekan "Hantar Semula Kod" (tunggu kira detik 60 saat) dan guna kod terkini — kod lama tidak lagi sah selepas kod baharu dihantar.
 - **Kod tidak sampai (inbox kosong):** semak folder Spam/Promotions; jika masih tiada, semak had SMTP projek dalam Supabase (projek percuma ada had email harian).
 - **"Terlalu banyak permintaan kod":** Supabase menghadkan kadar OTP. Tunggu lebih kurang 1 minit kemudian cuba lagi.
-- **Google login dalam APK Android (Capacitor WebView):** aliran redirect web di atas berfungsi dalam pelayar. Dalam WebView, redirect balik ke aplikasi memerlukan deep link (cth. skema `com.kebunku.app://`) yang didaftarkan sebagai Redirect URL — itu langkah masa depan, bukan dalam v3.3.
+- **Google login dalam APK Android (Capacitor WebView):** dilaksanakan dalam v3.5 — plugin Browser + App, deep link `com.kebunku.app://login-callback` (lihat bahagian v3.5). Pastikan URL itu didaftarkan dalam Supabase &gt; Authentication &gt; URL Configuration &gt; Redirect URLs.
 - **Jujur:** Google + OTP dalam v3.3 **tidak diuji terhadap projek Supabase sebenar** di sini (tiada kredensial live) — hanya terhadap endpoint mock dalam ujian automatik. Sila uji dengan projek anda mengikut langkah 4 di atas sebelum mengharapkannya berfungsi sepenuhnya.
 
 ### Supabase v3
@@ -259,7 +294,7 @@ Kemudian bina dan jalankan dalam Xcode. Kod web yang sama dalam `www/` akan digu
 ## Had / batasan MVP ini (jujur)
 
 - **Foto kini 1 gambar setiap kerja, dimampatkan, tempatan sahaja.** Lihat bahagian v2 di atas. Storan fail sebenar (contohnya Capacitor Filesystem) masih merupakan penambahbaikan masa depan jika `localStorage` menjadi sempit; buat masa ini gambar kekal dalam rekod kerja tempatan dan tidak termasuk dalam eksport biasa.
-- **APK release belum dibuat.** APK debug boleh dibina ikut langkah di atas untuk ujian. APK/AAB release yang ditandatangani memerlukan keystore sendiri (lihat langkah release di atas) dan belum dibuat kerana keystore tidak boleh dijana bagi pihak pengguna tanpa kata laluan yang selamat.
+- **APK release belum dibuat.** APK debug boleh dibina ikut langkah di atas untuk ujian. APK/AAB release yang ditandatangani memerlukan keystore sendiri (lihat langkah release di atas) dan belum dibuat kerana keystore tidak boleh dijana bagi pihak pengguna tanpa kata laluan yang selamat. **v3.5:** Fasa 1 (perubahan aplikasi) sudah siap — termasuk deep link Google, ikon/splash yang dijana oleh skrip, dan senarai semak Play Store di atas. Fasa 2 (build AAB melalui GitHub Actions) masih berasingan dan belum dijalankan.
 - **iOS belum dibuat.** Hanya langkah masa depan didokumenkan di atas.
 - **Tiada multi-pengguna lagi.** Semua orang yang guna peranti yang sama akan nampak data yang sama. Lihat bahagian seterusnya untuk reka bentuk masa depan.
 
@@ -290,9 +325,13 @@ kebunku/
 │   ├── index.html   # Antara muka (Bahasa Malaysia, mobile-first, navigasi bawah)
 │   ├── styles.css   # Sistem reka bentuk: hijau gelap + krim, butang min 48px
 │   ├── app.js       # Logik aplikasi, localStorage
+│   ├── privacy.html # Dasar Privasi (Bahasa Malaysia) — pautan dari footer
 │   └── assets/      # logo, ilustrasi kosong, ikon tanaman/kerja/navigasi (SVG tempatan)
+├── scripts/
+│   └── make-assets.py # Jana icon.png / splash.png / feature-graphic.png (PIL, tanpa rangkaian)
 ├── assets/
-│   └── icon.png     # Ikon pelancar Android 512×512
+│   ├── icon.png     # Ikon pelancar Android 512×512 (dijana — TIDAK di-commit)
+│   └── splash.png   # Splash 1024×1024 (dijana — TIDAK di-commit)
 ├── supabase/
 │   └── migrations/
 │       ├── 001_kebunku.sql  # Migrasi Supabase: jadual kebuns/bloks/kerjas + RLS
