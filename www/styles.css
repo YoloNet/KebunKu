@@ -103,6 +103,35 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 4px 
   .dosrow label:first-child { grid-column: 1 / -1; }
 }
 
+/* v3.2: Ringkasan visual — kad stat, donut, bar 7 hari, bar kebun/bahan.
+   Warna sama seperti sistem reka bentuk: hijau ladang, emas, krim. Tiada gradient. */
+.statgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; border-top: 5px solid var(--green); box-shadow: 0 1px 2px rgba(31,42,33,.06); }
+.stat.gold { border-top-color: #C08A1A; }
+.stat.danger { border-top-color: var(--danger); }
+.stat .num { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.15; color: var(--green-dark); overflow-wrap: anywhere; }
+.stat.danger .num { color: var(--danger); }
+.stat .lbl { margin: 4px 0 0; font-weight: 800; font-size: 13.5px; }
+.stat .sub { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+.donutwrap { display: flex; gap: 18px; align-items: center; }
+.donut { width: 132px; height: 132px; flex: 0 0 auto; }
+.donut-pct { font-size: 24px; font-weight: 800; fill: var(--green-dark); }
+.donut-lbl { font-size: 13px; fill: var(--muted); }
+.legend p { margin: 7px 0; font-size: 14.5px; }
+.legend .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
+.weekbars { display: flex; gap: 8px; align-items: flex-end; margin-top: 14px; }
+.weekbar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
+.weekbar .cnt { font-weight: 800; font-size: 13px; }
+.weekbar .col { width: 100%; max-width: 34px; background: var(--green); border-radius: 6px 6px 0 0; }
+.weekbar .col.zero { background: #EAE6D8; }
+.weekbar .day { font-size: 11.5px; color: var(--muted); font-weight: 700; line-height: 1.2; }
+.barrow { margin: 13px 0; }
+.barrow .barhead { display: flex; justify-content: space-between; gap: 10px; font-weight: 700; font-size: 14px; }
+.barrow .barhead span:last-child { color: var(--muted); white-space: nowrap; }
+.bartrack { height: 10px; background: #EAE6D8; border-radius: 999px; overflow: hidden; margin-top: 6px; }
+.barfill { height: 100%; background: var(--green); border-radius: 999px; }
+.barfill.gold { background: #C08A1A; }
+
 /* v2: gambar kerja, suis notifikasi */
 .jobimg { width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin: 10px 0 2px; display: block; }
 .gambar-preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin: 8px 0; display: block; }

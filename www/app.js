@@ -945,6 +945,9 @@ function renderSejarah() {
   if (!list.length) { el.innerHTML += emptyHtml("Tiada rekod menepati tapisan."); return; }
   list.forEach(function (k) { el.appendChild(jobCard(k)); });
 }
+/* Ringkasan visual — kad nombor besar, carta donut, bar 7 hari, bar ikut
+   kebun dan bar bahan. Tiada carta luar / CDN: SVG + CSS sahaja, supaya
+   kekal offline dalam WebView. */
 function renderRingkasan() {
   var t = todayStr();
   var bulan = t.slice(0, 7);
@@ -957,15 +960,65 @@ function renderRingkasan() {
     return { siap: siap.length, belum: belum.length, kos: kos, jumlah: subset.length };
   }
   var mg = kira(mingguMula, t), bl = kira(bulan + "-01", bulan + "-31");
-  $("ringkasanMinggu").innerHTML = "<h3>7 Hari Terakhir (" + fmtDate(mingguMula) + " – " + fmtDate(t) + ")</h3><p>Siap: <b>" + mg.siap + "</b> • Belum siap: <b>" + mg.belum + "</b> • Jumlah: " + mg.jumlah + "<br>Kos kerja siap: <b>" + fmtRM(mg.kos) + "</b></p>";
-  $("ringkasanBulan").innerHTML = "<h3>Bulan Ini (" + bulan + ")</h3><p>Siap: <b>" + bl.siap + "</b> • Belum siap: <b>" + bl.belum + "</b> • Jumlah: " + bl.jumlah + "<br>Kos kerja siap: <b>" + fmtRM(bl.kos) + "</b></p>";
+  var tertunggak = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang < t; }).length;
+  /* Kad stat — 4 nombor besar sepintas lalu. */
+  var statEl = $("ringkasanStat");
+  if (statEl) {
+    statEl.innerHTML = "<div class=\"statgrid\">" +
+      "<div class=\"stat\"><p class=\"num\">" + bl.siap + "</p><p class=\"lbl\">Siap — Bulan Ini</p><p class=\"sub\">daripada " + bl.jumlah + " kerja</p></div>" +
+      "<div class=\"stat gold\"><p class=\"num\">" + bl.belum + "</p><p class=\"lbl\">Belum Siap — Bulan Ini</p><p class=\"sub\">perlu disiapkan</p></div>" +
+      "<div class=\"stat danger\"><p class=\"num\">" + tertunggak + "</p><p class=\"lbl\">Tertunggak</p><p class=\"sub\">melepasi tarikh dirancang</p></div>" +
+      "<div class=\"stat\"><p class=\"num\">" + fmtRM(bl.kos) + "</p><p class=\"lbl\">Kos Kerja Siap</p><p class=\"sub\">bulan ini</p></div>" +
+      "</div>";
+  }
+  /* Carta donut — bulan ini. */
+  var peratusSiap = bl.jumlah ? Math.round(bl.siap / bl.jumlah * 100) : 0;
+  var C = 2 * Math.PI * 54;
+  var siapLen = (C * peratusSiap / 100).toFixed(1);
+  $("ringkasanBulan").innerHTML = "<h3>Bulan Ini (" + bulan + ")</h3>" +
+    "<div class=\"donutwrap\">" +
+    "<svg class=\"donut\" viewBox=\"0 0 132 132\" role=\"img\" aria-label=\"" + peratusSiap + "% kerja siap bulan ini\">" +
+    "<circle cx=\"66\" cy=\"66\" r=\"54\" fill=\"none\" stroke=\"#EAE6D8\" stroke-width=\"16\"/>" +
+    "<circle cx=\"66\" cy=\"66\" r=\"54\" fill=\"none\" stroke=\"#1E4D2B\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-dasharray=\"" + siapLen + " " + C.toFixed(1) + "\" transform=\"rotate(-90 66 66)\"/>" +
+    "<text x=\"66\" y=\"62\" text-anchor=\"middle\" class=\"donut-pct\">" + peratusSiap + "%</text>" +
+    "<text x=\"66\" y=\"82\" text-anchor=\"middle\" class=\"donut-lbl\">siap</text></svg>" +
+    "<div class=\"legend\">" +
+    "<p><span class=\"dot\" style=\"background:#1E4D2B\"></span> Siap — <b>" + bl.siap + "</b></p>" +
+    "<p><span class=\"dot\" style=\"background:#C08A1A\"></span> Belum siap — <b>" + bl.belum + "</b></p>" +
+    "<p><span class=\"dot\" style=\"background:#EAE6D8\"></span> Jumlah — <b>" + bl.jumlah + "</b></p>" +
+    "<p>Kos kerja siap: <b>" + fmtRM(bl.kos) + "</b></p>" +
+    "</div></div>";
+  /* Bar 7 hari — kerja siap setiap hari (ikut tarikh siap, jika tiada ikut tarikh dirancang). */
+  var namaHari = ["Aha", "Isn", "Sel", "Rab", "Kha", "Jum", "Sab"];
+  var barHari = [];
+  var maksHari = 0;
+  for (var i = 0; i < 7; i++) {
+    var hari = addDays(mingguMula, i);
+    var n = data.kerjas.filter(function (k) {
+      if (k.status !== "Siap") return false;
+      var d = k.tarikhSiap || k.tarikhRancang;
+      return d === hari;
+    }).length;
+    if (n > maksHari) maksHari = n;
+    barHari.push({ hari: hari, n: n, label: namaHari[new Date(hari + "T00:00:00").getDay()] });
+  }
+  $("ringkasanMinggu").innerHTML = "<h3>7 Hari Terakhir (" + fmtDate(mingguMula) + " – " + fmtDate(t) + ")</h3>" +
+    "<p class=\"hint\">Kerja siap setiap hari. Jumlah: <b>" + mg.siap + " siap</b> daripada " + mg.jumlah + " kerja • Kos: <b>" + fmtRM(mg.kos) + "</b></p>" +
+    "<div class=\"weekbars\">" + barHari.map(function (b) {
+      var tinggi = maksHari ? Math.max(6, Math.round(b.n / maksHari * 64)) : 4;
+      return "<div class=\"weekbar\"><span class=\"cnt\">" + b.n + "</span><div class=\"col" + (b.n === 0 ? " zero" : "") + "\" style=\"height:" + tinggi + "px\"></div><span class=\"day\">" + b.label + "</span><span class=\"day\">" + b.hari.slice(8) + "</span></div>";
+    }).join("") + "</div>";
+  /* Bar ikut kebun — bulan ini. */
   var perKebun = data.kebuns.map(function (kb) {
     var s = data.kerjas.filter(function (k) { return k.kebunId === kb.id && k.tarikhRancang.slice(0, 7) === bulan; });
     var siap = s.filter(function (k) { return k.status === "Siap"; });
     var kos = siap.reduce(function (a, k) { return a + (Number(k.kos) || 0); }, 0);
-    return "<p>" + esc(kb.nama) + ": siap " + siap.length + ", belum siap " + (s.length - siap.length) + ", kos siap " + fmtRM(kos) + "</p>";
+    var pct = s.length ? Math.round(siap.length / s.length * 100) : 0;
+    return "<div class=\"barrow\"><div class=\"barhead\"><span>" + esc(kb.nama) + "</span><span>" + siap.length + "/" + s.length + " siap • " + fmtRM(kos) + "</span></div>" +
+      "<div class=\"bartrack\"><div class=\"barfill\" style=\"width:" + pct + "%\"></div></div></div>";
   }).join("");
   $("ringkasanKebun").innerHTML = "<h3>Ikut Kebun — Bulan Ini</h3>" + (perKebun || emptyHtml("Belum ada kebun."));
+  /* Bar bahan — 5 paling kerap, bulan ini. */
   var elBahan = $("ringkasanBahan");
   if (elBahan) {
     var kiraBahan = {};
@@ -973,8 +1026,13 @@ function renderRingkasan() {
       kiraBahan[k.bahan] = (kiraBahan[k.bahan] || 0) + 1;
     });
     var susun = Object.keys(kiraBahan).sort(function (a, b) { return kiraBahan[b] - kiraBahan[a]; }).slice(0, 5);
+    var maksBahan = susun.length ? kiraBahan[susun[0]] : 0;
     elBahan.innerHTML = "<h3>Bahan Paling Kerap Digunakan — Bulan Ini</h3>" +
-      (susun.length ? susun.map(function (n) { return "<p>" + esc(n) + ": <b>" + kiraBahan[n] + " kali</b></p>"; }).join("") : "<p class=\"hint\">Belum ada kerja siap bulan ini.</p>");
+      (susun.length ? susun.map(function (n) {
+        var pctB = maksBahan ? Math.round(kiraBahan[n] / maksBahan * 100) : 0;
+        return "<div class=\"barrow\"><div class=\"barhead\"><span>" + esc(n) + "</span><span>" + kiraBahan[n] + " kali</span></div>" +
+          "<div class=\"bartrack\"><div class=\"barfill gold\" style=\"width:" + pctB + "%\"></div></div></div>";
+      }).join("") : "<p class=\"hint\">Belum ada kerja siap bulan ini.</p>");
   }
 }
 function renderAll() { refreshSelects(); refreshBahanSelect(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} }
