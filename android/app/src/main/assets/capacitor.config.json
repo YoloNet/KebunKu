@@ -1,0 +1,8 @@
+{
+	"appId": "com.kebunku.app",
+	"appName": "KebunKu",
+	"server": {
+		"androidScheme": "https"
+	},
+	"webDir": "www"
+}
