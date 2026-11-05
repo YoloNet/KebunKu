@@ -24,6 +24,33 @@ v3 dibina daripada fail log Excel sebenar pengguna (13 rekod kerja 2010). Matlam
 8. **Muat Contoh Log Lama** — dalam Ringkasan → Data Saya, butang "Muat Contoh Log Lama (13 rekod)" memuatkan 13 rekod kerja sebenar daripada log Excel lama (2010) ke dalam kebun "Kebun Contoh — Log Lama" (5 blok ikut kumpulan tanaman), dengan bahan/dos/zon dan kerja seterusnya + syarat yang sudah dihuraikan. Ia hanya dimuatkan sekali (tekan lagi tidak menduakan) dan boleh dibuang dengan "Padam Data Contoh Sahaja". Nota: fail Excel itu mengandungi 13 rekod kerja, bukan 17 — 20 baris fail termasuk tajuk dan baris kosong pemisah.
 9. **Migrasi automatik v2 → v3** — data lama dikekalkan sepenuhnya; teks dos lama dihuraikan kepada bahagian berstruktur bila boleh ("200g/pokok" → 200/g//pokok, "5ml/sprayer", "1 karung semua kawasan" → 1/karung//kawasan); teks yang tidak dapat dihuraikan ("Ikut label") dikekalkan sebagai teks. Data disimpan dengan kunci `kebunku_data_v3`.
 
+## KebunKu v3.3 — log masuk Google & kod pengesahan (OTP)
+
+v3.3 menambah log masuk pengguna ke kad Supabase dalam Ringkasan → Akaun & Sandaran, masih melalui REST Supabase Auth terus (tanpa SDK, tanpa CDN):
+
+1. **Log Masuk dengan Google** — butang putih di atas kad Supabase. Tekan, pilih akaun Google, dan anda kembali ke KebunKu sudah log masuk. Status memaparkan "Log masuk sebagai … (Google)". Pengguna Google tiada kata laluan — Log Keluar berfungsi sama seperti pengguna email.
+2. **Daftar dengan kod pengesahan (OTP)** — laluan daftar utama sekarang. Isi email, tekan "Daftar (Kod Pengesahan)", dan kod 6 digit dihantar ke email itu. Masukkan kod + cipta kata laluan (min. 6 aksara), tekan "Sahkan & Daftar". Hanya pemilik email yang memegang kod itu boleh siapkan pendaftaran — ini yang menghalang pendaftaran spam. Selepas daftar, kata laluan turut ditetapkan supaya akaun itu boleh log masuk dengan email + kata laluan kemudian.
+3. **Log Masuk dengan Kod** — untuk akaun sedia ada yang terlupa kata laluan: isi email, tekan "Log Masuk dengan Kod", masukkan kod 6 digit yang dihantar. Jika kod tidak diterima, guna log masuk kata laluan biasa.
+4. **Log masuk email + kata laluan** — kekal seperti sebelum ini, tidak berubah.
+5. **Anti-spam** — butang "Hantar Semula Kod" dikunci 60 saat dengan kira detik; Supabase sendiri menghadkan kadar permintaan OTP; kod tidak pernah disimpan dalam peranti. Sesi menyimpan medan `kaedah` ("google" / "otp" / "email") supaya status menunjukkan cara log masuk; sesi lama tanpa medan itu dianggap "email". Pautan kecil "Daftar cara lama (pautan email)" masih ada sebagai sandaran jika Email provider belum dihidupkan.
+
+### Setup dashboard yang Jean MESTI buat sendiri (tidak boleh dibuat dari kod)
+
+1. **Google (Authentication > Providers > Google):** hidupkan provider Google. Di [Google Cloud Console](https://console.cloud.google.com/apis/credentials), cipta projek + OAuth consent screen + OAuth client ID (jenis Web application); salin **Client ID** dan **Client Secret** ke dalam Supabase (Authentication > Providers > Google). Dalam Supabase, salin **Callback URL** yang dipaparkan (bentuk `https://<projek>.supabase.co/auth/v1/callback`) dan tampalkannya sebagai **Authorized redirect URI** dalam Google Cloud Console. Dalam Supabase (Authentication > URL Configuration), pastikan **Site URL** ialah URL aplikasi anda dan tambah URL aplikasi ke **Redirect URLs** yang dibenarkan.
+2. **Email OTP (Authentication > Providers > Email):** hidupkan provider Email dan hidupkan pengesahan email (Confirm Email) supaya kod OTP dihantar. Semak juga tetapan **SMTP** — projek percuma Supabase menghantar email melalui SMTP lalai Supabase (ada had harian); untuk penggunaan ramai, sambungkan SMTP sendiri (contoh: Gmail / SendGrid) dalam Authentication > Settings.
+3. **CAPTCHA (disyorkan, anti-spam tambahan):** dalam Supabase, Authentication > Settings > Bot and Abuse Protection, hidupkan CAPTCHA (hCaptcha) untuk endpoint daftar/OTP jika anda bercadang membuka pendaftaran kepada orang ramai.
+4. **Uji:** daftar akaun ujian dengan kod OTP, log keluar, log masuk semula dengan Google, kemudian Sync Sekarang.
+
+### Troubleshooting log masuk
+
+- **"Google belum dihidupkan" / "provider not enabled":** hidupkan Google dalam Authentication > Providers dan pastikan Client ID/Secret sudah disimpan.
+- **"redirect_uri_mismatch" / kembali ke halaman kosong selepas Google:** Redirect URL dalam Google Cloud Console mesti sama tepat dengan Callback URL Supabase (termasuk `https://` dan tanpa slash tambahan); Site URL dalam Supabase mesti URL aplikasi anda.
+- **Kod salah / kod tamat tempoh:** kod OTP Supabase hanya sah beberapa minit. Tekan "Hantar Semula Kod" (tunggu kira detik 60 saat) dan guna kod terkini — kod lama tidak lagi sah selepas kod baharu dihantar.
+- **Kod tidak sampai (inbox kosong):** semak folder Spam/Promotions; jika masih tiada, semak had SMTP projek dalam Supabase (projek percuma ada had email harian).
+- **"Terlalu banyak permintaan kod":** Supabase menghadkan kadar OTP. Tunggu lebih kurang 1 minit kemudian cuba lagi.
+- **Google login dalam APK Android (Capacitor WebView):** aliran redirect web di atas berfungsi dalam pelayar. Dalam WebView, redirect balik ke aplikasi memerlukan deep link (cth. skema `com.kebunku.app://`) yang didaftarkan sebagai Redirect URL — itu langkah masa depan, bukan dalam v3.3.
+- **Jujur:** Google + OTP dalam v3.3 **tidak diuji terhadap projek Supabase sebenar** di sini (tiada kredensial live) — hanya terhadap endpoint mock dalam ujian automatik. Sila uji dengan projek anda mengikut langkah 4 di atas sebelum mengharapkannya berfungsi sepenuhnya.
+
 ### Supabase v3
 
 Jalankan migrasi baharu **selepas** 001: `supabase/migrations/002_kebunku_v3.sql` (lihat langkah setup Supabase di bawah — langkah 2 kini merangkumi kedua-dua fail). Ia menambah `bloks.peringkat`, `kerjas.zon/dos_jumlah/dos_unit/dos_per/next_syarat/next_tukar_bahan/next_bahan`, dan jadual baharu `public.bahans` (pustaka bahan) dengan RLS owner-only yang sama. Pustaka bahan turut di-sync (tarik, gabung, upsert, tombstone) seperti kebun/blok/kerja.
@@ -77,7 +104,7 @@ Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST te
 1. **Cipta projek Supabase percuma** di https://supabase.com (New project, pilih rantau terdekat, tetapkan kata laluan database).
 2. **Jalankan migrasi SQL** — dalam Supabase Dashboard, pergi ke **SQL Editor > New query**, tampal keseluruhan fail `supabase/migrations/001_kebunku.sql`, dan tekan **Run**. Fail ini mencipta jadual `kebuns`, `bloks`, `kerjas` dalam skema `public`, menghidupkan Row Level Security (RLS) pada ketiga-tiganya, menambah polisi "hanya baris sendiri" (`user_id = auth.uid()`), dan indeks `(user_id, updated_at)`. Ia idempotent untuk polisi/indeks (boleh dijalankan semula). **Kemudian jalankan fail kedua, `supabase/migrations/002_kebunku_v3.sql`, dengan cara yang sama** — ia menambah lajur v3 (`peringkat`, `zon`, dos berstruktur, syarat kerja seterusnya) dan jadual `public.bahans` dengan RLS owner-only. Fail 002 juga idempotent (ADD COLUMN IF NOT EXISTS) dan mesti dijalankan selepas 001.
 3. **Salin Project URL dan anon key** — dari **Project Settings > API**: `Project URL` (contoh: `https://abcxyz.supabase.co`) dan `anon public` key. Anon key ini selamat untuk aplikasi client kerana RLS melindungi data, tetapi jangan commit ia ke GitHub — masukkan dalam aplikasi sahaja.
-4. **Masukkan dalam KebunKu** — buka **Ringkasan > Akaun & Sandaran > Supabase**, tampal URL dan anon key, isi Email dan Kata Laluan, kemudian tekan **Daftar** (akaun baharu) atau **Log Masuk** (akaun sedia ada).
+4. **Masukkan dalam KebunKu** — buka **Ringkasan > Akaun & Sandaran > Supabase**, tampal URL dan anon key, kemudian log masuk: butang **Log Masuk dengan Google**, atau isi Email dan Kata Laluan dan tekan **Log Masuk**, atau tekan **Daftar (Kod Pengesahan)** untuk akaun baharu (lihat bahagian v3.3 di atas untuk setup Google/OTP dalam dashboard Supabase).
 5. **Sync Sekarang** — tekan butang ini untuk sync pertama. Status akan memaparkan "Sync siap: X dihantar, Y diterima" atau mesej ralat yang jelas jika ada masalah.
 6. **Uji retrieve selepas uninstall** — pada peranti / pelayar lain (atau selepas memadam data tempatan — pastikan eksport JSON dibuat dahulu sebagai sandaran keselamatan), masukkan URL/key yang sama, log masuk dengan **email yang sama**, dan tekan **Sync Sekarang**. Kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.
 

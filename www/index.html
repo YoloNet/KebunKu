@@ -415,22 +415,62 @@
         <input type="password" id="sbAnon" placeholder="Anon public key dari Project Settings &gt; API" autocomplete="off">
       </label>
       <button type="button" class="btn secondary small" id="sbAnonToggle">Tunjuk / Sembunyi Anon Key</button>
-      <label>Email
-        <input type="email" id="sbEmail" placeholder="cth: anda@email.com" autocomplete="email">
-      </label>
-      <label>Kata Laluan
-        <input type="password" id="sbPassword" placeholder="Kata laluan akaun Supabase anda" autocomplete="current-password">
-      </label>
+
+      <button type="button" class="btn google" id="sbGoogleBtn"><span class="gbadge">G</span> Log Masuk dengan Google</button>
+      <p class="hint">Paling senang — tiada kata laluan baharu. Anda akan dibawa ke Google, kemudian kembali ke KebunKu. Google mesti dihidupkan dalam Supabase anda dahulu (lihat README).</p>
       <p class="result" id="sbStatus">Belum disambung.</p>
-      <div class="row">
-        <button type="button" class="btn primary" id="sbDaftarBtn">Daftar</button>
-        <button type="button" class="btn primary" id="sbLoginBtn">Log Masuk</button>
-        <button type="button" class="btn secondary" id="sbLogoutBtn">Log Keluar</button>
+
+      <div id="sbStepUtama">
+        <label>Email
+          <input type="email" id="sbEmail" placeholder="cth: anda@email.com" autocomplete="email">
+        </label>
+        <label>Kata Laluan
+          <input type="password" id="sbPassword" placeholder="Kata laluan akaun Supabase anda" autocomplete="current-password">
+        </label>
+        <div class="row">
+          <button type="button" class="btn primary" id="sbDaftarBtn">Daftar (Kod Pengesahan)</button>
+          <button type="button" class="btn primary" id="sbLoginBtn">Log Masuk</button>
+        </div>
+        <div class="row">
+          <button type="button" class="btn secondary" id="sbKodLoginBtn">Log Masuk dengan Kod</button>
+        </div>
+        <p class="hint">Daftar: kami hantar kod 6 digit ke email anda — hanya pemilik email yang ada kod itu boleh siapkan pendaftaran. Ini mengelakkan pendaftaran spam.</p>
+      </div>
+
+      <div id="sbStepOtpDaftar" hidden>
+        <h3>Daftar — Sahkan Email Anda</h3>
+        <p class="hint" id="sbOtpDaftarInfo">Kod 6 digit dihantar ke email anda.</p>
+        <label>Kod Pengesahan (6 digit)
+          <input type="text" id="sbOtpKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456">
+        </label>
+        <label>Kata Laluan Baharu (min. 6 aksara)
+          <input type="password" id="sbOtpKata" placeholder="Cipta kata laluan untuk log masuk kemudian" autocomplete="new-password">
+        </label>
+        <div class="row">
+          <button type="button" class="btn primary" id="sbOtpSahkanBtn">Sahkan &amp; Daftar</button>
+          <button type="button" class="btn secondary" id="sbOtpHantarSemulaBtn">Hantar Semula Kod</button>
+        </div>
+        <p><button type="button" class="linkbtn" id="sbOtpTukarEmailBtn">← Tukar Email</button></p>
+        <p><button type="button" class="linkbtn" id="sbDaftarLamaBtn">Daftar cara lama (pautan email)</button></p>
+      </div>
+
+      <div id="sbStepOtpLogin" hidden>
+        <h3>Log Masuk dengan Kod</h3>
+        <p class="hint" id="sbOtpLoginInfo">Kod 6 digit dihantar ke email anda.</p>
+        <label>Kod Pengesahan (6 digit)
+          <input type="text" id="sbOtpLoginKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456">
+        </label>
+        <div class="row">
+          <button type="button" class="btn primary" id="sbOtpLoginSahkanBtn">Sahkan &amp; Log Masuk</button>
+          <button type="button" class="btn secondary" id="sbOtpLoginHantarSemulaBtn">Hantar Semula Kod</button>
+        </div>
+        <p><button type="button" class="linkbtn" id="sbOtpLoginTukarEmailBtn">← Tukar Email</button></p>
       </div>
       <label class="toggle-row"><input type="checkbox" id="sbAutoToggle" checked> Sync Automatik Bila Online</label>
       <p class="hint">Bila suis ini HIDUP dan anda sudah log masuk, setiap kali data tempatan disimpan dan ada internet, aplikasi akan cuba sync automatik (dengan sedikit kelewatan, tanpa menghalang simpanan tempatan).</p>
       <div class="row">
         <button type="button" class="btn primary" id="sbSyncBtn">Sync Sekarang</button>
+        <button type="button" class="btn secondary" id="sbLogoutBtn">Log Keluar</button>
         <button type="button" class="btn danger" id="sbClearBtn">Padam Tetapan Supabase dari Peranti Ini</button>
       </div>
       <p class="hint">Butang padam tetapan hanya memadam URL, anon key dan sesi log masuk dari peranti ini sahaja. Ia <b>tidak</b> memadam data anda dalam Supabase. Untuk retrieve selepas uninstall: pada peranti baharu, masukkan URL/key yang sama, log masuk dengan email yang sama, dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
@@ -459,7 +499,7 @@
 </main>
 
 <footer>
-  <p>KebunKu v3 — offline-first. Sync Supabase tersedia dalam Ringkasan &gt; Akaun &amp; Sandaran bila anda sambungkannya.</p>
+  <p>KebunKu v3.3 — offline-first. Sync Supabase tersedia dalam Ringkasan &gt; Akaun &amp; Sandaran bila anda sambungkannya.</p>
 </footer>
 
 <script src="app.js"></script>

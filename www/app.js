@@ -310,16 +310,134 @@ var SB = {
     if (!cfg.anon) throw new Error("Supabase Anon Key kosong. Salin anon public key dari Supabase > Project Settings > API.");
     return cfg;
   },
-  authPanggil: function (cfg, laluan, badan) {
+  /* Panggilan Auth generik (REST, tanpa SDK): kaedah POST/PUT/GET, dengan
+     token Bearer pilihan. Token/kod tidak pernah dilog atau dipaparkan. */
+  panggilAuth: function (cfg, kaedah, laluan, badan, token) {
+    var headers = { "apikey": cfg.anon, "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = "Bearer " + token;
     return fetch(cfg.url + laluan, {
-      method: "POST",
-      headers: { "apikey": cfg.anon, "Content-Type": "application/json" },
-      body: JSON.stringify(badan)
+      method: kaedah, headers: headers,
+      body: badan ? JSON.stringify(badan) : undefined
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (j) {
         if (!res.ok) throw new Error(SB.ralat(j, "Gagal log masuk / daftar (kod " + res.status + "). Semak email, kata laluan, URL dan anon key."));
         return j;
       });
+    });
+  },
+  authPanggil: function (cfg, laluan, badan) {
+    return this.panggilAuth(cfg, "POST", laluan, badan, null);
+  },
+  /* Bina objek sesi daripada jawapan Supabase yang mengandungi session.
+     kaedah: "email" | "otp" | "google" (sesi lama tanpa medan ini = "email"). */
+  simpanSesiDariToken: function (j, email, kaedah) {
+    var ses = j.session || j;
+    if (!ses || !ses.access_token) throw new Error("Supabase tidak mengembalikan sesi. Sila cuba lagi.");
+    var pengguna = j.user || ses.user || {};
+    this.simpanSesi({ access_token: ses.access_token, refresh_token: ses.refresh_token || "",
+      user_id: pengguna.id || "", email: email || pengguna.email || "",
+      expires_at: Date.now() + ((Number(ses.expires_in) || 3600) * 1000),
+      kaedah: kaedah || "email" });
+    return true;
+  },
+  /* ===== OTP (kod pengesahan email) — anti-spam pendaftaran =====
+     Hanya pemilik email yang memegang kod 6 digit boleh siapkan pendaftaran
+     atau log masuk dengan kod. Supabase sendiri menghadkan kadar permintaan
+     OTP; aplikasi menambah cooldown hantar-semula 60 saat (lihat
+     mulaCooldownOtp). Kod tidak pernah disimpan dalam localStorage. */
+  hantarOtp: function (email, createUser) {
+    var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
+    if (!email || email.indexOf("@") < 1) throw new Error("Isi email yang sah dahulu.");
+    this.simpanCfg(cfg.url, cfg.anon);
+    return this.authPanggil(cfg, "/auth/v1/otp", { email: email, create_user: !!createUser });
+  },
+  sahkanOtp: function (email, kod, jenis) {
+    var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
+    if (!/^\d{6}$/.test(kod || "")) throw new Error("Kod pengesahan mesti 6 digit nombor.");
+    var self = this;
+    return this.authPanggil(cfg, "/auth/v1/verify", { email: email, token: kod, type: jenis })
+      .catch(function (e) { throw new Error(SB.ralatOtp(e)); })
+      .then(function (j) { self.simpanSesiDariToken(j, email, "otp"); return j; });
+  },
+  /* Tetapkan kata laluan selepas daftar OTP, supaya akaun itu juga boleh
+     log masuk dengan email + kata laluan kemudian. Gagal di sini tidak
+     membatalkan pendaftaran — pengguna masih log masuk melalui kod. */
+  tetapKataLaluan: function (token, kata) {
+    var cfg = this.cfg();
+    return this.panggilAuth(cfg, "PUT", "/auth/v1/user", { password: kata }, token);
+  },
+  ralatOtp: function (e) {
+    var m = String((e && e.message) || e || "");
+    if (/expired|invalid/i.test(m) && /token|kod/i.test(m)) return "Kod salah atau sudah tamat tempoh. Tekan Hantar Semula Kod untuk kod baharu.";
+    if (/Token has expired|invalid/i.test(m)) return "Kod salah atau sudah tamat tempoh. Tekan Hantar Semula Kod untuk kod baharu.";
+    if (/rate limit|too many/i.test(m)) return "Terlalu banyak permintaan kod. Tunggu sebentar (lebih kurang 1 minit) kemudian cuba lagi.";
+    if (/already registered|already exists/i.test(m)) return "Email ini sudah berdaftar. Guna Log Masuk atau Log Masuk dengan Kod.";
+    if (/not found|user not found/i.test(m)) return "Email ini belum berdaftar. Daftar dahulu dengan kod pengesahan.";
+    if (/email.*not confirmed|not confirmed/i.test(m)) return "Email belum disahkan. Minta kod baharu dan sahkan dahulu.";
+    return m || "Kod tidak dapat disahkan. Semak kod dan cuba lagi.";
+  },
+  /* Cooldown hantar-semula: butang dikunci 60 saat dengan kira detik,
+     untuk mengelakkan spam permintaan OTP. */
+  _otpTimer: null,
+  mulaCooldownOtp: function (btn) {
+    if (!btn) return;
+    var self = this;
+    if (this._otpTimer) { try { clearInterval(this._otpTimer); } catch (e) {} }
+    var baki = 60;
+    btn.disabled = true;
+    btn.textContent = "Hantar semula (" + baki + "s)";
+    this._otpTimer = setInterval(function () {
+      baki--;
+      if (baki <= 0) {
+        clearInterval(self._otpTimer); self._otpTimer = null;
+        btn.disabled = false; btn.textContent = "Hantar Semula Kod";
+      } else {
+        btn.textContent = "Hantar semula (" + baki + "s)";
+      }
+    }, 1000);
+  },
+  /* ===== Google login (OAuth implicit flow Supabase) =====
+     Aplikasi hanya membina URL authorize dan membaca token daripada hash
+     selepas Google memulangkan pengguna ke sini. Tiada client secret dalam
+     aplikasi — secret itu hanya dalam dashboard Supabase (lihat README). */
+  googleLogin: function () {
+    var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
+    this.simpanCfg(cfg.url, cfg.anon);
+    var balik = (location.protocol === "file:")
+      ? location.href.split("#")[0].split("?")[0]
+      : location.origin + location.pathname;
+    location.href = cfg.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(balik);
+  },
+  kendaliOAuthCallback: function () {
+    var self = this;
+    var hash = (location.hash || "").replace(/^#/, "");
+    var carian = new URLSearchParams(location.search || "");
+    var h = new URLSearchParams(hash);
+    var ralat = h.get("error") || carian.get("error");
+    var ralatDes = h.get("error_description") || carian.get("error_description") || "";
+    if (ralat) {
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+      var msg = /access_denied/i.test(ralat) ? "Log masuk Google dibatalkan."
+        : (/provider (is )?not enabled|provider_disabled/i.test(ralat + " " + ralatDes) ? "Google belum dihidupkan dalam Supabase anda. Hidupkan Google dalam Authentication > Providers (lihat README)."
+        : "Log masuk Google gagal: " + (decodeURIComponent(ralatDes.replace(/\+/g, " ")) || ralat));
+      return Promise.resolve({ ralat: msg });
+    }
+    var token = h.get("access_token");
+    if (!token) return Promise.resolve(null);
+    var cfg;
+    try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.resolve({ ralat: "Sesi Google diterima, tetapi URL Supabase belum disimpan dalam aplikasi ini. Masukkan URL dan anon key dahulu, kemudian cuba lagi." }); }
+    return this.panggilAuth(cfg, "GET", "/auth/v1/user", null, token).then(function (pengguna) {
+      var email = (pengguna && pengguna.email) || "";
+      var uid = (pengguna && pengguna.id) || "";
+      self.simpanSesi({ access_token: token, refresh_token: h.get("refresh_token") || "",
+        user_id: uid, email: email,
+        expires_at: Date.now() + ((Number(h.get("expires_in")) || 3600) * 1000),
+        kaedah: "google" });
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e2) {}
+      return { ok: true, email: email };
+    }).catch(function (e) {
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e2) {}
+      return { ralat: "Sesi Google diterima tetapi tidak dapat disahkan: " + (e.message || e) };
     });
   },
   daftar: function () {
@@ -333,7 +451,8 @@ var SB = {
       if (j.session && j.session.access_token) {
         self.simpanSesi({ access_token: j.session.access_token, refresh_token: j.session.refresh_token || "",
           user_id: (j.user && j.user.id) || (j.session.user && j.session.user.id) || "",
-          email: email, expires_at: Date.now() + ((Number(j.session.expires_in) || 3600) * 1000) });
+          email: email, expires_at: Date.now() + ((Number(j.session.expires_in) || 3600) * 1000),
+          kaedah: "email" });
         return { perluSahkan: false };
       }
       return { perluSahkan: true };
@@ -350,7 +469,8 @@ var SB = {
       if (!j.access_token) throw new Error("Log masuk gagal. Semak email dan kata laluan, dan pastikan email sudah disahkan jika Confirm Email dihidupkan dalam Supabase.");
       self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || "",
         user_id: (j.user && j.user.id) || "", email: email,
-        expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000) });
+        expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000),
+        kaedah: "email" });
       return true;
     });
   },
@@ -362,7 +482,8 @@ var SB = {
       if (!j.access_token) throw new Error("Sesi tamat. Sila log masuk semula.");
       self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || s.refresh_token,
         user_id: (j.user && j.user.id) || s.user_id, email: s.email,
-        expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000) });
+        expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000),
+        kaedah: s.kaedah || "email" });
       return j.access_token;
     });
   },
@@ -525,6 +646,11 @@ var SB = {
       throw e;
     });
   },
+  kaedahLabel: function (kaedah) {
+    if (kaedah === "google") return "Google";
+    if (kaedah === "otp") return "Kod Pengesahan";
+    return "Email";
+  },
   renderStatus: function () {
     var el = $("sbStatus"); if (!el) return;
     var cfg = this.cfg(); var s = this.sesi(); var st = this.syncState();
@@ -534,12 +660,15 @@ var SB = {
     if ($("sbEmail") && s && s.email) $("sbEmail").value = s.email;
     var akhir = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleString("ms-MY") : "belum pernah";
     if (s && s.email) {
-      el.textContent = "Log masuk sebagai " + s.email + " • Terakhir sync: " + akhir +
+      el.textContent = "Log masuk sebagai " + s.email + " (" + this.kaedahLabel(s.kaedah) + ") • Terakhir sync: " + akhir +
         " • Sync automatik: " + (st.autoSync ? "HIDUP" : "MATI") + ".";
+      if (typeof sbTunjukLangkah === "function") sbTunjukLangkah("logmasuk");
     } else if (cfg.url && cfg.anon) {
-      el.textContent = "Belum log masuk — Supabase sudah dikonfigurasi. Masukkan email dan kata laluan, kemudian Daftar atau Log Masuk, kemudian Sync Sekarang.";
+      el.textContent = "Belum log masuk — Supabase sudah dikonfigurasi. Log masuk dengan Google, email + kata laluan, atau kod pengesahan, kemudian Sync Sekarang.";
+      if (typeof sbTunjukLangkah === "function") sbTunjukLangkah((sbLangkahSemasa === "logmasuk" || !sbLangkahSemasa) ? "utama" : sbLangkahSemasa);
     } else {
-      el.textContent = "Belum disambung. Masukkan Supabase URL dan anon key, kemudian Daftar atau Log Masuk.";
+      el.textContent = "Belum disambung. Masukkan Supabase URL dan anon key, kemudian log masuk dengan Google atau email.";
+      if (typeof sbTunjukLangkah === "function") sbTunjukLangkah((sbLangkahSemasa === "logmasuk" || !sbLangkahSemasa) ? "utama" : sbLangkahSemasa);
     }
   }
 };
@@ -1452,31 +1581,122 @@ function sbJalankanSync(manual) {
     sbSetStatus("Sync gagal: " + msg + " — semak URL/key, log masuk, dan sambungan internet.");
   });
 }
+/* ===== Log masuk — langkah yang ditunjukkan (satu pada satu masa) ===== */
+var sbLangkahSemasa = "utama";
+var sbOtpEmailDaftar = "", sbOtpEmailLogin = "";
+function sbTunjukLangkah(nama) {
+  sbLangkahSemasa = nama;
+  var peta = { utama: "sbStepUtama", otpdaftar: "sbStepOtpDaftar", otplogin: "sbStepOtpLogin" };
+  ["sbStepUtama", "sbStepOtpDaftar", "sbStepOtpLogin"].forEach(function (id) {
+    var el = $(id); if (el) el.hidden = (id !== peta[nama]);
+  });
+}
+function sbEmailUtama() { return $("sbEmail") ? $("sbEmail").value.trim() : ""; }
+function sbSelepasLogMasuk(kaedahLabel) {
+  data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save(); renderAll();
+  sbSetStatus("Log masuk berjaya (" + kaedahLabel + "). Tekan Sync Sekarang untuk muat turun / hantar data.");
+  toast("Log masuk berjaya.");
+}
+/* Google — butang di atas kad Supabase. */
+var _sbGoogle = $("sbGoogleBtn");
+if (_sbGoogle) _sbGoogle.addEventListener("click", function () {
+  try { SB.googleLogin(); } catch (e) { sbSetStatus("Log masuk Google gagal: " + (e.message || e)); }
+});
+/* Daftar baharu — laluan utama: OTP. Kod 6 digit dihantar ke email; hanya
+   pemilik email yang ada kod itu boleh siapkan pendaftaran (anti-spam). */
 var _sbDaftar = $("sbDaftarBtn");
 if (_sbDaftar) _sbDaftar.addEventListener("click", function () {
+  var email = sbEmailUtama();
+  try {
+    SB.hantarOtp(email, true).then(function () {
+      sbOtpEmailDaftar = email;
+      var info = $("sbOtpDaftarInfo"); if (info) info.textContent = "Kod 6 digit dihantar ke " + email + ". Semak inbox / spam.";
+      sbTunjukLangkah("otpdaftar");
+      SB.mulaCooldownOtp($("sbOtpHantarSemulaBtn"));
+      sbSetStatus("Kod pengesahan dihantar ke " + email + ". Masukkan kod 6 digit dan cipta kata laluan.");
+    }).catch(function (e) { sbSetStatus("Gagal hantar kod: " + (e.message || e)); toast("Gagal hantar kod: " + (e.message || e)); });
+  } catch (e) { sbSetStatus("Gagal hantar kod: " + (e.message || e)); }
+});
+var _sbOtpSah = $("sbOtpSahkanBtn");
+if (_sbOtpSah) _sbOtpSah.addEventListener("click", function () {
+  var kod = $("sbOtpKod") ? $("sbOtpKod").value.trim() : "";
+  var kata = $("sbOtpKata") ? $("sbOtpKata").value : "";
+  if (!/^\d{6}$/.test(kod)) { sbSetStatus("Kod pengesahan mesti 6 digit nombor."); return; }
+  if (!kata || kata.length < 6) { sbSetStatus("Kata laluan baharu mesti sekurang-kurangnya 6 aksara."); return; }
+  SB.sahkanOtp(sbOtpEmailDaftar, kod, "signup").then(function (j) {
+    var token = j.session ? j.session.access_token : "";
+    /* Tetapkan kata laluan supaya akaun ini juga boleh log masuk dengan
+       email + kata laluan kemudian. Jika langkah ini gagal, pendaftaran
+       tetap sah — pengguna masih boleh log masuk dengan kod. */
+    return SB.tetapKataLaluan(token, kata).catch(function (eKata) {
+      toast("Daftar berjaya, tetapi kata laluan tidak dapat ditetapkan — guna Log Masuk dengan Kod buat masa ini.");
+    }).then(function () { sbSelepasLogMasuk("Kod Pengesahan"); });
+  }).catch(function (e) { sbSetStatus("Pengesahan gagal: " + (e.message || e)); toast("Pengesahan gagal: " + (e.message || e)); });
+});
+var _sbOtpSemula = $("sbOtpHantarSemulaBtn");
+if (_sbOtpSemula) _sbOtpSemula.addEventListener("click", function () {
+  SB.hantarOtp(sbOtpEmailDaftar, true).then(function () {
+    SB.mulaCooldownOtp(_sbOtpSemula);
+    sbSetStatus("Kod baharu dihantar ke " + sbOtpEmailDaftar + ".");
+  }).catch(function (e) { sbSetStatus("Gagal hantar kod baharu: " + (e.message || e)); });
+});
+var _sbOtpTukar = $("sbOtpTukarEmailBtn");
+if (_sbOtpTukar) _sbOtpTukar.addEventListener("click", function () { sbTunjukLangkah("utama"); });
+/* Daftar cara lama (pautan email) — pautan kecil sahaja, untuk kes OTP
+   tidak dapat digunakan (contoh: Email provider belum dihidupkan). */
+var _sbDaftarLama = $("sbDaftarLamaBtn");
+if (_sbDaftarLama) _sbDaftarLama.addEventListener("click", function () {
   try {
     SB.daftar().then(function (h) {
       if (h.perluSahkan) {
         sbSetStatus("Daftar berjaya — sila sahkan email anda dahulu (semak inbox) jika Confirm Email dihidupkan dalam Supabase, kemudian Log Masuk.");
         toast("Daftar berjaya. Sahkan email dahulu jika diminta, kemudian Log Masuk.");
       } else {
-        data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save(); renderAll();
-        sbSetStatus("Daftar dan log masuk berjaya. Tekan Sync Sekarang untuk sync pertama.");
-        toast("Daftar berjaya.");
+        sbSelepasLogMasuk("Email");
       }
     }).catch(function (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); toast("Daftar gagal: " + (e.message || e)); });
   } catch (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); }
 });
+/* Log masuk email + kata laluan — kekal seperti sebelum ini. */
 var _sbLogin = $("sbLoginBtn");
 if (_sbLogin) _sbLogin.addEventListener("click", function () {
   try {
     SB.logMasuk().then(function () {
-      data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save(); renderAll();
-      sbSetStatus("Log masuk berjaya. Tekan Sync Sekarang untuk muat turun / hantar data.");
-      toast("Log masuk berjaya.");
+      sbSelepasLogMasuk("Email");
     }).catch(function (e) { sbSetStatus("Log masuk gagal: " + (e.message || e)); toast("Log masuk gagal: " + (e.message || e)); });
   } catch (e) { sbSetStatus("Log masuk gagal: " + (e.message || e)); }
 });
+/* Log masuk dengan kod — email sedia ada, tanpa kata laluan. */
+var _sbKodLogin = $("sbKodLoginBtn");
+if (_sbKodLogin) _sbKodLogin.addEventListener("click", function () {
+  var email = sbEmailUtama();
+  try {
+    SB.hantarOtp(email, false).then(function () {
+      sbOtpEmailLogin = email;
+      var info = $("sbOtpLoginInfo"); if (info) info.textContent = "Kod 6 digit dihantar ke " + email + ". Semak inbox / spam.";
+      sbTunjukLangkah("otplogin");
+      SB.mulaCooldownOtp($("sbOtpLoginHantarSemulaBtn"));
+      sbSetStatus("Kod log masuk dihantar ke " + email + ".");
+    }).catch(function (e) { sbSetStatus("Gagal hantar kod log masuk: " + (e.message || e) + " — cuba Log Masuk dengan kata laluan."); });
+  } catch (e) { sbSetStatus("Gagal hantar kod log masuk: " + (e.message || e)); }
+});
+var _sbOtpLoginSah = $("sbOtpLoginSahkanBtn");
+if (_sbOtpLoginSah) _sbOtpLoginSah.addEventListener("click", function () {
+  var kod = $("sbOtpLoginKod") ? $("sbOtpLoginKod").value.trim() : "";
+  if (!/^\d{6}$/.test(kod)) { sbSetStatus("Kod pengesahan mesti 6 digit nombor."); return; }
+  SB.sahkanOtp(sbOtpEmailLogin, kod, "email").then(function () {
+    sbSelepasLogMasuk("Kod Pengesahan");
+  }).catch(function (e) { sbSetStatus("Log masuk dengan kod gagal: " + (e.message || e) + " — cuba Log Masuk dengan kata laluan."); });
+});
+var _sbOtpLoginSemula = $("sbOtpLoginHantarSemulaBtn");
+if (_sbOtpLoginSemula) _sbOtpLoginSemula.addEventListener("click", function () {
+  SB.hantarOtp(sbOtpEmailLogin, false).then(function () {
+    SB.mulaCooldownOtp(_sbOtpLoginSemula);
+    sbSetStatus("Kod baharu dihantar ke " + sbOtpEmailLogin + ".");
+  }).catch(function (e) { sbSetStatus("Gagal hantar kod baharu: " + (e.message || e)); });
+});
+var _sbOtpLoginTukar = $("sbOtpLoginTukarEmailBtn");
+if (_sbOtpLoginTukar) _sbOtpLoginTukar.addEventListener("click", function () { sbTunjukLangkah("utama"); });
 var _sbLogout = $("sbLogoutBtn");
 if (_sbLogout) _sbLogout.addEventListener("click", function () {
   SB.logKeluar().then(function () { renderAll(); toast("Log keluar. Data tempatan dikekalkan; data awan tidak dipadam."); });
@@ -1518,5 +1738,21 @@ if (_impC) _impC.addEventListener("click", function () {
 });
 var _kn = $("kerjaNext"); if (_kn) _kn.addEventListener("change", toggleNextCustom);
 toggleNextCustom(); syncPeratusStatus(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
-renderAll();
-semakNotifikasi();
+/* Mula: semak dahulu sama ada pelayar baru pulang daripada Google OAuth
+   (token dalam hash URL). Jika ya, sesi Google disimpan dan hash dibersihkan
+   sebelum paparan pertama; jika tidak, terus render seperti biasa. */
+SB.kendaliOAuthCallback().then(function (hasil) {
+  renderAll();
+  if (hasil && hasil.ok) {
+    sbSetStatus("Log masuk Google berjaya sebagai " + (hasil.email || "") + ". Tekan Sync Sekarang untuk muat turun / hantar data.");
+    toast("Log masuk Google berjaya sebagai " + (hasil.email || "") + ".");
+    sbJalankanSync(true);
+  } else if (hasil && hasil.ralat) {
+    sbSetStatus(hasil.ralat);
+  }
+  semakNotifikasi();
+}).catch(function (e) {
+  renderAll();
+  sbSetStatus("Log masuk Google gagal: " + (e.message || e));
+  semakNotifikasi();
+});
