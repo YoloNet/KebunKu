@@ -6,8 +6,8 @@ binari TIDAK di-commit dalam repo ini. Sebaliknya, skrip ini menjana semula
 aset daripada logo SVG sedia ada (www/assets/logo.svg) dengan PIL sahaja
 (tiada rangkaian, tiada kebergantungan luar):
 
-  assets/icon.png        — ikon pelancar 512x512
-  assets/splash.png      — splash 1024x1024 atas latar krim
+  assets/icon.png        — ikon pelancar 1024x1024
+  assets/splash.png      — splash 2732x2732 atas latar krim
   <play-assets>/feature-graphic.png — grafik ciri Play Store 1024x500
 
 Skrip ini juga dijalankan oleh build GitHub Actions SEBELUM
@@ -95,18 +95,18 @@ def cari_font(bold=False, saiz=40):
 
 
 def buat_icon(laluan):
-    img = Image.new("RGB", (512, 512), KRIM)
+    img = Image.new("RGB", (1024, 1024), KRIM)
     d = ImageDraw.Draw(img)
-    lukis_logo(d, 0, 0, 512 / 96)
+    lukis_logo(d, 0, 0, 1024 / 96)
     img.save(laluan, "PNG")
     return img.size
 
 
 def buat_splash(laluan):
-    img = Image.new("RGB", (1024, 1024), KRIM)
+    img = Image.new("RGB", (2732, 2732), KRIM)
     d = ImageDraw.Draw(img)
-    saiz_logo = 512
-    lukis_logo(d, (1024 - saiz_logo) // 2, (1024 - saiz_logo) // 2, saiz_logo / 96)
+    saiz_logo = 1024
+    lukis_logo(d, (2732 - saiz_logo) // 2, (2732 - saiz_logo) // 2, saiz_logo / 96)
     img.save(laluan, "PNG")
     return img.size
 
