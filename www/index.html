@@ -407,6 +407,13 @@
     <div id="sejarahKalendar"></div>
     <div id="sejarahHariList"></div>
     <div id="sejarahList"></div>
+    <!-- v3.7: Slot iklan Sejarah — SATU banner, di bawah semua kandungan.
+         Disembunyikan sepenuhnya bila iklan dimatikan / tiada ID, supaya
+         tiada ruang kosong. Iklan sebenar hanya dimuat bila tab ini aktif. -->
+    <div class="slot-iklan" id="slotIklanSejarah" hidden>
+      <p class="iklan-label">Iklan</p>
+      <div class="iklan-ruang" id="ruangIklanSejarah"></div>
+    </div>
   </section>
 
   <!-- RINGKASAN -->
@@ -528,15 +535,24 @@
         <button type="button" class="btn danger" id="deleteAllBtn">Padam Semua Data</button>
       </div>
     </div>
+
+    <!-- v3.7: Slot iklan Ringkasan — SATU banner, di bawah semua kad dan
+         betul-betul sebelum footer. Disembunyikan sepenuhnya bila iklan
+         dimatikan / tiada ID, supaya tiada ruang kosong. -->
+    <div class="slot-iklan" id="slotIklanRingkasan" hidden>
+      <p class="iklan-label">Iklan</p>
+      <div class="iklan-ruang" id="ruangIklanRingkasan"></div>
+    </div>
   </section>
 </main>
 
 <footer>
-  <p>KebunKu v3.6 — offline-first. Daftar masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
+  <p>KebunKu v3.7 — offline-first. Daftar masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
   <p>© 2026 RJ TECH SOLUTIONS — Hak cipta terpelihara. &nbsp;<a href="privacy.html">Privasi</a></p>
 </footer>
 
 <script src="supabase-config.js"></script>
+<script src="ads-config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

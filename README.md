@@ -57,6 +57,51 @@ Pengumuman dalam aplikasi (di atas) berfungsi SEKARANG selepas 003 dijalankan �
 
 `android/app/build.gradle`: `versionCode 3`, `versionName "3.6.0"`. `package.json` versi `3.6.0`.
 
+## KebunKu v3.7 — Iklan (infrastruktur, belum dihidupkan)
+
+v3.7 menyediakan infrastruktur iklan Google untuk masa depan. Iklan **DIMATIKAN secara lalai** (`diaktifkan: false` dalam `www/ads-config.js`) — selagi suis itu false, aplikasi tidak memuat sebarang skrip iklan dan tiada ruang iklan yang muncul. Semua ID dihantar sebagai placeholder kosong; tiada ID penerbit/unit sebenar dalam repo.
+
+### Perbezaan jujur — AdSense vs AdMob (penting untuk pemilik)
+
+- **AdSense = versi WEB sahaja.** Polisi Google melarang iklan AdSense dipaparkan dalam WebView aplikasi. Memaparkan AdSense dalam APK boleh menyebabkan akaun AdSense disekat. Jadi laluan AdSense dalam kod hanya berjalan bila aplikasi dibuka di pelayar web (tiada `window.Capacitor`).
+- **AdMob = APK Android.** Ini produk yang betul untuk aplikasi. Laluan AdMob hanya berjalan dalam Capacitor. Plugin `@capacitor-community/admob@6.2.0` dipasang dan didaftar melalui `npx cap sync` (`android/app/src/main/assets/capacitor.plugins.json`).
+
+### Kedudukan & polisi kekerapan (dikuatkuasakan dalam kod — objek `Iklan` dalam `app.js`)
+
+- **Maksima 2 banner** dalam seluruh aplikasi: satu di bawah tab **Ringkasan** (selepas semua kad, sebelum footer) dan satu di bawah tab **Sejarah** (selepas kalendar/senarai dan butang "Tunjuk Lagi"). Kedua-duanya berlabel "Iklan" dalam teks kecil pudar.
+- **Maksima 1 iklan kelihatan pada satu masa** — hanya slot tab aktif boleh dimuat; slot lain tersembunyi bersama tabnya. Banner AdMob natif ditunjukkan hanya semasa tab Ringkasan/Sejarah aktif dan disembunyikan pada semua tab lain.
+- **Minima 60 saat antara muatan iklan baharu** untuk slot/unit yang sama — tukar tab berulang kali tidak memuat iklan baharu.
+- **Tiada interstitial, tiada rewarded, tiada popup.** Tiada iklan dalam borang Kerja, Hari Ini, onboarding, atau aliran daftar masuk.
+- **Tiada anjakan layout:** bekas slot disembunyikan sepenuhnya bila iklan dimatikan / tiada ID (tiada ruang kosong), dan ruang menyimpan ketinggian tetap (min 100px) bila iklan dimuat. Banner AdMob natif diletakkan `BOTTOM_CENTER` dengan margin 76dp supaya ia duduk di atas bar navigasi bawah, bukan menutupnya.
+
+### Cara hidupkan — versi web (AdSense)
+
+1. Cipta akaun Google AdSense dan dapatkan **ID penerbit** (`ca-pub-...`) dan **ID unit iklan** untuk dua slot banner.
+2. Isi dalam `www/ads-config.js`: `adsense.publisherId` (nombor sahaja pun diterima — kod tambah `ca-pub-` sendiri), `adsense.slotRingkasan`, `adsense.slotSejarah`.
+3. Tetapkan `diaktifkan: true`.
+4. Tambah fail `ads.txt` pada laman web yang menghoskan versi web (AdSense memerlukannya untuk pengesahan penerbit).
+
+### Cara hidupkan — APK (AdMob)
+
+1. Cipta akaun Google AdMob dan daftarkan aplikasi Android `com.kebunku.app`; dapatkan **App ID** (`ca-app-pub-...~...`) dan **dua ID unit banner**.
+2. Tambah meta-data ini dalam `android/app/src/main/AndroidManifest.xml` (dalam `<application>`, gantikan `APP_ID_SEBENAR` dengan App ID anda — JANGAN commit App ID palsu; tanpa meta-data ini SDK AdMob tidak akan berfungsi):
+   ```xml
+   <meta-data
+     android:name="com.google.android.gms.ads.APPLICATION_ID"
+     android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
+   ```
+3. Isi dalam `www/ads-config.js`: `admob.appId`, `admob.bannerRingkasan`, `admob.bannerSejarah`.
+4. Tetapkan `diaktifkan: true`, jalankan `npx cap sync android`, dan build semula APK/AAB.
+5. Semasa menguji, guna **test ad unit IDs** Google dahulu (banner test: `ca-app-pub-3940256099942544/6300978111`) — JANGAN klik iklan sendiri dalam aplikasi sebenar.
+
+### Mod pratonton
+
+Tetapkan `modPratonton: true` dalam `www/ads-config.js` (suis `diaktifkan` boleh kekal `false`) — kedua-dua slot memaparkan kotak berlabel "Ruang Iklan — pratonton sahaja. Tiada iklan sebenar dimuatkan." di kedudukan sebenar, **tanpa** memuat sebarang skrip iklan luar. Guna ini untuk melihat kedudukan iklan sebelum akaun iklan siap.
+
+### Versi Android (v3.7)
+
+`android/app/build.gradle`: `versionCode 4`, `versionName "3.7.0"`. `package.json` versi `3.7.0`.
+
 ## KebunKu v3.5 — Android / Play Store: onboarding, nama paparan, dashboard, deep link Google
 
 v3.5 menyediakan aplikasi untuk build Android dan muat naik Play Store (Fasa 1 — perubahan aplikasi; build AAB dijalankan dalam Fasa 2 melalui GitHub Actions):
@@ -76,11 +121,11 @@ v3.5 menyediakan aplikasi untuk build Android dan muat naik Play Store (Fasa 1 �
 - **Keystore milik Jean.** Keystore release dicipta oleh Jean sendiri (`keytool -genkeypair ...`) dan **TIDAK PERNAH di-commit**. Build release membacanya daripada GitHub Secrets (lihat bawah) — kata laluan keystore juga rahsia.
 - **versionCode naik setiap release.** Setiap AAB baharu mesti ada `versionCode` lebih tinggi daripada yang sebelumnya (kini 2). `versionName` pula untuk paparan (kini 3.5.0).
 - **Tahap API sasaran (target API level).** Kini `targetSdk 34` (Android 14). Semak keperluan Play Store semasa sebelum hantar — jika Play memerlukan tahap lebih baharu, naikkan `targetSdkVersion` dalam `android/variables.gradle` dan uji semula.
-- **Dasar privasi (URL).** Hoskan `www/privacy.html` (contoh: di hosting web anda) dan tampal URL penuhnya dalam Play Console &gt; App content &gt; Privacy policy. Fail itu menerangkan: email, nama paparan, log kerja kebun; simpanan Supabase dengan RLS (setiap pengguna hanya nampak datanya sendiri); log masuk Google; tiada iklan; tiada jualan data; cara memadam akaun/data (log keluar + hubungi pemilik).
+- **Dasar privasi (URL).** Hoskan `www/privacy.html` (contoh: di hosting web anda) dan tampal URL penuhnya dalam Play Console &gt; App content &gt; Privacy policy. Fail itu menerangkan: email, nama paparan, log kerja kebun; simpanan Supabase dengan RLS (setiap pengguna hanya nampak datanya sendiri); log masuk Google; iklan (buat masa ini tiada — seksyen 8 dalam `privacy.html` menerangkan iklan masa depan); tiada jualan data; cara memadam akaun/data (log keluar + hubungi pemilik).
 - **Ikon aplikasi 512×512** — `assets/icon.png` (dijana oleh `scripts/make-assets.py`).
 - **Grafik ciri 1024×500** — `kebunku-play-assets/feature-graphic.png` (dijana oleh skrip yang sama; muat naik manual dalam Play Console &gt; Store listing).
-- **Penilaian kandungan (content rating).** Jawab soal selidik dalam Play Console &gt; App content &gt; Content rating — KebunKu tiada kandungan sensitif, tiada iklan, tiada pembelian dalam aplikasi.
-- **Borang Data Safety.** Isytiharkan: data yang dikumpul ialah email, nama paparan, dan log kerja kebun; data disulitkan semasa transit (HTTPS); tiada iklan; data tidak dikongsi dengan pihak ketiga untuk pengiklanan; pengguna boleh meminta pemadaman akaun/data (hubungi pemilik, lihat `privacy.html`).
+- **Penilaian kandungan (content rating).** Jawab soal selidik dalam Play Console &gt; App content &gt; Content rating — KebunKu tiada kandungan sensitif, tiada pembelian dalam aplikasi. Iklan: buat masa ini tiada (iklan dimatikan secara lalai); jika iklan AdMob dihidupkan kemudian, jawab semula bahagian iklan dalam soal selidik ini.
+- **Borang Data Safety.** Isytiharkan: data yang dikumpul ialah email, nama paparan, dan log kerja kebun; data disulitkan semasa transit (HTTPS); buat masa ini tiada iklan — jika iklan AdMob dihidupkan kemudian, isytiharkan juga bahawa Google AdMob boleh mengumpul pengecam peranti (advertising ID) untuk iklan; data tidak dikongsi dengan pihak ketiga untuk pengiklanan; pengguna boleh meminta pemadaman akaun/data (hubungi pemilik, lihat `privacy.html`).
 
 ### Kunci Supabase dalam aplikasi Android (tepat)
 

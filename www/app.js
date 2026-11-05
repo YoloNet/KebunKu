@@ -1352,6 +1352,192 @@ function daftarPushNotifications() {
   } catch (e) {}
 }
 
+/* ===== v3.7 — Iklan (AdSense web / AdMob APK) =====
+   Satu tempat yang mengawal semua iklan. Polisi kekerapan dikuatkuasakan
+   di sini, bukan sekadar dalam dokumen:
+   - MAKSIMA 2 banner dalam seluruh aplikasi: bawah Ringkasan + bawah
+     Sejarah. Tiada interstitial, tiada rewarded, tiada popup, tiada
+     iklan dalam borang Kerja, Hari Ini, onboarding atau daftar masuk.
+   - MAKSIMA 1 iklan kelihatan pada satu masa (hanya slot tab aktif
+     boleh dimuat; slot lain tersembunyi bersama tabnya).
+   - MINIMA 60 saat antara muatan iklan baharu untuk slot/unit yang
+     sama (tukar tab berulang kali tidak memuat iklan baharu).
+   - Iklan tidak pernah menyekat kandungan dan tidak menganjak layout:
+     bekas slot disembunyikan sepenuhnya bila iklan dimatikan / tiada
+     ID, dan ruang menyimpan ketinggian tetap bila iklan dimuat.
+   - AdSense = WEB sahaja (polisi Google melarang AdSense dalam WebView
+     aplikasi — memaparkannya dalam APK boleh menyebabkan akaun AdSense
+     disekat). AdMob = APK sahaja. Kod ini memilih jalan mengikut
+     platform: ada window.Capacitor -> AdMob, tiada -> AdSense.
+   - Semua ID datang dari www/ads-config.js (window.KEBUNKU_ADS).
+     Iklan DIMATIKAN secara lalai; tiada skrip luar dimuat selagi
+     diaktifkan: false. Mod pratonton hanya melukis kotak berlabel,
+     tidak memuat sebarang skrip iklan. Semua di dalam try/catch supaya
+   iklan tidak pernah merosakkan aplikasi. */
+var Iklan = {
+  JARAK_MUAT_MIN_MS: 60000,
+  _terakhirMuat: {},
+  _admobMuatUnit: {},
+  _skripAdsenseDimuat: false,
+  _admobMula: false,
+  _admobSedia: false,
+  _admobUnitAktif: null,
+  _admobDisembunyikan: true,
+  cfg: function () {
+    try {
+      var c = (typeof window !== "undefined" && window.KEBUNKU_ADS) ? window.KEBUNKU_ADS : null;
+      if (c && typeof c === "object") return c;
+    } catch (e) {}
+    return { diaktifkan: false, modPratonton: false, adsense: {}, admob: {} };
+  },
+  dalamCapacitor: function () { return !!(typeof window !== "undefined" && window.Capacitor); },
+  modPratonton: function () { return !!this.cfg().modPratonton; },
+  diaktifkan: function () { return !!this.cfg().diaktifkan; },
+  bekasEl: function (slot) { return slot === "ringkasan" ? $("slotIklanRingkasan") : $("slotIklanSejarah"); },
+  ruangEl: function (slot) { return slot === "ringkasan" ? $("ruangIklanRingkasan") : $("ruangIklanSejarah"); },
+  normalPub: function (pub) {
+    var p = String(pub || "").trim();
+    if (!p) return "";
+    return p.indexOf("ca-pub-") === 0 ? p : "ca-pub-" + p;
+  },
+  slotAdsense: function (slot) {
+    var a = this.cfg().adsense || {};
+    var pub = this.normalPub(a.publisherId);
+    var unit = String(slot === "ringkasan" ? (a.slotRingkasan || "") : (a.slotSejarah || "")).trim();
+    if (!pub || !unit) return null;
+    return { client: pub, slot: unit };
+  },
+  slotAdmob: function (slot) {
+    var a = this.cfg().admob || {};
+    if (!String(a.appId || "").trim()) return null;
+    var unit = String(slot === "ringkasan" ? (a.bannerRingkasan || "") : (a.bannerSejarah || "")).trim();
+    return unit || null;
+  },
+  /* Pratonton: kotak berlabel di kedudukan slot sebenar, tanpa sebarang
+     skrip iklan. Kedua-dua bekas dibuka sekali — hanya slot dalam tab
+     aktif yang kelihatan kerana tab lain disembunyikan. */
+  tunjukPratonton: function () {
+    var self = this;
+    ["ringkasan", "sejarah"].forEach(function (slot) {
+      var bekas = self.bekasEl(slot), ruang = self.ruangEl(slot);
+      if (!bekas || !ruang) return;
+      ruang.innerHTML = "";
+      var d = document.createElement("div");
+      d.className = "iklan-pratonton";
+      d.textContent = "Ruang Iklan — pratonton sahaja. Tiada iklan sebenar dimuatkan.";
+      ruang.appendChild(d);
+      bekas.hidden = false;
+    });
+  },
+  /* AdSense (web sahaja): skrip dimuat sekali sahaja, <ins> dibina
+     untuk slot aktif, push sekali. Muatan diulang hanya selepas 60s. */
+  muatAdsense: function (slot) {
+    var s = this.slotAdsense(slot);
+    if (!s) return;
+    var kini = Date.now();
+    if (this._terakhirMuat[slot] && kini - this._terakhirMuat[slot] < this.JARAK_MUAT_MIN_MS) return;
+    this._terakhirMuat[slot] = kini;
+    var bekas = this.bekasEl(slot), ruang = this.ruangEl(slot);
+    if (!bekas || !ruang) return;
+    if (!this._skripAdsenseDimuat) {
+      this._skripAdsenseDimuat = true;
+      var sk = document.createElement("script");
+      sk.async = true;
+      sk.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(s.client);
+      sk.setAttribute("crossorigin", "anonymous");
+      document.head.appendChild(sk);
+    }
+    ruang.innerHTML = "";
+    var ins = document.createElement("ins");
+    ins.className = "adsbygoogle";
+    ins.style.display = "block";
+    ins.setAttribute("data-ad-client", s.client);
+    ins.setAttribute("data-ad-slot", s.slot);
+    ins.setAttribute("data-ad-format", "auto");
+    ins.setAttribute("data-full-width-responsive", "true");
+    ruang.appendChild(ins);
+    bekas.hidden = false;
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
+  },
+  /* AdMob (APK sahaja): plugin dicapai melalui Capacitor.Plugins seperti
+     plugin lain (App / Browser / PushNotifications). Semua guarded. */
+  _admob: function () {
+    try {
+      if (!this.dalamCapacitor()) return null;
+      return (window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob) || null;
+    } catch (e) { return null; }
+  },
+  mulaAdmob: function () {
+    var AM = this._admob();
+    if (!AM || this._admobMula) return;
+    this._admobMula = true;
+    var self = this;
+    try {
+      var p = AM.initialize ? AM.initialize() : null;
+      if (p && p.then) p.then(function () { self._admobSedia = true; }).catch(function () {});
+      else this._admobSedia = true;
+    } catch (e) {}
+  },
+  tunjukAdmob: function (slot) {
+    var unit = this.slotAdmob(slot);
+    if (!unit) { this.sembunyiAdmob(); return; }
+    var AM = this._admob();
+    if (!AM || !this._admobSedia) return;
+    if (this._admobUnitAktif === unit && !this._admobDisembunyikan) return;
+    var kini = Date.now();
+    var self = this;
+    /* Banner ialah overlay natif di bawah skrin. Margin 76dp supaya ia
+       duduk betul-betul di atas bar navigasi bawah (bukan menutupnya). */
+    var tunjuk = function () {
+      try {
+        var r = AM.showBanner({ adId: unit, adSize: "BANNER", position: "BOTTOM_CENTER", margin: 76 });
+        if (r && r.catch) r.catch(function () {});
+      } catch (e) {}
+    };
+    try {
+      if (this._admobUnitAktif && this._admobUnitAktif !== unit) {
+        var lama = AM.removeBanner ? AM.removeBanner() : null;
+        if (lama && lama.then) lama.then(tunjuk).catch(tunjuk);
+        else tunjuk();
+      } else if (this._admobUnitAktif === unit && this._admobDisembunyikan &&
+        this._admobMuatUnit[unit] && kini - this._admobMuatUnit[unit] < this.JARAK_MUAT_MIN_MS) {
+        /* Unit sama, masih dalam 60 saat — papar semula tanpa minta
+           iklan baharu. */
+        try { var h = AM.resumeBanner ? AM.resumeBanner() : null; if (h && h.catch) h.catch(function () {}); } catch (e) {}
+      } else {
+        tunjuk();
+        this._admobMuatUnit[unit] = kini;
+      }
+      this._admobUnitAktif = unit;
+      this._admobDisembunyikan = false;
+    } catch (e) {}
+  },
+  sembunyiAdmob: function () {
+    if (this._admobDisembunyikan) return;
+    this._admobDisembunyikan = true;
+    try {
+      var AM = this._admob();
+      if (AM && AM.hideBanner) { var h = AM.hideBanner(); if (h && h.catch) h.catch(function () {}); }
+    } catch (e) {}
+  },
+  /* Dipanggil setiap kali tab bertukar (lihat setTab) dan sekali semasa
+     mula (lihat aliran OAuth di bawah). */
+  padaTab: function (nama) {
+    try {
+      if (this.modPratonton()) { this.tunjukPratonton(); return; }
+      if (!this.diaktifkan()) { this.sembunyiAdmob(); return; }
+      if (this.dalamCapacitor()) {
+        this.mulaAdmob();
+        if (nama === "ringkasan" || nama === "sejarah") this.tunjukAdmob(nama);
+        else this.sembunyiAdmob();
+        return;
+      }
+      if (nama === "ringkasan" || nama === "sejarah") this.muatAdsense(nama);
+    } catch (e) {}
+  },
+  init: function () { this.padaTab("hariini"); }
+};
+
 /* ===== v3.5 — Dashboard, onboarding (tetamu vs daftar masuk), nama paparan ===== */
 function salamWaktu() { var jam = new Date().getHours(); if (jam < 12) return "Selamat pagi"; if (jam < 15) return "Selamat tengah hari"; if (jam < 19) return "Selamat petang"; return "Selamat malam"; }
 function namaPaparan() { return (data.settings && data.settings.namaPaparan) ? data.settings.namaPaparan.trim() : ""; }
@@ -1467,6 +1653,7 @@ function setTab(name) {
   document.querySelectorAll(".tab").forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
   document.querySelectorAll(".view").forEach(function (v) { v.classList.toggle("active", v.id === "view-" + name); });
   window.scrollTo(0, 0);
+  try { Iklan.padaTab(name); } catch (e) {}
 }
 document.querySelectorAll(".tab").forEach(function (b) { b.addEventListener("click", function () { setTab(b.dataset.tab); }); });
 
@@ -2139,6 +2326,7 @@ if (_akaunNamaSimpan) _akaunNamaSimpan.addEventListener("click", function () {
    sebelum paparan pertama; jika tidak, terus render seperti biasa. */
 SB.kendaliOAuthCallback().then(function (hasil) {
   renderAll();
+  try { Iklan.init(); } catch (e) {}
   try { muatPengumuman(); daftarPushNotifications(); } catch (e) {}
   if (hasil && hasil.ok) {
     selepasGoogleBerjaya(hasil);
@@ -2149,6 +2337,7 @@ SB.kendaliOAuthCallback().then(function (hasil) {
   semakNotifikasi();
 }).catch(function (e) {
   renderAll();
+  try { Iklan.init(); } catch (e2) {}
   try { daftarPushNotifications(); } catch (e2) {}
   sbSetStatus("Daftar masuk Google gagal: " + (e.message || e));
   semakNotifikasi();
