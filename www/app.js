@@ -1,9 +1,12 @@
 "use strict";
-/* KebunKu v3 — offline-first. Sync Supabase dilaksanakan melalui objek SB di
+/* KebunKu v3 — offline-first. Sync awan dilaksanakan melalui objek SB di
    bawah, terus dengan REST (Auth + PostgREST), tanpa CDN SDK, supaya aplikasi
-   kekal berfungsi offline di dalam WebView. URL/key/sesi Supabase disimpan
-   dalam kunci localStorage yang berasingan dan TIDAK pernah dimasukkan
-   dalam eksport data utama. Gambar tidak pernah dihantar ke Supabase.
+   kekal berfungsi offline di dalam WebView. Tetapan sambungan dibaca
+   daripada fail www/supabase-config.js (diisi pemilik) atau tetapan
+   peranti yang disimpan sebelum ini — tiada medan tetapan dalam UI.
+   Sesi log masuk disimpan dalam kunci localStorage yang berasingan dan
+   TIDAK pernah dimasukkan dalam eksport data utama. Gambar tidak pernah
+   dihantar ke awan.
    v3 (dari log Excel sebenar pengguna): zon, bahan berstruktur (jumlah+unit+per),
    pustaka bahan, peringkat blok, syarat kerja seterusnya + tukar bahan. */
 var KEY = "kebunku_data_v3";
@@ -203,18 +206,20 @@ var SB = {
     try { var v = localStorage.getItem(kunci); return v ? JSON.parse(v) : lalai; } catch (e) { return lalai; }
   },
   _tulis: function (kunci, nilai) { try { localStorage.setItem(kunci, JSON.stringify(nilai)); } catch (e) {} },
+  /* Tetapan sambungan — keutamaan: fail www/supabase-config.js yang diisi
+     oleh pemilik (window.KEBUNKU_SUPABASE), kemudian tetapan yang pernah
+     disimpan dalam peranti ini (kebunku_supabase_config_v1). Pengguna
+     akhir tidak pernah melihat atau mengisi tetapan ini. */
   cfg: function () {
+    var kapal = (typeof window !== "undefined" && window.KEBUNKU_SUPABASE) || {};
+    var urlKapal = (kapal.url || "").trim(), anonKapal = (kapal.anon || "").trim();
+    if (urlKapal && anonKapal) return { url: urlKapal.replace(/\/+$/, ""), anon: anonKapal };
     var c = this._baca(SB_CFG_KEY, {});
     return { url: (c.url || "").replace(/\/+$/, ""), anon: c.anon || "" };
   },
-  simpanCfg: function (url, anon) { this._tulis(SB_CFG_KEY, { url: (url || "").replace(/\/+$/, ""), anon: anon || "" }); },
   sesi: function () { return this._baca(SB_SES_KEY, null); },
   simpanSesi: function (s) { this._tulis(SB_SES_KEY, s); },
   clearSesi: function () { try { localStorage.removeItem(SB_SES_KEY); } catch (e) {} },
-  clearCfgDanSesi: function () {
-    try { localStorage.removeItem(SB_CFG_KEY); } catch (e) {}
-    this.clearSesi();
-  },
   syncState: function () {
     var s = this._baca(SB_SYNC_KEY, null);
     if (!s || typeof s !== "object") return { lastSyncAt: 0, autoSync: true, deleted: { kebuns: [], bloks: [], kerjas: [], bahans: [] } };
@@ -300,14 +305,11 @@ var SB = {
     if (j && typeof j === "object") return j.msg || j.error_description || j.message || j.error || lalai;
     return lalai;
   },
-  bacaCfgDariBorang: function () {
-    var url = $("sbUrl") ? $("sbUrl").value.trim() : "";
-    var anon = $("sbAnon") ? $("sbAnon").value.trim() : "";
-    return { url: url.replace(/\/+$/, ""), anon: anon };
-  },
+  /* Tiada lagi medan tetapan dalam UI — tetapan dibaca daripada fail
+     config pemilik atau tetapan peranti yang disimpan sebelum ini. */
+  bacaCfgDariBorang: function () { return this.cfg(); },
   sahkanCfg: function (cfg) {
-    if (!cfg.url || cfg.url.indexOf("https://") !== 0) throw new Error("Supabase URL tidak sah. Masukkan URL penuh bermula dengan https://, contohnya https://abcxyz.supabase.co");
-    if (!cfg.anon) throw new Error("Supabase Anon Key kosong. Salin anon public key dari Supabase > Project Settings > API.");
+    if (!cfg.url || cfg.url.indexOf("https://") !== 0 || !cfg.anon) throw new Error("Aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi.");
     return cfg;
   },
   /* Panggilan Auth generik (REST, tanpa SDK): kaedah POST/PUT/GET, dengan
@@ -320,7 +322,7 @@ var SB = {
       body: badan ? JSON.stringify(badan) : undefined
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (j) {
-        if (!res.ok) throw new Error(SB.ralat(j, "Gagal log masuk / daftar (kod " + res.status + "). Semak email, kata laluan, URL dan anon key."));
+        if (!res.ok) throw new Error(SB.ralat(j, "Gagal log masuk / daftar (kod " + res.status + "). Semak email dan kata laluan, kemudian cuba lagi."));
         return j;
       });
     });
@@ -332,7 +334,7 @@ var SB = {
      kaedah: "email" | "otp" | "google" (sesi lama tanpa medan ini = "email"). */
   simpanSesiDariToken: function (j, email, kaedah) {
     var ses = j.session || j;
-    if (!ses || !ses.access_token) throw new Error("Supabase tidak mengembalikan sesi. Sila cuba lagi.");
+    if (!ses || !ses.access_token) throw new Error("Log masuk tidak mengembalikan sesi. Sila cuba lagi.");
     var pengguna = j.user || ses.user || {};
     this.simpanSesi({ access_token: ses.access_token, refresh_token: ses.refresh_token || "",
       user_id: pengguna.id || "", email: email || pengguna.email || "",
@@ -348,7 +350,6 @@ var SB = {
   hantarOtp: function (email, createUser) {
     var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
     if (!email || email.indexOf("@") < 1) throw new Error("Isi email yang sah dahulu.");
-    this.simpanCfg(cfg.url, cfg.anon);
     return this.authPanggil(cfg, "/auth/v1/otp", { email: email, create_user: !!createUser });
   },
   sahkanOtp: function (email, kod, jenis) {
@@ -402,7 +403,6 @@ var SB = {
      aplikasi — secret itu hanya dalam dashboard Supabase (lihat README). */
   googleLogin: function () {
     var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
-    this.simpanCfg(cfg.url, cfg.anon);
     var balik = (location.protocol === "file:")
       ? location.href.split("#")[0].split("?")[0]
       : location.origin + location.pathname;
@@ -418,14 +418,14 @@ var SB = {
     if (ralat) {
       try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
       var msg = /access_denied/i.test(ralat) ? "Log masuk Google dibatalkan."
-        : (/provider (is )?not enabled|provider_disabled/i.test(ralat + " " + ralatDes) ? "Google belum dihidupkan dalam Supabase anda. Hidupkan Google dalam Authentication > Providers (lihat README)."
+        : (/provider (is )?not enabled|provider_disabled/i.test(ralat + " " + ralatDes) ? "Log masuk Google belum dihidupkan untuk aplikasi ini. Sila hubungi pemilik aplikasi."
         : "Log masuk Google gagal: " + (decodeURIComponent(ralatDes.replace(/\+/g, " ")) || ralat));
       return Promise.resolve({ ralat: msg });
     }
     var token = h.get("access_token");
     if (!token) return Promise.resolve(null);
     var cfg;
-    try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.resolve({ ralat: "Sesi Google diterima, tetapi URL Supabase belum disimpan dalam aplikasi ini. Masukkan URL dan anon key dahulu, kemudian cuba lagi." }); }
+    try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.resolve({ ralat: "Sesi Google diterima, tetapi aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi." }); }
     return this.panggilAuth(cfg, "GET", "/auth/v1/user", null, token).then(function (pengguna) {
       var email = (pengguna && pengguna.email) || "";
       var uid = (pengguna && pengguna.id) || "";
@@ -445,7 +445,6 @@ var SB = {
     var email = $("sbEmail") ? $("sbEmail").value.trim() : "";
     var kata = $("sbPassword") ? $("sbPassword").value : "";
     if (!email || !kata) throw new Error("Isi email dan kata laluan dahulu.");
-    this.simpanCfg(cfg.url, cfg.anon);
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/signup", { email: email, password: kata }).then(function (j) {
       if (j.session && j.session.access_token) {
@@ -463,10 +462,9 @@ var SB = {
     var email = $("sbEmail") ? $("sbEmail").value.trim() : "";
     var kata = $("sbPassword") ? $("sbPassword").value : "";
     if (!email || !kata) throw new Error("Isi email dan kata laluan dahulu.");
-    this.simpanCfg(cfg.url, cfg.anon);
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/token?grant_type=password", { email: email, password: kata }).then(function (j) {
-      if (!j.access_token) throw new Error("Log masuk gagal. Semak email dan kata laluan, dan pastikan email sudah disahkan jika Confirm Email dihidupkan dalam Supabase.");
+      if (!j.access_token) throw new Error("Log masuk gagal. Semak email dan kata laluan, dan pastikan email sudah disahkan jika pengesahan email diperlukan.");
       self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || "",
         user_id: (j.user && j.user.id) || "", email: email,
         expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000),
@@ -489,7 +487,7 @@ var SB = {
   },
   tokenSah: function () {
     var s = this.sesi();
-    if (!s || !s.access_token) return Promise.reject(new Error("Anda belum log masuk ke Supabase. Masukkan URL/key, kemudian Log Masuk."));
+    if (!s || !s.access_token) return Promise.reject(new Error("Anda belum log masuk. Sila log masuk dahulu."));
     if (s.expires_at && s.expires_at > Date.now() + 60000) return Promise.resolve(s.access_token);
     return this.segarToken();
   },
@@ -515,7 +513,7 @@ var SB = {
     }).then(function (res) {
       return res.text().then(function (teks) {
         var j = null; try { j = teks ? JSON.parse(teks) : null; } catch (e) { j = null; }
-        if (!res.ok) throw new Error(SB.ralat(j, "Supabase gagal (kod " + res.status + "). Semak URL/key, log masuk, dan pastikan fail SQL migrasi sudah dijalankan."));
+        if (!res.ok) throw new Error(SB.ralat(j, "Sync gagal (kod " + res.status + "). Sila log masuk semula dan cuba lagi. Jika masalah berterusan, hubungi pemilik aplikasi."));
         return j;
       });
     });
@@ -548,7 +546,7 @@ var SB = {
     this.syncSedangBerjalan = true;
     var state = this.syncState();
     var sesi = this.sesi();
-    if (!sesi) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Anda belum log masuk ke Supabase.")); }
+    if (!sesi) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Anda belum log masuk.")); }
     var uid = sesi.user_id;
     if (!uid) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Sesi log masuk tidak lengkap (tiada user_id). Sila log keluar dan log masuk semula.")); }
     return this.tokenSah().then(function (token) {
@@ -654,8 +652,6 @@ var SB = {
   renderStatus: function () {
     var el = $("sbStatus"); if (!el) return;
     var cfg = this.cfg(); var s = this.sesi(); var st = this.syncState();
-    if ($("sbUrl")) $("sbUrl").value = cfg.url;
-    if ($("sbAnon")) $("sbAnon").value = cfg.anon;
     if ($("sbAutoToggle")) $("sbAutoToggle").checked = !!st.autoSync;
     if ($("sbEmail") && s && s.email) $("sbEmail").value = s.email;
     var akhir = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleString("ms-MY") : "belum pernah";
@@ -664,10 +660,10 @@ var SB = {
         " • Sync automatik: " + (st.autoSync ? "HIDUP" : "MATI") + ".";
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah("logmasuk");
     } else if (cfg.url && cfg.anon) {
-      el.textContent = "Belum log masuk — Supabase sudah dikonfigurasi. Log masuk dengan Google, email + kata laluan, atau kod pengesahan, kemudian Sync Sekarang.";
+      el.textContent = "Belum log masuk. Log masuk dengan Google, email + kata laluan, atau kod pengesahan, kemudian Sync Sekarang.";
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah((sbLangkahSemasa === "logmasuk" || !sbLangkahSemasa) ? "utama" : sbLangkahSemasa);
     } else {
-      el.textContent = "Belum disambung. Masukkan Supabase URL dan anon key, kemudian log masuk dengan Google atau email.";
+      el.textContent = "Aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi.";
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah((sbLangkahSemasa === "logmasuk" || !sbLangkahSemasa) ? "utama" : sbLangkahSemasa);
     }
   }
@@ -961,11 +957,9 @@ function renderNotifikasiStatus() {
   st.textContent = "Notifikasi: " + (hidup ? "HIDUP" : "MATI") + " • Izin pelayar: " + izin +
     (hidup ? " • Notifikasi pelayar hanya dihantar bila aplikasi dibuka; ia tidak berfungsi bila aplikasi ditutup sepenuhnya di web." : " • Tiada notifikasi akan dihantar selagi suis ini MATI.");
   var tog = $("notiToggle"); if (tog) tog.checked = !!hidup;
-  var bk = $("backendPilihan"); if (bk) bk.value = (data.settings && data.settings.backend) || "belum disambung";
 }
 function renderAkaunStatus() {
   var el = $("akaunStatus"); if (!el) return;
-  var bk = (data.settings && data.settings.backend) || "belum disambung";
   var sbSesi = null, sbCfgAda = false, sbAkhir = "belum pernah";
   try {
     if (typeof SB !== "undefined" && SB) {
@@ -974,20 +968,18 @@ function renderAkaunStatus() {
     }
   } catch (e) {}
   if (sbSesi && sbSesi.email) {
-    el.innerHTML = "<p><b>Status sandaran:</b> Supabase disambung dan anda log masuk sebagai " + esc(sbSesi.email) +
+    el.innerHTML = "<p><b>Status sandaran:</b> Anda log masuk sebagai " + esc(sbSesi.email) +
       ". Terakhir sync: " + esc(sbAkhir) + ". Data tanpa gambar di-sync ke akaun ini.</p>" +
-      "<p><b>Retrieve selepas uninstall:</b> pada peranti baharu, masukkan Supabase URL/key yang sama, log masuk dengan email yang sama, dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>" +
-      "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> dihantar ke Supabase dalam versi ini (untuk jimat storan). Pada masa depan, gambar boleh dibackup ke Supabase Storage — itu langkah seterusnya, bukan sekarang.</p>";
+      "<p><b>Jika tukar telefon:</b> log masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>" +
+      "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> dihantar dalam versi ini (untuk jimat storan).</p>";
   } else if (sbCfgAda) {
-    el.innerHTML = "<p><b>Status sandaran:</b> Supabase sudah dikonfigurasi, tetapi anda belum log masuk. Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda.</p>" +
-      "<p><b>Untuk boleh retrieve selepas uninstall,</b> log masuk di bawah dengan email anda, kemudian tekan Sync Sekarang. Selepas sync pertama berjaya, data tanpa gambar akan tersimpan dalam akaun Supabase anda.</p>" +
-      "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa atau sync Supabase (untuk jimat storan).</p>";
+    el.innerHTML = "<p><b>Status sandaran:</b> Anda belum log masuk. Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda.</p>" +
+      "<p><b>Untuk simpan data dalam akaun,</b> log masuk di bawah dengan Google atau email, kemudian tekan Sync Sekarang. Selepas sync pertama berjaya, data tanpa gambar akan tersimpan dalam akaun anda.</p>" +
+      "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan).</p>";
   } else {
-    el.innerHTML = "<p><b>Status sandaran:</b> Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda. " +
-      "Jika aplikasi dinyahpasang tanpa eksport, data akan hilang.</p>" +
-      "<p><b>Untuk boleh retrieve selepas uninstall,</b> sambungkan Supabase di bawah (pilihan backend yang direkod sekarang: " + esc(bk) + "). " +
-      "Sehingga anda cipta projek Supabase, jalankan fail SQL migrasi, masukkan URL/key, dan log masuk, tiada sync berlaku.</p>" +
-      "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan). Pada masa depan, gambar boleh dibackup ke hosting — itu langkah seterusnya, bukan sekarang.</p>";
+    el.innerHTML = "<p><b>Status sandaran:</b> Aplikasi ini belum dikonfigurasi oleh pemilik, jadi data hanya dalam peranti ini buat masa ini. Sila hubungi pemilik aplikasi.</p>" +
+      "<p>Eksport JSON selalu sebagai sandaran — jika aplikasi dinyahpasang tanpa eksport, data akan hilang.</p>" +
+      "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan).</p>";
   }
 }
 function semakNotifikasi() {
@@ -1531,11 +1523,6 @@ if (_notiB) _notiB.addEventListener("click", function () {
   if (typeof Notification === "undefined") { toast("Pelayar ini tidak menyokong notifikasi."); return; }
   Notification.requestPermission().then(function () { renderNotifikasiStatus(); semakNotifikasi(); });
 });
-var _bk = $("backendPilihan");
-if (_bk) _bk.addEventListener("change", function () {
-  data.settings = data.settings || tetapanLalai(); data.settings.backend = _bk.value; save(); renderAkaunStatus();
-  toast("Pilihan backend direkod (belum disambung): " + _bk.value);
-});
 $("deleteSampleBtn").addEventListener("click", function () {
   var ada = data.kebuns.some(function (k) { return k.contoh; }) || data.bloks.some(function (k) { return k.contoh; }) || data.kerjas.some(function (k) { return k.contoh; });
   if (!ada) { toast("Tiada data contoh lagi."); return; }
@@ -1573,12 +1560,12 @@ function sbJalankanSync(manual) {
     toast("Sync siap: " + r.dihantar + " dihantar, " + r.diterima + " diterima.");
   }).catch(function (e) {
     var msg = (e && e.message) ? e.message : String(e);
-    sbSetStatus("Sync gagal: " + msg + " — semak URL/key, log masuk, dan sambungan internet.");
+    sbSetStatus("Sync gagal: " + msg + " — semak log masuk dan sambungan internet.");
     if (manual) toast("Sync gagal: " + msg);
     try { SB.renderStatus(); } catch (e2) {}
     /* Kekalkan mesej gagal di atas: renderStatus menulis semula status
        umum, jadi tulis semula mesej gagal selepas itu. */
-    sbSetStatus("Sync gagal: " + msg + " — semak URL/key, log masuk, dan sambungan internet.");
+    sbSetStatus("Sync gagal: " + msg + " — semak log masuk dan sambungan internet.");
   });
 }
 /* ===== Log masuk — langkah yang ditunjukkan (satu pada satu masa) ===== */
@@ -1649,7 +1636,7 @@ if (_sbDaftarLama) _sbDaftarLama.addEventListener("click", function () {
   try {
     SB.daftar().then(function (h) {
       if (h.perluSahkan) {
-        sbSetStatus("Daftar berjaya — sila sahkan email anda dahulu (semak inbox) jika Confirm Email dihidupkan dalam Supabase, kemudian Log Masuk.");
+        sbSetStatus("Daftar berjaya — sila sahkan email anda dahulu (semak inbox) jika pengesahan email diperlukan, kemudian Log Masuk.");
         toast("Daftar berjaya. Sahkan email dahulu jika diminta, kemudian Log Masuk.");
       } else {
         sbSelepasLogMasuk("Email");
@@ -1708,20 +1695,18 @@ if (_sbAuto) _sbAuto.addEventListener("change", function () {
   var st = SB.syncState(); st.autoSync = _sbAuto.checked; SB.simpanSyncState(st); renderAll();
   toast(_sbAuto.checked ? "Sync automatik dihidupkan." : "Sync automatik dimatikan.");
 });
-var _sbAnonT = $("sbAnonToggle");
-if (_sbAnonT) _sbAnonT.addEventListener("click", function () {
-  var inp = $("sbAnon"); if (!inp) return;
-  inp.type = (inp.type === "password") ? "text" : "password";
-});
+/* Butang ini hanya memadam SESI log masuk dari peranti ini. Tetapan
+   aplikasi (fail config pemilik / tetapan peranti) TIDAK disentuh, dan
+   data dalam akaun TIDAK dipadam. */
 var _sbClear = $("sbClearBtn");
 if (_sbClear) _sbClear.addEventListener("click", function () {
-  if (!confirm("Padam tetapan Supabase dari peranti ini? URL, anon key dan sesi log masuk akan dipadam dari peranti ini sahaja. Data dalam Supabase TIDAK akan dipadam.")) return;
-  SB.clearCfgDanSesi();
-  data.settings = data.settings || tetapanLalai(); data.settings.backend = "belum disambung"; save(); renderAll();
-  var u = $("sbUrl"); if (u) u.value = ""; var a = $("sbAnon"); if (a) a.value = "";
-  var em = $("sbEmail"); if (em) em.value = ""; var pw = $("sbPassword"); if (pw) pw.value = "";
-  sbSetStatus("Belum disambung. Tetapan Supabase sudah dipadam dari peranti ini.");
-  toast("Tetapan Supabase dipadam dari peranti ini.");
+  if (!confirm("Log keluar dan padam sesi dari peranti ini? Data dalam akaun anda TIDAK akan dipadam.")) return;
+  SB.logKeluar().then(function () {
+    var em = $("sbEmail"); if (em) em.value = ""; var pw = $("sbPassword"); if (pw) pw.value = "";
+    renderAll();
+    sbSetStatus("Sesi sudah dipadam dari peranti ini. Log masuk semula untuk sync.");
+    toast("Sesi dipadam dari peranti ini.");
+  });
 });
 
 // Mula

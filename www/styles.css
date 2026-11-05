@@ -108,6 +108,15 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 4px 
 .gbadge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--green); color: #fff; font-weight: 800; font-size: 16px; flex: 0 0 auto; }
 .linkbtn { background: none; border: 0; padding: 6px 0; color: var(--green); font-weight: 700; font-size: 14.5px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 
+/* v3.4: Panduan "Cara Guna KebunKu" — langkah bernombor di Ringkasan. */
+.panduan .langkah { list-style: none; margin: 6px 0 0; padding: 0; }
+.panduan .langkah li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+.panduan .langkah li:first-child { border-top: 0; padding-top: 2px; }
+.panduan .langkah li:last-child { padding-bottom: 2px; }
+.panduan .nombor { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: var(--green); color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.panduan .langkah b { font-size: 15.5px; }
+.panduan .langkah p { margin: 2px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
 /* v3.2: Ringkasan visual — kad stat, donut, bar 7 hari, bar kebun/bahan.
    Warna sama seperti sistem reka bentuk: hijau ladang, emas, krim. Tiada gradient. */
 .statgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
