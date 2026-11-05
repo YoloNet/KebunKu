@@ -2,6 +2,11 @@
    Deep plantation green + warm cream/stone neutrals, one gold accent only.
    No gradients, no glassmorphism. Designed for bright sunlight and one hand. */
 * { box-sizing: border-box; }
+/* v3: pastikan atribut hidden benar-benar menyembunyikan elemen —
+   peraturan display dalam .form label / .btn mengatasi gaya lalai
+   pelayar untuk [hidden], jadi baris bersyarat borang (tarikh custom,
+   bahan baharu, syarat lain, dll.) akan kelihatan jika ini tiada. */
+[hidden] { display: none !important; }
 :root {
   --green: #1E4D2B; --green-dark: #163A22; --green-soft: #E7EEE3;
   --cream: #F7F4EC; --card: #FFFFFF; --line: #E3DDCF; --line-strong: #CFC7B2;
@@ -87,6 +92,15 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 4px 
 }
 @media (min-width: 700px) {
   .tabs { left: 50%; transform: translateX(-50%); max-width: 720px; border-left: 1px solid var(--line-strong); border-right: 1px solid var(--line-strong); border-top-left-radius: 14px; border-top-right-radius: 14px; }
+}
+
+/* v3: dos berstruktur (jumlah + unit + per) dalam satu baris */
+.dosrow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 14px 0 0; }
+.dosrow label { display: block; font-weight: 700; font-size: 13px; letter-spacing: .02em; }
+.dosrow input, .dosrow select { width: 100%; margin-top: 7px; padding: 13px 10px; font-size: 16px; color: var(--text); border: 1.5px solid var(--line-strong); border-radius: 10px; background: #fff; min-height: 52px; }
+@media (max-width: 420px) {
+  .dosrow { grid-template-columns: 1fr 1fr; }
+  .dosrow label:first-child { grid-column: 1 / -1; }
 }
 
 /* v2: gambar kerja, suis notifikasi */

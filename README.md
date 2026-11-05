@@ -8,6 +8,26 @@
 
 Petani solo dengan beberapa kebun — contohnya koko, sawit, durian dan lain-lain — yang pecahkan kerja ikut blok. Contoh: Blok 1 hari ini, Blok 2 esok atau lusa.
 
+## KebunKu v3 — log daripada Excel sebenar, dropdown hampir semua
+
+v3 dibina daripada fail log Excel sebenar pengguna (13 rekod kerja 2010). Matlamatnya: rekod kerja dalam masa kurang 30 saat, hampir tanpa menaip — hampir semua pilihan adalah dropdown.
+
+### Apa yang baharu dalam v3
+
+1. **Zon / bahagian kawasan** — setiap kerja ada Zon (dropdown): Semua Zon, Atas, Bawah, Tengah, Atas & Tengah, Tengah & Bawah, Atas & Bawah. Blok pula boleh dipilih "Semua Blok (seluruh kebun)" jika kerja itu meliputi seluruh kebun.
+2. **Tanaman & peringkat blok** — tanaman blok sekarang: Koko, Sawit, Durian, Lada, Sayur, Lada & Sayur, Lain-lain. Setiap blok juga ada Peringkat (dropdown): Bibit / Anak, Matang, Berbuah, Semua Peringkat. Senarai blok memaparkan "Nama — Tanaman (Peringkat)".
+3. **Pustaka bahan** — bahan tidak lagi ditaip bebas. Dalam borang kerja: pilih Jenis Kerja dahulu, kemudian Bahan (dropdown yang ditapis ikut jenis kerja sahaja). Pustaka lalai diambil daripada log Excel (ejaan dibetulkan: **Imidacloprid**, **Metalaxyl**): NPK 16-16-16, NPK 12-12-17, NPK 8-9-30, Imidacloprid, Halexyl, Metalaxyl, Antracol, Monex, Baja NPK 15-15-15, Glyphosate. Urus pustaka dalam tab Kebun → Pustaka Bahan (tambah/padam bahan; setiap bahan ada jenis kerja, unit lalai dan dos lalai).
+4. **Dos berstruktur** — dos bukan lagi teks bebas, tetapi tiga medan kecil dalam satu baris: Jumlah (nombor) + Unit (g, kg, ml, L, sudu, karung, pek, botol) + Per (Tiada, /pokok, /sprayer, /kawasan, /liter air). Paparan automatik: 200 + g + /pokok = "200g/pokok"; 1 + karung + /kawasan = "1 karung/kawasan".
+5. **Bahan & dos terakhir automatik** — bila Blok + Jenis Kerja dipilih, aplikasi isi Bahan dan Dos daripada kerja siap terakhir untuk blok+jenis itu, dengan nota "Terakhir: … — tekan Guna Semula" supaya anda boleh ubah atau isi semula.
+6. **Kerja seterusnya bersyarat** — selain selang masa (termasuk pilihan baharu **3 Minggu**), ada Syarat (dropdown): Tiada syarat, Jika belum mula berbuah, Jika masih ada simptom, Jika masih ada rumput, Jika hujan / cuaca tidak mengizinkan, Lain-lain (taip sendiri). Ada juga kotak "Tukar bahan lain kali" + ruangan bahan baharu — jika ditanda, kerja susulan automatik akan **mengosongkan bahan** dan menulis nota "Tukar bahan: guna [bahan baharu] — bukan [bahan lama]". Jika tidak ditanda, susulan menyalin bahan dan dos ke hadapan.
+7. **Sejarah & Ringkasan** — tapisan baharu: Bahan dan Zon; carian kini meliputi bahan dan dos. Ringkasan ada kad baharu "Bahan Paling Kerap Digunakan — Bulan Ini".
+8. **Muat Contoh Log Lama** — dalam Ringkasan → Data Saya, butang "Muat Contoh Log Lama (13 rekod)" memuatkan 13 rekod kerja sebenar daripada log Excel lama (2010) ke dalam kebun "Kebun Contoh — Log Lama" (5 blok ikut kumpulan tanaman), dengan bahan/dos/zon dan kerja seterusnya + syarat yang sudah dihuraikan. Ia hanya dimuatkan sekali (tekan lagi tidak menduakan) dan boleh dibuang dengan "Padam Data Contoh Sahaja". Nota: fail Excel itu mengandungi 13 rekod kerja, bukan 17 — 20 baris fail termasuk tajuk dan baris kosong pemisah.
+9. **Migrasi automatik v2 → v3** — data lama dikekalkan sepenuhnya; teks dos lama dihuraikan kepada bahagian berstruktur bila boleh ("200g/pokok" → 200/g//pokok, "5ml/sprayer", "1 karung semua kawasan" → 1/karung//kawasan); teks yang tidak dapat dihuraikan ("Ikut label") dikekalkan sebagai teks. Data disimpan dengan kunci `kebunku_data_v3`.
+
+### Supabase v3
+
+Jalankan migrasi baharu **selepas** 001: `supabase/migrations/002_kebunku_v3.sql` (lihat langkah setup Supabase di bawah — langkah 2 kini merangkumi kedua-dua fail). Ia menambah `bloks.peringkat`, `kerjas.zon/dos_jumlah/dos_unit/dos_per/next_syarat/next_tukar_bahan/next_bahan`, dan jadual baharu `public.bahans` (pustaka bahan) dengan RLS owner-only yang sama. Pustaka bahan turut di-sync (tarik, gabung, upsert, tombstone) seperti kebun/blok/kerja.
+
 ## KebunKu v2 — aliran rekod baharu
 
 Aliran yang diminta pengguna, dilaksanakan sepenuhnya dalam aplikasi:
@@ -55,7 +75,7 @@ Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST te
 ### Langkah setup (wajib, mengikut turutan)
 
 1. **Cipta projek Supabase percuma** di https://supabase.com (New project, pilih rantau terdekat, tetapkan kata laluan database).
-2. **Jalankan migrasi SQL** — dalam Supabase Dashboard, pergi ke **SQL Editor > New query**, tampal keseluruhan fail `supabase/migrations/001_kebunku.sql`, dan tekan **Run**. Fail ini mencipta jadual `kebuns`, `bloks`, `kerjas` dalam skema `public`, menghidupkan Row Level Security (RLS) pada ketiga-tiganya, menambah polisi "hanya baris sendiri" (`user_id = auth.uid()`), dan indeks `(user_id, updated_at)`. Ia idempotent untuk polisi/indeks (boleh dijalankan semula).
+2. **Jalankan migrasi SQL** — dalam Supabase Dashboard, pergi ke **SQL Editor > New query**, tampal keseluruhan fail `supabase/migrations/001_kebunku.sql`, dan tekan **Run**. Fail ini mencipta jadual `kebuns`, `bloks`, `kerjas` dalam skema `public`, menghidupkan Row Level Security (RLS) pada ketiga-tiganya, menambah polisi "hanya baris sendiri" (`user_id = auth.uid()`), dan indeks `(user_id, updated_at)`. Ia idempotent untuk polisi/indeks (boleh dijalankan semula). **Kemudian jalankan fail kedua, `supabase/migrations/002_kebunku_v3.sql`, dengan cara yang sama** — ia menambah lajur v3 (`peringkat`, `zon`, dos berstruktur, syarat kerja seterusnya) dan jadual `public.bahans` dengan RLS owner-only. Fail 002 juga idempotent (ADD COLUMN IF NOT EXISTS) dan mesti dijalankan selepas 001.
 3. **Salin Project URL dan anon key** — dari **Project Settings > API**: `Project URL` (contoh: `https://abcxyz.supabase.co`) dan `anon public` key. Anon key ini selamat untuk aplikasi client kerana RLS melindungi data, tetapi jangan commit ia ke GitHub — masukkan dalam aplikasi sahaja.
 4. **Masukkan dalam KebunKu** — buka **Ringkasan > Akaun & Sandaran > Supabase**, tampal URL dan anon key, isi Email dan Kata Laluan, kemudian tekan **Daftar** (akaun baharu) atau **Log Masuk** (akaun sedia ada).
 5. **Sync Sekarang** — tekan butang ini untuk sync pertama. Status akan memaparkan "Sync siap: X dihantar, Y diterima" atau mesej ralat yang jelas jika ada masalah.
@@ -63,7 +83,7 @@ Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST te
 
 ### Apa yang di-sync, dan apa yang tidak
 
-- **Di-sync:** kebun (`id, nama, contoh`), blok (`id, kebun_id, nama, tanaman, tanaman_lain, contoh`), kerja (`id, kebun_id, blok_id, jenis, jenis_lain, tarikh_rancang, tarikh_siap, status, peratus, bahan, dos, kos, nota, next_tarikh, contoh`, dan `updated_at` untuk last-updated-wins). Id aplikasi dikekalkan sebagai `id` TEXT dalam Supabase, jadi rekod tempatan dan awan dipadankan satu-ke-satu.
+- **Di-sync:** kebun (`id, nama, contoh`), blok (`id, kebun_id, nama, tanaman, tanaman_lain, peringkat, contoh`), kerja (`id, kebun_id, blok_id, jenis, jenis_lain, tarikh_rancang, tarikh_siap, status, peratus, bahan, dos, kos, nota, next_tarikh, zon, dos_jumlah, dos_unit, dos_per, next_syarat, next_tukar_bahan, next_bahan, contoh`, dan `updated_at` untuk last-updated-wins), dan bahan pustaka (`id, nama, jenis_kerja, unit_lalai, dos_lalai, contoh`). Id aplikasi dikekalkan sebagai `id` TEXT dalam Supabase, jadi rekod tempatan dan awan dipadankan satu-ke-satu.
 - **Tidak di-sync:** gambar kerja (medan `image` sengaja dibuang daripada payload awan), `nextPilihan` (pilihan label sahaja — `next_tarikh` yang di-sync), dan tetapan tempatan lain. Gambar kekal dalam peranti sahaja.
 - **Padam:** padam tempatan direkod sebagai senarai tombstone dan dihantar sebagai `deleted_at` semasa sync, supaya peranti lain tahu baris itu dipadam. Baris aktif sentiasa `deleted_at IS NULL`.
 - **Gabungan (merge):** last-updated-wins ikut `updated_at`. Jika rekod jarak jauh lebih baharu, ia menggantikan tempatan (gambar tempatan dikekalkan). Jika tempatan lebih baharu, ia dihantar dan menang. Sync direka untuk seorang pengguna dengan beberapa peranti, bukan untuk suntingan serentak oleh ramai orang pada rekod yang sama.
@@ -78,7 +98,7 @@ Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST te
 ### Troubleshooting
 
 - **"Supabase URL tidak sah" / "Anon Key kosong":** pastikan URL bermula dengan `https://` tanpa slash di hujung, dan anon key disalin penuh dari Project Settings > API (bukan `service_role` key — jangan sesekali guna service_role key dalam aplikasi).
-- **Sync gagal (kod 404 / 406 / "relation does not exist"):** fail SQL migrasi belum dijalankan, atau dijalankan dalam projek yang salah. Jalankan semula `001_kebunku.sql` dalam SQL Editor projek yang betul.
+- **Sync gagal (kod 404 / 406 / "relation does not exist"):** fail SQL migrasi belum dijalankan, atau dijalankan dalam projek yang salah. Jalankan semula `001_kebunku.sql` (dan `002_kebunku_v3.sql` untuk v3 — ralat tentang `bahans` atau lajur `peringkat`/`zon`/`dos_jumlah` bermaksud 002 belum dijalankan) dalam SQL Editor projek yang betul.
 - **Log masuk gagal / "Email not confirmed":** dalam Supabase, pergi ke **Authentication > Providers > Email** dan semak tetapan **Confirm Email**. Jika ia HIDUP, pengguna mesti sahkan email melalui inbox dahulu sebelum boleh log masuk. Untuk ujian solo, anda boleh matikan Confirm Email, atau sahkan email tersebut — aplikasi akan memberitahu anda jika pendaftaran memerlukan pengesahan email.
 - **Data tidak muncul pada peranti kedua:** pastikan kedua-dua peranti log masuk dengan email yang sama, URL/key yang sama, dan tekan Sync Sekarang pada kedua-duanya. Semak status "Terakhir sync" dalam aplikasi.
 - **Data lama kembali selepas dipadam:** itu berlaku jika padam dibuat sebelum sync sempat menghantar tombstone, atau pada peranti yang belum sync. Padam, kemudian tekan Sync Sekarang pada peranti itu sebelum sync pada peranti lain.
@@ -190,7 +210,7 @@ Kemudian bina dan jalankan dalam Xcode. Kod web yang sama dalam `www/` akan digu
 
 ## Offline-first — bagaimana data disimpan?
 
-- Semua data disimpan dalam `localStorage` pelayar / WebView, dengan kunci `kebunku_data_v2` (migrasi automatik daripada `kebunku_data_v1`).
+- Semua data disimpan dalam `localStorage` pelayar / WebView, dengan kunci `kebunku_data_v3` (migrasi automatik daripada `kebunku_data_v2` dan `kebunku_data_v1`).
 - **Supabase (pilihan):** jika disambung dalam Ringkasan > Akaun & Sandaran, data tanpa gambar di-sync ke akaun Supabase pengguna (lihat bahagian Supabase di atas). URL/key/sesi disimpan dalam kunci berasingan dan tidak dieksport.
 - Aplikasi berfungsi tanpa internet di kebun. Bila ada internet dan Supabase disambung dengan suis Sync Automatik HIDUP, sync dicuba automatik selepas simpanan tempatan; jika tidak, sync hanya berlaku bila pengguna tekan Sync Sekarang.
 - **Sandaran penting:** eksport JSON selalu, kerana data `localStorage` boleh hilang jika data pelayar dipadam atau aplikasi dinyahpasang — kecuali anda sudah sync ke Supabase dan boleh retrieve semula dengan log masuk yang sama.
@@ -207,8 +227,9 @@ Kemudian bina dan jalankan dalam Xcode. Kod web yang sama dalam `www/` akan digu
 Data sekarang diasingkan dengan jelas, supaya boleh dipindah ke pangkalan data sebenar tanpa reka semula:
 
 - `kebuns[]` — `{ id, nama }`
-- `bloks[]` — `{ id, kebunId, nama, tanaman, tanamanLain }`
-- `kerjas[]` — `{ id, kebunId, blokId, jenis, jenisLain, tarikhRancang, tarikhSiap, status, peratus, bahan, dos, kos, nota, nextTarikh, nextPilihan, image, updatedAt }` (v2)
+- `bloks[]` — `{ id, kebunId, nama, tanaman, tanamanLain, peringkat }`
+- `kerjas[]` — `{ id, kebunId, blokId, zon, jenis, jenisLain, tarikhRancang, tarikhSiap, status, peratus, bahan, bahanId, dos, dosJumlah, dosUnit, dosPer, kos, nota, nextTarikh, nextPilihan, nextSyarat, nextSyaratLain, nextTukarBahan, nextBahan, image, updatedAt }` (v3; `dos` dikekalkan sebagai teks terhasil daripada bahagian berstruktur)
+- `bahans[]` — `{ id, nama, jenisKerja, unitLalai, dosLalai, nota, contoh, updatedAt }` (pustaka bahan, v3)
 
 Hubungan ini kekal sama bila naik taraf nanti. Yang perlu ditambah kemudian, tanpa ubah konsep asas:
 
@@ -233,7 +254,8 @@ kebunku/
 │   └── icon.png     # Ikon pelancar Android 512×512
 ├── supabase/
 │   └── migrations/
-│       └── 001_kebunku.sql  # Migrasi Supabase: jadual kebuns/bloks/kerjas + RLS
+│       ├── 001_kebunku.sql  # Migrasi Supabase: jadual kebuns/bloks/kerjas + RLS
+│       └── 002_kebunku_v3.sql  # Migrasi v3: peringkat, zon, dos berstruktur, syarat seterusnya, jadual bahans + RLS
 ├── android/         # Projek Android Capacitor (dibina dengan Gradle, lihat di atas)
 ├── package.json
 ├── capacitor.config.json

@@ -54,7 +54,18 @@
         <select id="kerjaKebun" required></select>
       </label>
       <label>Blok
-        <select id="kerjaBlok" required></select>
+        <select id="kerjaBlok"></select>
+      </label>
+      <label>Zon / Bahagian Kawasan
+        <select id="kerjaZon">
+          <option value="Semua Zon">Semua Zon</option>
+          <option value="Atas">Atas</option>
+          <option value="Bawah">Bawah</option>
+          <option value="Tengah">Tengah</option>
+          <option value="Atas &amp; Tengah">Atas &amp; Tengah</option>
+          <option value="Tengah &amp; Bawah">Tengah &amp; Bawah</option>
+          <option value="Atas &amp; Bawah">Atas &amp; Bawah</option>
+        </select>
       </label>
       <label>Jenis Kerja
         <select id="kerjaJenis" required>
@@ -89,11 +100,44 @@
         <input type="number" id="kerjaPeratus" min="0" max="100" value="0">
       </label>
       <label>Bahan Digunakan
-        <input type="text" id="kerjaBahan" placeholder="cth: Baja NPK 15-15-15, Racun glyphosate">
+        <select id="kerjaBahan"></select>
       </label>
-      <label>Dos / Kuantiti
-        <input type="text" id="kerjaDos" placeholder="cth: 500g sepokok, 2 liter">
+      <p class="hint" id="kerjaHint"></p>
+      <button type="button" class="btn secondary small" id="kerjaGunaSemulaBtn" hidden>Guna Semula Bahan &amp; Dos Terakhir</button>
+      <label id="kerjaBahanBaruRow" hidden>Nama Bahan Baharu (akan disimpan ke pustaka)
+        <input type="text" id="kerjaBahanBaru" placeholder="cth: Baja NPK 12-12-17">
       </label>
+      <label id="kerjaBahanLainRow" hidden>Bahan Lain (taip sendiri, tidak disimpan ke pustaka)
+        <input type="text" id="kerjaBahanLain" placeholder="cth: Racun jenama lain">
+      </label>
+      <div class="dosrow">
+        <label>Dos — Jumlah
+          <input type="number" id="kerjaDosJumlah" min="0" step="any" placeholder="cth: 200">
+        </label>
+        <label>Unit
+          <select id="kerjaDosUnit">
+            <option value="">—</option>
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="ml">ml</option>
+            <option value="L">L</option>
+            <option value="sudu">sudu</option>
+            <option value="karung">karung</option>
+            <option value="pek">pek</option>
+            <option value="botol">botol</option>
+          </select>
+        </label>
+        <label>Per
+          <select id="kerjaDosPer">
+            <option value="">Tiada</option>
+            <option value="/pokok">/pokok</option>
+            <option value="/sprayer">/sprayer</option>
+            <option value="/kawasan">/kawasan</option>
+            <option value="/liter air">/liter air</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">Contoh dos: 200 + g + /pokok = “200g/pokok”. 1 + karung + /kawasan = “1 karung/kawasan”.</p>
       <label>Kos (RM)
         <input type="number" id="kerjaKos" min="0" step="0.01" placeholder="0.00">
       </label>
@@ -102,6 +146,7 @@
           <option value="">Tiada</option>
           <option value="1 Minggu">1 Minggu</option>
           <option value="2 Minggu">2 Minggu</option>
+          <option value="3 Minggu">3 Minggu</option>
           <option value="1 Bulan">1 Bulan</option>
           <option value="2 Bulan">2 Bulan</option>
           <option value="3 Bulan">3 Bulan</option>
@@ -113,7 +158,24 @@
       <label id="kerjaNextCustomRow" hidden>Tarikh Custom Kerja Seterusnya
         <input type="date" id="kerjaNextCustom">
       </label>
-      <p class="hint">Jika kerja baharu disimpan dengan kerja seterusnya, satu kerja susulan yang dirancang akan dicipta automatik pada tarikh itu. Jika anda mengubah kerja sedia ada, tiada susulan berganda akan dicipta.</p>
+      <label>Syarat Kerja Seterusnya
+        <select id="kerjaNextSyarat">
+          <option value="Tiada syarat">Tiada syarat</option>
+          <option value="Jika belum mula berbuah">Jika belum mula berbuah</option>
+          <option value="Jika masih ada simptom">Jika masih ada simptom</option>
+          <option value="Jika masih ada rumput">Jika masih ada rumput</option>
+          <option value="Jika hujan / cuaca tidak mengizinkan">Jika hujan / cuaca tidak mengizinkan</option>
+          <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <label id="kerjaNextSyaratLainRow" hidden>Syarat Lain (taip sendiri)
+        <input type="text" id="kerjaNextSyaratLain" placeholder="cth: Jika daun sudah pulih">
+      </label>
+      <label class="toggle-row"><input type="checkbox" id="kerjaNextTukar"> Tukar bahan lain kali</label>
+      <label id="kerjaNextBahanRow" hidden>Bahan Lain Kali (akan digunakan, bukan bahan lama)
+        <input type="text" id="kerjaNextBahan" placeholder="cth: Racun kulat lain">
+      </label>
+      <p class="hint">Jika kerja baharu disimpan dengan kerja seterusnya, satu kerja susulan yang dirancang akan dicipta automatik pada tarikh itu — bahan dan dos disalin ke susulan, kecuali anda tandakan “Tukar bahan lain kali”, maka susulan akan kosongkan bahan dan ingatkan anda untuk guna bahan baharu. Jika anda mengubah kerja sedia ada, tiada susulan berganda akan dicipta.</p>
       <label>Nota Ringkas
         <textarea id="kerjaNota" rows="3" placeholder="cth: Hujan petang, Blok 2 sambung esok"></textarea>
       </label>
@@ -158,15 +220,65 @@
           <option value="Koko">Koko</option>
           <option value="Sawit">Sawit</option>
           <option value="Durian">Durian</option>
+          <option value="Lada">Lada</option>
+          <option value="Sayur">Sayur</option>
+          <option value="Lada &amp; Sayur">Lada &amp; Sayur</option>
           <option value="Lain-lain">Lain-lain</option>
         </select>
       </label>
       <label>Tanaman lain (jika Lain-lain)
         <input type="text" id="blokTanamanLain" placeholder="cth: Pisang, Getah">
       </label>
+      <label>Peringkat Tanaman
+        <select id="blokPeringkat" required>
+          <option value="Bibit / Anak">Bibit / Anak</option>
+          <option value="Matang">Matang</option>
+          <option value="Berbuah">Berbuah</option>
+          <option value="Semua Peringkat">Semua Peringkat</option>
+        </select>
+      </label>
       <button type="submit" class="btn primary">Tambah Blok</button>
     </form>
     <div id="blokList"></div>
+
+    <h2>Pustaka Bahan</h2>
+    <p class="hint">Bahan dalam pustaka ini muncul sebagai pilihan dalam borang kerja, ditapis ikut jenis kerja. Tambah bahan yang selalu anda guna di sini — atau pilih “Tambah bahan baharu…” terus dalam borang kerja.</p>
+    <form id="bahanForm" class="card form">
+      <label>Nama Bahan
+        <input type="text" id="bahanNama" required placeholder="cth: NPK 16-16-16, Imidacloprid">
+      </label>
+      <label>Jenis Kerja
+        <select id="bahanJenis" required>
+          <option value="Membaja">Membaja</option>
+          <option value="Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga">Racun Serangga</option>
+          <option value="Menuai">Menuai</option>
+          <option value="Pruning">Pruning / Memangkas</option>
+          <option value="Membersihkan">Membersihkan</option>
+          <option value="Menanam">Menanam</option>
+          <option value="Menyiram">Menyiram</option>
+          <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <label>Unit Lalai
+        <select id="bahanUnit">
+          <option value="g">g</option>
+          <option value="kg">kg</option>
+          <option value="ml">ml</option>
+          <option value="L">L</option>
+          <option value="sudu">sudu</option>
+          <option value="karung">karung</option>
+          <option value="pek">pek</option>
+          <option value="botol">botol</option>
+        </select>
+      </label>
+      <label>Dos Lalai (pilihan)
+        <input type="text" id="bahanDosLalai" placeholder="cth: 100g, 2kg/pokok, 5ml/sprayer">
+      </label>
+      <button type="submit" class="btn primary">Tambah Bahan</button>
+    </form>
+    <div id="bahanList"></div>
   </section>
 
   <!-- SEJARAH -->
@@ -185,7 +297,25 @@
           <option value="Koko">Koko</option>
           <option value="Sawit">Sawit</option>
           <option value="Durian">Durian</option>
+          <option value="Lada">Lada</option>
+          <option value="Sayur">Sayur</option>
+          <option value="Lada &amp; Sayur">Lada &amp; Sayur</option>
           <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <label>Bahan
+        <select id="fBahan"><option value="">Semua Bahan</option></select>
+      </label>
+      <label>Zon
+        <select id="fZon">
+          <option value="">Semua Zon</option>
+          <option value="Semua Zon">Semua Zon</option>
+          <option value="Atas">Atas</option>
+          <option value="Bawah">Bawah</option>
+          <option value="Tengah">Tengah</option>
+          <option value="Atas &amp; Tengah">Atas &amp; Tengah</option>
+          <option value="Tengah &amp; Bawah">Tengah &amp; Bawah</option>
+          <option value="Atas &amp; Bawah">Atas &amp; Bawah</option>
         </select>
       </label>
       <label>Jenis Kerja
@@ -245,6 +375,7 @@
     <div class="card" id="ringkasanMinggu"></div>
     <div class="card" id="ringkasanBulan"></div>
     <div class="card" id="ringkasanKebun"></div>
+    <div class="card" id="ringkasanBahan"></div>
 
     <div class="card">
       <h3>Notifikasi</h3>
@@ -269,7 +400,7 @@
       <p class="hint">Pilih Supabase untuk sync awan di bawah. Firebase dan Pelayan Sendiri belum disambung — pilihan itu hanya direkod.</p>
 
       <h3>Supabase — Sync Awan</h3>
-      <p class="hint">Masukkan Project URL dan anon key dari Supabase anda (Project Settings &gt; API). Jalankan fail <code>supabase/migrations/001_kebunku.sql</code> dalam SQL Editor Supabase dahulu. Lihat README untuk langkah penuh.</p>
+      <p class="hint">Masukkan Project URL dan anon key dari Supabase anda (Project Settings &gt; API). Jalankan fail <code>supabase/migrations/001_kebunku.sql</code> dan <code>supabase/migrations/002_kebunku_v3.sql</code> dalam SQL Editor Supabase dahulu (002 selepas 001). Lihat README untuk langkah penuh.</p>
       <p class="hint"><b>Amaran:</b> Anon Key disimpan dalam peranti ini sahaja dan tidak pernah dimasukkan dalam eksport data. Jangan commit URL/key ke GitHub. Walaupun anon key diketahui umum, Row Level Security (RLS) dalam Supabase memastikan setiap pengguna hanya boleh capai barisnya sendiri.</p>
       <label>Supabase URL
         <input type="text" id="sbUrl" placeholder="cth: https://abcxyz.supabase.co" autocomplete="off">
@@ -310,6 +441,10 @@
         </label>
       </div>
       <div class="row">
+        <button type="button" class="btn secondary" id="importContohBtn">Muat Contoh Log Lama (13 rekod)</button>
+      </div>
+      <p class="hint">Butang ini memuatkan 13 rekod kerja sebenar daripada log Excel lama anda (2010) ke dalam satu kebun “Kebun Contoh — Log Lama”, dengan bahan dan dos yang sudah dibersihkan ejaannya. Ia hanya dimuatkan sekali — tekan lagi tidak akan menduakan rekod. Gunakan “Padam Data Contoh Sahaja” untuk membuangnya.</p>
+      <div class="row">
         <button type="button" class="btn secondary" id="deleteSampleBtn">Padam Data Contoh Sahaja</button>
         <button type="button" class="btn danger" id="deleteAllBtn">Padam Semua Data</button>
       </div>
@@ -318,7 +453,7 @@
 </main>
 
 <footer>
-  <p>KebunKu v2 — offline-first. Sync Supabase tersedia dalam Ringkasan &gt; Akaun &amp; Sandaran bila anda sambungkannya.</p>
+  <p>KebunKu v3 — offline-first. Sync Supabase tersedia dalam Ringkasan &gt; Akaun &amp; Sandaran bila anda sambungkannya.</p>
 </footer>
 
 <script src="app.js"></script>
