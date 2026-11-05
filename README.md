@@ -8,6 +8,46 @@
 
 Petani solo dengan beberapa kebun — contohnya koko, sawit, durian dan lain-lain — yang pecahkan kerja ikut blok. Contoh: Blok 1 hari ini, Blok 2 esok atau lusa.
 
+## KebunKu v2 — aliran rekod baharu
+
+Aliran yang diminta pengguna, dilaksanakan sepenuhnya dalam aplikasi:
+
+1. **Datang ke kebun, siap kerja, kemudian masuk rekod** — tarikh, kebun, blok, dan kerja yang dibuat.
+2. **Kerja Seterusnya** — dalam borang kerja, pilih: Tiada, 1 Minggu, 2 Minggu, 1 Bulan, 2 Bulan, 3 Bulan, 6 Bulan, 1 Tahun, atau Tarikh Custom (ruangan tarikh hanya muncul untuk pilihan custom).
+3. **Susulan automatik** — jika kerja *baharu* disimpan dengan kerja seterusnya, satu kerja susulan yang dirancang (kebun/blok/jenis yang sama, status Dirancang) dicipta automatik pada tarikh itu dan muncul dalam Hari Ini / senarai akan datang. Jika anda *mengubah* kerja sedia ada, tarikh seterusnya hanya disimpan/dipaparkan — tiada susulan berganda dicipta.
+4. **Kiraan tarikh bulan/tahun yang betul** — bukan +30 hari. Contoh: 31 Jan + 1 bulan = 28 Feb (29 Feb pada tahun lompat), 15 Dis + 2 bulan = 15 Feb tahun berikutnya.
+
+### Jenis kerja v2
+
+Membaja, Meracun Rumput, Racun Kulat, Racun Serangga, **Menuai, Pruning / Memangkas, Membersihkan, Menanam, Menyiram**, Lain-lain. Jenis lama masih boleh dibuka dan dipaparkan. Ikon SVG baharu dalam `www/assets/icons/`: `menuai.svg`, `pruning.svg`, `membersihkan.svg`, `menanam.svg`, `menyiram.svg`.
+
+### Notifikasi — 2 hari sebelum
+
+- Suis hidup/mati dalam Ringkasan → Notifikasi, disimpan dalam tetapan (lalai: HIDUP).
+- Bila HIDUP, Hari Ini memaparkan senarai "Akan Datang (2 hari lagi)" untuk kerja yang belum siap yang dijadualkan hari ini, esok, dan tepat 2 hari lagi.
+- Bila MATI, tiada notifikasi pelayar dan senarai peringatan disembunyikan.
+- **Web:** notifikasi pelayar hanya dihantar bila aplikasi dibuka dan izin sudah diberi. Aplikasi *tidak* meminta izin automatik semasa load — tekan "Benarkan Notifikasi" untuk meminta izin. Ia **tidak** berfungsi bila aplikasi ditutup sepenuhnya di web.
+- **Android:** kod integrasi Capacitor LocalNotifications (`@capacitor/local-notifications` dalam `package.json`) disediakan dan dijaga (tidak buat apa-apa di web jika plugin tiada). Ia hanya berkuat kuasa selepas build Android (`npm install`, `npx cap sync`, bina semula). Notifikasi latar belakang sebenar di Android memerlukan build itu — bukan sekadar membuka versi web.
+
+### Gambar — 1 gambar setiap kerja, dimampatkan, pilihan
+
+- Dalam borang kerja, satu ruangan fail gambar (terima `image/*`, kamera pada telefon).
+- Bila dipilih, gambar dimampatkan dengan canvas: dimensi maks 1280px, JPEG kualiti 0.82. Aplikasi memaparkan saiz asal vs saiz mampat (KB) dan pratonton. Memilih gambar baharu menggantikan gambar lama — hadnya tegas: 1 gambar sahaja.
+- Kad kerja memaparkan thumbnail jika ada.
+- **Gambar disimpan tempatan sahaja** dan tidak termasuk dalam eksport JSON biasa, untuk jimat storan. Pada masa depan, jika ada hosting, gambar boleh dibackup ke hosting — itu langkah seterusnya, bukan sekarang.
+
+### Sandaran, database & retrieve selepas uninstall — penjelasan jujur
+
+Data v2 disimpan dengan kunci `kebunku_data_v2` (migrasi automatik daripada `kebunku_data_v1`, kebun/blok/kerja dikekalkan, medan baharu ditambah: `nextTarikh`, `image`, `settings`, `updatedAt`).
+
+**Tetapi aplikasi peranti sahaja tidak boleh survive uninstall.** Yang dilaksanakan sekarang:
+
+- Model data berversi v2 + lapisan adapter sync dalam `app.js` (`Sync.toCloudPayload()` yang membuang gambar, `Sync.fromCloudPayload()` yang menggabung ikut id dengan last-updated-wins).
+- Ringkasan → Akaun & Sandaran memaparkan status ini dalam bahasa biasa, dan pilihan backend direkod (`belum disambung` / Supabase / Firebase / Pelayan Sendiri) — pilihan itu hanya direkod, **tiada sync berlaku**.
+- Eksport JSON biasa sekarang **tanpa gambar** (label jelas). Ada juga butang berasingan "Eksport Penuh (Termasuk Gambar)" yang hanya berjalan selepas pengesahan eksplisit pengguna.
+
+**Yang pengguna mesti putuskan sebelum retrieve selepas uninstall boleh berfungsi:** (1) backend awan mana (Supabase, Firebase, atau pelayan sendiri), (2) sistem akaun/log masuk, (3) hosting gambar jika gambar juga mahu dibackup. Sehingga itu diputuskan dan disambung, sandaran sebenar pengguna ialah fail eksport JSON (tanpa gambar) — eksport selalu sebelum uninstall / tukar telefon.
+
 ## Apa yang ada dalam MVP Fasa 1?
 
 1. **Kebun & Blok** — tambah kebun, kemudian blok dalam kebun itu. Setiap blok ada tanaman: Koko, Sawit, Durian, atau Lain-lain (isi sendiri).
@@ -110,14 +150,14 @@ Kemudian bina dan jalankan dalam Xcode. Kod web yang sama dalam `www/` akan digu
 
 ## Offline-first — bagaimana data disimpan?
 
-- Semua data disimpan dalam `localStorage` pelayar / WebView, dengan kunci `kebunku_data_v1`.
+- Semua data disimpan dalam `localStorage` pelayar / WebView, dengan kunci `kebunku_data_v2` (migrasi automatik daripada `kebunku_data_v1`).
 - Tiada pelayan, tiada akaun, tiada log masuk dalam MVP ini.
 - Aplikasi berfungsi tanpa internet di kebun. Bila ada internet pun, data kekal dalam peranti — tiada sync automatik lagi.
 - **Sandaran penting:** eksport JSON selalu, kerana data `localStorage` boleh hilang jika data pelayar dipadam atau aplikasi dinyahpasang.
 
 ## Had / batasan MVP ini (jujur)
 
-- **Foto belum disimpan.** Butang foto sengaja tidak dimasukkan dalam MVP ini kerana menyimpan gambar dalam `localStorage` mudah mencecah had storan dan merosakkan aplikasi. Foto akan ditambah kemudian dengan storan fail sebenar (contohnya Capacitor Filesystem), bukan `localStorage`.
+- **Foto kini 1 gambar setiap kerja, dimampatkan, tempatan sahaja.** Lihat bahagian v2 di atas. Storan fail sebenar (contohnya Capacitor Filesystem) masih merupakan penambahbaikan masa depan jika `localStorage` menjadi sempit; buat masa ini gambar kekal dalam rekod kerja tempatan dan tidak termasuk dalam eksport biasa.
 - **APK release belum dibuat.** APK debug boleh dibina ikut langkah di atas untuk ujian. APK/AAB release yang ditandatangani memerlukan keystore sendiri (lihat langkah release di atas) dan belum dibuat kerana keystore tidak boleh dijana bagi pihak pengguna tanpa kata laluan yang selamat.
 - **iOS belum dibuat.** Hanya langkah masa depan didokumenkan di atas.
 - **Tiada multi-pengguna lagi.** Semua orang yang guna peranti yang sama akan nampak data yang sama. Lihat bahagian seterusnya untuk reka bentuk masa depan.
@@ -128,7 +168,7 @@ Data sekarang diasingkan dengan jelas, supaya boleh dipindah ke pangkalan data s
 
 - `kebuns[]` — `{ id, nama }`
 - `bloks[]` — `{ id, kebunId, nama, tanaman, tanamanLain }`
-- `kerjas[]` — `{ id, kebunId, blokId, jenis, jenisLain, tarikhRancang, tarikhSiap, status, peratus, bahan, dos, kos, nota }`
+- `kerjas[]` — `{ id, kebunId, blokId, jenis, jenisLain, tarikhRancang, tarikhSiap, status, peratus, bahan, dos, kos, nota, nextTarikh, nextPilihan, image, updatedAt }` (v2)
 
 Hubungan ini kekal sama bila naik taraf nanti. Yang perlu ditambah kemudian, tanpa ubah konsep asas:
 

@@ -1,24 +1,94 @@
 "use strict";
-/* KebunKu MVP — offline-first, localStorage sahaja. Tiada backend, tiada log masuk. */
-var KEY = "kebunku_data_v1";
+/* KebunKu v2 — offline-first, localStorage sahaja buat masa ini. Tiada backend
+   yang disambung lagi; lihat objek Sync di bawah untuk persediaan sync awan. */
+var KEY = "kebunku_data_v2";
+var OLD_KEY = "kebunku_data_v1";
 var SEED_KEY = "kebunku_seeded_v1";
-var JENIS_KERJA = ["Membaja", "Meracun Rumput", "Racun Kulat", "Racun Serangga", "Lain-lain"];
+var JENIS_KERJA = ["Membaja", "Meracun Rumput", "Racun Kulat", "Racun Serangga", "Menuai", "Pruning", "Membersihkan", "Menanam", "Menyiram", "Lain-lain"];
+function jenisLabel(j) { return j === "Pruning" ? "Pruning / Memangkas" : j; }
 
 function $(id) { return document.getElementById(id); }
 function uid() { return "id_" + Date.now().toString(36) + "_" + Math.floor(Math.random() * 100000).toString(36); }
 function todayStr() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 function addDays(dateStr, n) { var d = new Date(dateStr + "T00:00:00"); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+/* Tambah bulan/tahun dengan betul: 31 Jan + 1 bulan = 28/29 Feb, bukan 3 Mac.
+   Hari dikekang kepada hari terakhir bulan sasaran (termasuk tahun lompat). */
+function addMonths(dateStr, n) {
+  var p = dateStr.split("-"); var y = Number(p[0]), m = Number(p[1]) - 1, d = Number(p[2]);
+  var total = m + n; var y2 = y + Math.floor(total / 12); var m2 = ((total % 12) + 12) % 12;
+  var last = new Date(y2, m2 + 1, 0).getDate(); var d2 = Math.min(d, last);
+  return y2 + "-" + String(m2 + 1).padStart(2, "0") + "-" + String(d2).padStart(2, "0");
+}
+function nextTarikhFrom(base, pilihan, custom) {
+  if (!base) return "";
+  if (pilihan === "1 Minggu") return addDays(base, 7);
+  if (pilihan === "2 Minggu") return addDays(base, 14);
+  if (pilihan === "1 Bulan") return addMonths(base, 1);
+  if (pilihan === "2 Bulan") return addMonths(base, 2);
+  if (pilihan === "3 Bulan") return addMonths(base, 3);
+  if (pilihan === "6 Bulan") return addMonths(base, 6);
+  if (pilihan === "1 Tahun") return addMonths(base, 12);
+  if (pilihan === "Tarikh Custom") return custom || "";
+  return "";
+}
 function fmtDate(s) { if (!s) return "-"; var p = s.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
 function fmtRM(n) { return "RM " + (Number(n) || 0).toFixed(2); }
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
 
-function emptyData() { return { kebuns: [], bloks: [], kerjas: [] }; }
+function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung" }; }
+function normalKerja(k) {
+  var r = Object.assign({ nextTarikh: "", nextPilihan: "", image: null, updatedAt: 0, contoh: false }, k || {});
+  if (!r.nextTarikh) r.nextTarikh = "";
+  return r;
+}
+function emptyData() { return { version: 2, kebuns: [], bloks: [], kerjas: [], settings: tetapanLalai() }; }
+function normalData(d) {
+  var r = { version: 2, kebuns: [], bloks: [], kerjas: [], settings: tetapanLalai() };
+  if (!d) return r;
+  if (Array.isArray(d.kebuns)) r.kebuns = d.kebuns;
+  if (Array.isArray(d.bloks)) r.bloks = d.bloks;
+  if (Array.isArray(d.kerjas)) r.kerjas = d.kerjas.map(normalKerja);
+  if (d.settings && typeof d.settings === "object") {
+    if (typeof d.settings.notifikasiHidup === "boolean") r.settings.notifikasiHidup = d.settings.notifikasiHidup;
+    if (typeof d.settings.backend === "string" && d.settings.backend) r.settings.backend = d.settings.backend;
+  }
+  return r;
+}
+/* ===== SYNC ADAPTER (persediaan awan — belum disambung ke mana-mana backend) =====
+   toCloudPayload() membuang gambar dengan sengaja: gambar kekal tempatan sahaja
+   sehingga ada hosting gambar pada masa depan. fromCloudPayload() menggabung ikut
+   id, last-updated-wins (updatedAt lebih besar menang). */
+var Sync = {
+  toCloudPayload: function (d) {
+    var x = normalData(d);
+    return {
+      version: 2,
+      kebuns: x.kebuns, bloks: x.bloks,
+      kerjas: x.kerjas.map(function (k) {
+        var c = Object.assign({}, k); c.image = null; return c;
+      }),
+      settings: { notifikasiHidup: x.settings.notifikasiHidup, backend: x.settings.backend }
+    };
+  },
+  fromCloudPayload: function (payload, tempatan) {
+    var awan = normalData(payload); var t = normalData(tempatan);
+    function gabung(a, b) {
+      var m = {}; a.forEach(function (x) { m[x.id] = x; });
+      b.forEach(function (x) { if (!m[x.id] || (Number(x.updatedAt) || 0) >= (Number(m[x.id].updatedAt) || 0)) m[x.id] = x; });
+      return Object.keys(m).map(function (k) { return m[k]; });
+    }
+    var hasil = { version: 2, kebuns: gabung(t.kebuns, awan.kebuns), bloks: gabung(t.bloks, awan.bloks),
+      kerjas: gabung(t.kerjas, awan.kerjas).map(normalKerja), settings: t.settings };
+    if (awan.settings && awan.settings.backend && awan.settings.backend !== "belum disambung") hasil.settings.backend = awan.settings.backend;
+    return hasil;
+  }
+};
 
 function seedData() {
   var t = todayStr();
   var kebunId = uid();
   var b1 = uid(), b2 = uid(), b3 = uid();
-  return {
+  return { version: 2, settings: tetapanLalai(),
     kebuns: [{ id: kebunId, nama: "Kebun Contoh", contoh: true }],
     bloks: [
       { id: b1, kebunId: kebunId, nama: "Blok 1", tanaman: "Koko", tanamanLain: "", contoh: true },
@@ -37,11 +107,16 @@ function seedData() {
 function load() {
   try {
     var raw = localStorage.getItem(KEY);
-    if (raw) { var d = JSON.parse(raw); if (d && Array.isArray(d.kebuns) && Array.isArray(d.bloks) && Array.isArray(d.kerjas)) return d; }
-  } catch (e) { /* abaikan data rosak, mula kosong */ }
+    if (raw) { var d = JSON.parse(raw); if (d && Array.isArray(d.kebuns) && Array.isArray(d.bloks) && Array.isArray(d.kerjas)) return normalData(d); }
+  } catch (e) { /* abaikan data rosak, cuba migrasi v1 */ }
+  /* Migrasi v1 -> v2: kekalkan kebun/blok/kerja, tambah settings + medan baharu. */
+  try {
+    var lama = localStorage.getItem(OLD_KEY);
+    if (lama) { var dv1 = JSON.parse(lama); if (dv1 && Array.isArray(dv1.kerjas)) { var mig = normalData(dv1); localStorage.setItem(KEY, JSON.stringify(mig)); return mig; } }
+  } catch (e2) { /* abaikan */ }
   if (!localStorage.getItem(SEED_KEY)) {
     localStorage.setItem(SEED_KEY, "1");
-    var seeded = seedData();
+    var seeded = normalData(seedData());
     localStorage.setItem(KEY, JSON.stringify(seeded));
     return seeded;
   }
@@ -55,8 +130,8 @@ function kebunNama(id) { var k = data.kebuns.find(function (x) { return x.id ===
 function blokById(id) { return data.bloks.find(function (x) { return x.id === id; }); }
 function blokNama(id) { var b = blokById(id); return b ? b.nama : "-"; }
 function tanamanBlok(id) { var b = blokById(id); if (!b) return "-"; return b.tanaman === "Lain-lain" && b.tanamanLain ? b.tanamanLain : b.tanaman; }
-function jenisPaparan(k) { return k.jenis === "Lain-lain" && k.jenisLain ? k.jenisLain : k.jenis; }
-function iconKerja(j) { var m = {"Membaja":"membaja.svg","Meracun Rumput":"meracun-rumput.svg","Racun Kulat":"racun-kulat.svg","Racun Serangga":"racun-serangga.svg"}; return m[j] || "lain-kerja.svg"; }
+function jenisPaparan(k) { if (k.jenis === "Lain-lain" && k.jenisLain) return k.jenisLain; return jenisLabel(k.jenis); }
+function iconKerja(j) { var m = {"Membaja":"membaja.svg","Meracun Rumput":"meracun-rumput.svg","Racun Kulat":"racun-kulat.svg","Racun Serangga":"racun-serangga.svg","Menuai":"menuai.svg","Pruning":"pruning.svg","Membersihkan":"membersihkan.svg","Menanam":"menanam.svg","Menyiram":"menyiram.svg"}; return m[j] || "lain-kerja.svg"; }
 function iconTanaman(tn) { var m = {"Koko":"koko.svg","Sawit":"sawit.svg","Durian":"durian.svg"}; return m[tn] || "lain.svg"; }
 function emptyHtml(msg) { return "<div class=\"emptywrap\"><img class=\"empty-art\" src=\"assets/illustration-empty.svg\" alt=\"\"><p class=\"empty\">" + msg + "</p></div>"; }
 
@@ -92,8 +167,10 @@ function jobCard(k) {
   div.className = "card job";
   div.innerHTML =
     "<div class=\"jobhead\"><img class=\"jobicon\" src=\"assets/icons/" + iconKerja(k.jenis) + "\" alt=\"\"><p class=\"title\">" + esc(jenisPaparan(k)) + " — " + esc(blokNama(k.blokId)) + "</p></div>" +
+    (k.image ? "<img class=\"jobimg\" src=\"" + esc(k.image) + "\" alt=\"Gambar kerja\">" : "") +
     "<p class=\"meta\">" + esc(kebunNama(k.kebunId)) + " • " + esc(tanamanBlok(k.blokId)) + "<br>" +
     "Dirancang: " + esc(fmtDate(k.tarikhRancang)) + (overdue ? " <span class=\"overdue\">• Tertunggak</span>" : "") +
+    (k.nextTarikh ? "<br>Kerja seterusnya: " + esc(fmtDate(k.nextTarikh)) : "") +
     (k.tarikhSiap ? "<br>Siap: " + esc(fmtDate(k.tarikhSiap)) : "") +
     (k.bahan ? "<br>Bahan: " + esc(k.bahan) : "") +
     (k.dos ? " • Dos: " + esc(k.dos) : "") +
@@ -121,6 +198,59 @@ function renderHariIni() {
   el.innerHTML = "";
   if (!list.length) { el.innerHTML = emptyHtml("Tiada kerja untuk hari ini. Tahniah — semua sudah siap atau belum dirancang."); return; }
   list.forEach(function (k) { el.appendChild(jobCard(k)); });
+}
+function renderPeringatan() {
+  var el = $("peringatanList"); if (!el) return;
+  var s = (data.settings && typeof data.settings.notifikasiHidup === "boolean") ? data.settings.notifikasiHidup : true;
+  if (!s) { el.innerHTML = ""; el.hidden = true; return; }
+  var t = todayStr(); var esok = addDays(t, 1); var lusa = addDays(t, 2);
+  var list = data.kerjas.filter(function (k) { return k.status !== "Siap" && (k.tarikhRancang === t || k.tarikhRancang === esok || k.tarikhRancang === lusa); });
+  list.sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? -1 : 1; });
+  el.hidden = false;
+  if (!list.length) { el.innerHTML = "<div class=\"card\"><h3>Akan Datang</h3><p class=\"hint\">Tiada kerja dalam 2 hari lagi.</p></div>"; return; }
+  var rows = list.map(function (k) {
+    var bila = k.tarikhRancang === t ? "Hari ini" : (k.tarikhRancang === esok ? "Esok" : "2 hari lagi");
+    return "<p>" + esc(jenisPaparan(k)) + " — " + esc(blokNama(k.blokId)) + " (" + esc(kebunNama(k.kebunId)) + ") • " + bila + " (" + esc(fmtDate(k.tarikhRancang)) + ")</p>";
+  }).join("");
+  el.innerHTML = "<div class=\"card\"><h3>Akan Datang (2 hari lagi)</h3><p class=\"hint\">Peringatan untuk kerja yang dijadualkan hari ini, esok dan 2 hari lagi. Notifikasi pelayar hanya dihantar bila aplikasi dibuka.</p>" + rows + "</div>";
+}
+function renderNotifikasiStatus() {
+  var st = $("notiStatus"); if (!st) return;
+  var hidup = data.settings && data.settings.notifikasiHidup;
+  var izin = (typeof Notification !== "undefined") ? Notification.permission : "tidak disokong";
+  st.textContent = "Notifikasi: " + (hidup ? "HIDUP" : "MATI") + " • Izin pelayar: " + izin +
+    (hidup ? " • Notifikasi pelayar hanya dihantar bila aplikasi dibuka; ia tidak berfungsi bila aplikasi ditutup sepenuhnya di web." : " • Tiada notifikasi akan dihantar selagi suis ini MATI.");
+  var tog = $("notiToggle"); if (tog) tog.checked = !!hidup;
+  var bk = $("backendPilihan"); if (bk) bk.value = (data.settings && data.settings.backend) || "belum disambung";
+}
+function renderAkaunStatus() {
+  var el = $("akaunStatus"); if (!el) return;
+  var bk = (data.settings && data.settings.backend) || "belum disambung";
+  el.innerHTML = "<p><b>Status sandaran:</b> Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda. " +
+    "Jika aplikasi dinyahpasang tanpa eksport, data akan hilang.</p>" +
+    "<p><b>Untuk boleh retrieve selepas uninstall,</b> aplikasi perlu disambung ke backend awan (pilihan backend yang direkod sekarang: " + esc(bk) + "). " +
+    "Backend itu <b>belum disambung</b> — tiada log masuk dan tiada sync berlaku sekarang. Pilihan backend + akaun perlu diputuskan dahulu sebelum retrieve selepas uninstall boleh berfungsi.</p>" +
+    "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan). Pada masa depan, gambar boleh dibackup ke hosting — itu langkah seterusnya, bukan sekarang.</p>";
+}
+function semakNotifikasi() {
+  try {
+    if (!data.settings || !data.settings.notifikasiHidup) return;
+    /* Capacitor LocalNotifications — hanya berfungsi selepas build Android.
+       Dijaga supaya tidak buat apa-apa di web jika plugin tiada. */
+    try {
+      var LN = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) ? window.Capacitor.Plugins.LocalNotifications : null;
+      if (LN && LN.schedule) {
+        var lusa = addDays(todayStr(), 2);
+        var due = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === lusa; }).slice(0, 5);
+        if (due.length) { LN.schedule({ notifications: due.map(function (k, i) { return { title: "KebunKu — Kerja 2 hari lagi", body: jenisPaparan(k) + " — " + blokNama(k.blokId), id: 1000 + i, schedule: { at: new Date(todayStr() + "T08:00:00") } }; }) }).catch(function () {}); }
+      }
+    } catch (eCap) { /* abaikan di web */ }
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    var lusa2 = addDays(todayStr(), 2);
+    data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === lusa2; }).slice(0, 5).forEach(function (k) {
+      try { new Notification("KebunKu — Kerja 2 hari lagi", { body: jenisPaparan(k) + " — " + blokNama(k.blokId) + " (" + fmtDate(k.tarikhRancang) + ")" }); } catch (eN) {}
+    });
+  } catch (e) {}
 }
 function renderSemuaKerja() {
   var el = $("semuaKerjaList");
@@ -188,7 +318,7 @@ function renderRingkasan() {
   }).join("");
   $("ringkasanKebun").innerHTML = "<h3>Ikut Kebun — Bulan Ini</h3>" + (perKebun || emptyHtml("Belum ada kebun."));
 }
-function renderAll() { refreshSelects(); renderHariIni(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); }
+function renderAll() { refreshSelects(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); }
 
 function setTab(name) {
   document.querySelectorAll(".tab").forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
@@ -200,7 +330,7 @@ document.querySelectorAll(".tab").forEach(function (b) { b.addEventListener("cli
 // Template pantas
 JENIS_KERJA.forEach(function (j) {
   var btn = document.createElement("button");
-  btn.type = "button"; btn.className = "btn secondary"; btn.innerHTML = "<img class=\"ticon\" src=\"assets/icons/" + iconKerja(j) + "\" alt=\"\">" + j;
+  btn.type = "button"; btn.className = "btn secondary"; btn.innerHTML = "<img class=\"ticon\" src=\"assets/icons/" + iconKerja(j) + "\" alt=\"\">" + jenisLabel(j);
   btn.addEventListener("click", function () {
     $("kerjaJenis").value = j;
     $("kerjaTarikh").value = todayStr();
@@ -208,7 +338,7 @@ JENIS_KERJA.forEach(function (j) {
     $("kerjaPeratus").value = 0;
     $("kerjaId").value = "";
     setTab("kerja");
-    toast("Borang pra-isi: " + j + ". Pilih kebun & blok, kemudian Simpan.");
+    toast("Borang pra-isi: " + jenisLabel(j) + ". Pilih kebun & blok, kemudian Simpan.");
   });
   $("templateButtons").appendChild(btn);
 });
@@ -218,7 +348,7 @@ $("copyYesterdayBtn").addEventListener("click", function () {
   var semalamJobs = data.kerjas.filter(function (k) { return k.tarikhRancang === semalam; });
   if (!semalamJobs.length) { toast("Tiada kerja semalam untuk disalin."); return; }
   semalamJobs.forEach(function (k) {
-    var salinan = Object.assign({}, k, { id: uid(), tarikhRancang: todayStr(), tarikhSiap: "", status: "Dirancang", peratus: 0, contoh: false });
+    var salinan = Object.assign({}, k, { id: uid(), tarikhRancang: todayStr(), tarikhSiap: "", status: "Dirancang", peratus: 0, contoh: false, nextTarikh: "", nextPilihan: "", image: null, updatedAt: Date.now() });
     data.kerjas.push(salinan);
   });
   save(); renderAll();
@@ -241,6 +371,47 @@ $("blokForm").addEventListener("submit", function (e) {
   $("blokNama").value = ""; $("blokTanamanLain").value = ""; save(); renderAll(); toast("Blok ditambah.");
 });
 
+// Gambar kerja: maksimum 1, dimampatkan, tempatan sahaja
+var gambarSemasa = null;
+function setGambarInfo(teks) { var el = $("gambarInfo"); if (el) el.textContent = teks || ""; }
+function paparGambarSemasa() {
+  var img = $("gambarPreview"); if (!img) return;
+  if (gambarSemasa) { img.src = gambarSemasa; img.hidden = false; } else { img.removeAttribute("src"); img.hidden = true; }
+}
+function buangGambar() {
+  gambarSemasa = null; var inp = $("kerjaGambar"); if (inp) inp.value = ""; paparGambarSemasa(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
+}
+var _gInput = null;
+function daftarGambarInput() {
+  var inp = $("kerjaGambar"); if (!inp || inp === _gInput) return; _gInput = inp;
+  inp.addEventListener("change", function () {
+    var file = inp.files && inp.files[0]; if (!file) return;
+    if (!file.type || file.type.indexOf("image/") !== 0) { setGambarInfo("Fail yang dipilih bukan gambar."); return; }
+    var asalKB = Math.round(file.size / 1024);
+    var url = URL.createObjectURL(file); var img = new Image();
+    img.onload = function () {
+      try {
+        var maks = 1280; var w = img.width, h = img.height; var skala = Math.min(1, maks / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * skala)), ch = Math.max(1, Math.round(h * skala));
+        var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+        cv.getContext("2d").drawImage(img, 0, 0, cw, ch);
+        cv.toBlob(function (blob) {
+          if (!blob) { setGambarInfo("Gagal memampatkan gambar."); return; }
+          var r = new FileReader();
+          r.onload = function () { gambarSemasa = r.result; paparGambarSemasa(); setGambarInfo("Asal: " + asalKB + " KB → Mampat: " + Math.round(blob.size / 1024) + " KB (JPEG, maks 1280px, kualiti 0.82). Memilih gambar baharu akan menggantikan gambar lama."); };
+          r.readAsDataURL(blob);
+        }, "image/jpeg", 0.82);
+      } catch (e) { setGambarInfo("Gagal memampatkan gambar."); }
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function () { setGambarInfo("Gambar tidak dapat dibaca."); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+function toggleNextCustom() {
+  var row = $("kerjaNextCustomRow"); if (!row) return;
+  row.hidden = ($("kerjaNext").value !== "Tarikh Custom");
+}
 // Borang kerja
 $("kerjaKebun").addEventListener("change", refreshBlokSelects);
 $("kerjaForm").addEventListener("submit", function (e) {
@@ -250,27 +421,38 @@ $("kerjaForm").addEventListener("submit", function (e) {
   var status = $("kerjaStatus").value;
   if (peratus === 100) status = "Siap";
   else if (peratus > 0 && status === "Dirancang") status = "Siap Sebahagian";
+  var pilihanNext = $("kerjaNext").value || "";
+  var nextTarikh = nextTarikhFrom($("kerjaTarikh").value, pilihanNext, $("kerjaNextCustom").value);
   var rec = {
     kebunId: $("kerjaKebun").value, blokId: $("kerjaBlok").value,
     jenis: $("kerjaJenis").value, jenisLain: $("kerjaJenisLain").value.trim(),
     tarikhRancang: $("kerjaTarikh").value, status: status, peratus: peratus,
     bahan: $("kerjaBahan").value.trim(), dos: $("kerjaDos").value.trim(),
     kos: Number($("kerjaKos").value) || 0, nota: $("kerjaNota").value.trim(),
-    tarikhSiap: status === "Siap" ? todayStr() : "", contoh: false
+    tarikhSiap: status === "Siap" ? todayStr() : "", contoh: false,
+    nextTarikh: nextTarikh, nextPilihan: pilihanNext, image: gambarSemasa, updatedAt: Date.now()
   };
   if (!rec.kebunId || !rec.blokId || !rec.tarikhRancang) { toast("Lengkapkan kebun, blok dan tarikh."); return; }
+  if (pilihanNext === "Tarikh Custom" && !nextTarikh) { toast("Pilih tarikh custom untuk kerja seterusnya."); return; }
   if (id) {
     var lama = data.kerjas.find(function (k) { return k.id === id; });
     if (lama) { Object.assign(lama, rec); if (lama.status === "Siap" && !lama.tarikhSiap) lama.tarikhSiap = todayStr(); }
     toast("Kerja dikemaskini.");
   } else {
-    rec.id = uid(); data.kerjas.push(rec); toast("Kerja disimpan.");
+    rec.id = uid(); data.kerjas.push(rec);
+    if (nextTarikh) {
+      data.kerjas.push({ id: uid(), kebunId: rec.kebunId, blokId: rec.blokId, jenis: rec.jenis, jenisLain: rec.jenisLain,
+        tarikhRancang: nextTarikh, tarikhSiap: "", status: "Dirancang", peratus: 0, bahan: "", dos: "", kos: 0,
+        nota: "Susulan automatik daripada kerja pada " + fmtDate(rec.tarikhRancang) + ".", contoh: false,
+        nextTarikh: "", nextPilihan: "", image: null, updatedAt: Date.now() });
+      toast("Kerja disimpan. Kerja susulan dijadualkan pada " + fmtDate(nextTarikh) + ".");
+    } else { toast("Kerja disimpan."); }
   }
-  $("kerjaId").value = ""; e.target.reset(); $("kerjaTarikh").value = todayStr(); $("kerjaPeratus").value = 0;
+  $("kerjaId").value = ""; e.target.reset(); buangGambar(); $("kerjaTarikh").value = todayStr(); $("kerjaPeratus").value = 0; toggleNextCustom();
   save(); renderAll();
 });
 $("kerjaResetBtn").addEventListener("click", function () {
-  $("kerjaForm").reset(); $("kerjaId").value = ""; $("kerjaTarikh").value = todayStr(); $("kerjaPeratus").value = 0; refreshBlokSelects();
+  $("kerjaForm").reset(); buangGambar(); $("kerjaId").value = ""; $("kerjaTarikh").value = todayStr(); $("kerjaPeratus").value = 0; toggleNextCustom(); refreshBlokSelects();
 });
 
 // Aksi pada kad kerja (event delegation)
@@ -296,6 +478,10 @@ document.addEventListener("click", function (e) {
       $("kerjaBlok").value = k.blokId; $("kerjaJenis").value = k.jenis; $("kerjaJenisLain").value = k.jenisLain || "";
       $("kerjaTarikh").value = k.tarikhRancang; $("kerjaStatus").value = k.status; $("kerjaPeratus").value = k.peratus;
       $("kerjaBahan").value = k.bahan || ""; $("kerjaDos").value = k.dos || ""; $("kerjaKos").value = k.kos || ""; $("kerjaNota").value = k.nota || "";
+      $("kerjaNext").value = k.nextPilihan || (k.nextTarikh ? "Tarikh Custom" : "");
+      $("kerjaNextCustom").value = (k.nextPilihan === "Tarikh Custom") ? (k.nextTarikh || "") : "";
+      toggleNextCustom(); gambarSemasa = k.image || null; paparGambarSemasa();
+      setGambarInfo(k.image ? "Gambar sedia ada (tempatan sahaja, maksimum 1). Pilih gambar baharu untuk menggantikannya." : "Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
       setTab("kerja"); window.scrollTo(0, 0); return;
     }
     if (act === "padam") {
@@ -342,11 +528,20 @@ $("qBtn").addEventListener("click", function () {
 });
 
 // Eksport / Import / Padam
-$("exportBtn").addEventListener("click", function () {
-  var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "kebunku-export-" + todayStr() + ".json"; a.click();
+function muatTurunJSON(obj, nama) {
+  var blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nama; a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-  toast("Eksport dimuat turun.");
+}
+$("exportBtn").addEventListener("click", function () {
+  muatTurunJSON(Sync.toCloudPayload(data), "kebunku-export-tanpa-gambar-" + todayStr() + ".json");
+  toast("Eksport tanpa gambar dimuat turun.");
+});
+var _expFull = $("exportFullBtn");
+if (_expFull) _expFull.addEventListener("click", function () {
+  if (!confirm("Eksport penuh termasuk gambar — fail boleh jadi besar. Teruskan?")) return;
+  muatTurunJSON(data, "kebunku-export-penuh-" + todayStr() + ".json");
+  toast("Eksport penuh (termasuk gambar) dimuat turun.");
 });
 $("importFile").addEventListener("change", function (e) {
   var file = e.target.files[0]; if (!file) return;
@@ -356,10 +551,26 @@ $("importFile").addEventListener("change", function (e) {
       var d = JSON.parse(reader.result);
       if (!d || !Array.isArray(d.kebuns) || !Array.isArray(d.bloks) || !Array.isArray(d.kerjas)) throw new Error("format");
       if (!confirm("Import akan menggantikan semua data sekarang. Teruskan?")) return;
-      data = d; save(); renderAll(); toast("Import berjaya.");
+      data = normalData(d); save(); renderAll(); toast("Import berjaya.");
     } catch (err) { toast("Fail import tidak sah. Pastikan ia fail JSON eksport KebunKu."); }
   };
   reader.readAsText(file); e.target.value = "";
+});
+var _notiT = $("notiToggle");
+if (_notiT) _notiT.addEventListener("change", function () {
+  data.settings = data.settings || tetapanLalai(); data.settings.notifikasiHidup = _notiT.checked; save(); renderAll();
+  if (_notiT.checked) semakNotifikasi();
+  toast(_notiT.checked ? "Notifikasi dihidupkan." : "Notifikasi dimatikan.");
+});
+var _notiB = $("notiBenarkanBtn");
+if (_notiB) _notiB.addEventListener("click", function () {
+  if (typeof Notification === "undefined") { toast("Pelayar ini tidak menyokong notifikasi."); return; }
+  Notification.requestPermission().then(function () { renderNotifikasiStatus(); semakNotifikasi(); });
+});
+var _bk = $("backendPilihan");
+if (_bk) _bk.addEventListener("change", function () {
+  data.settings = data.settings || tetapanLalai(); data.settings.backend = _bk.value; save(); renderAkaunStatus();
+  toast("Pilihan backend direkod (belum disambung): " + _bk.value);
 });
 $("deleteSampleBtn").addEventListener("click", function () {
   var ada = data.kebuns.some(function (k) { return k.contoh; }) || data.bloks.some(function (k) { return k.contoh; }) || data.kerjas.some(function (k) { return k.contoh; });
@@ -379,4 +590,9 @@ $("deleteAllBtn").addEventListener("click", function () {
 // Mula
 $("todayLabel").textContent = fmtDate(todayStr());
 $("kerjaTarikh").value = todayStr();
+daftarGambarInput();
+var _gb = $("gambarBuangBtn"); if (_gb) _gb.addEventListener("click", buangGambar);
+var _kn = $("kerjaNext"); if (_kn) _kn.addEventListener("change", toggleNextCustom);
+toggleNextCustom(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
 renderAll();
+semakNotifikasi();

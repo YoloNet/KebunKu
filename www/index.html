@@ -35,6 +35,7 @@
   <section id="view-hariini" class="view active">
     <h2>Hari Ini</h2>
     <p class="hint">Kerja yang dirancang hari ini, ditambah kerja tertunggak yang belum siap. Kerja tertunggak tidak akan hilang — ia dibawa ke hadapan sehingga siap.</p>
+    <div id="peringatanList"></div>
     <div id="hariIniList"></div>
     <div class="card">
       <h3>Rekod Pantas</h3>
@@ -61,6 +62,11 @@
           <option value="Meracun Rumput">Meracun Rumput</option>
           <option value="Racun Kulat">Racun Kulat</option>
           <option value="Racun Serangga">Racun Serangga</option>
+          <option value="Menuai">Menuai</option>
+          <option value="Pruning">Pruning / Memangkas</option>
+          <option value="Membersihkan">Membersihkan</option>
+          <option value="Menanam">Menanam</option>
+          <option value="Menyiram">Menyiram</option>
           <option value="Lain-lain">Lain-lain</option>
         </select>
       </label>
@@ -91,10 +97,33 @@
       <label>Kos (RM)
         <input type="number" id="kerjaKos" min="0" step="0.01" placeholder="0.00">
       </label>
+      <label>Kerja Seterusnya
+        <select id="kerjaNext">
+          <option value="">Tiada</option>
+          <option value="1 Minggu">1 Minggu</option>
+          <option value="2 Minggu">2 Minggu</option>
+          <option value="1 Bulan">1 Bulan</option>
+          <option value="2 Bulan">2 Bulan</option>
+          <option value="3 Bulan">3 Bulan</option>
+          <option value="6 Bulan">6 Bulan</option>
+          <option value="1 Tahun">1 Tahun</option>
+          <option value="Tarikh Custom">Tarikh Custom</option>
+        </select>
+      </label>
+      <label id="kerjaNextCustomRow" hidden>Tarikh Custom Kerja Seterusnya
+        <input type="date" id="kerjaNextCustom">
+      </label>
+      <p class="hint">Jika kerja baharu disimpan dengan kerja seterusnya, satu kerja susulan yang dirancang akan dicipta automatik pada tarikh itu. Jika anda mengubah kerja sedia ada, tiada susulan berganda akan dicipta.</p>
       <label>Nota Ringkas
         <textarea id="kerjaNota" rows="3" placeholder="cth: Hujan petang, Blok 2 sambung esok"></textarea>
       </label>
-      <p class="hint">Nota: Foto belum disimpan dalam MVP ini untuk mengelakkan storan telefon penuh. Lihat README untuk penjelasan. Foto akan ditambah dalam versi seterusnya.</p>
+      <label>Gambar Kerja (Pilihan — maksimum 1)
+        <input type="file" id="kerjaGambar" accept="image/*" capture="environment">
+      </label>
+      <img id="gambarPreview" class="gambar-preview" alt="" hidden>
+      <p class="hint" id="gambarInfo">Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.</p>
+      <button type="button" class="btn secondary small" id="gambarBuangBtn">Buang Gambar</button>
+      <p class="hint">Gambar akan dimampatkan dahulu (JPEG, maks 1280px, kualiti 0.82) supaya jimat storan dengan kualiti tidak hilang banyak. Gambar disimpan tempatan sahaja dan tidak termasuk dalam eksport JSON biasa.</p>
       <div class="row">
         <button type="submit" class="btn primary">Simpan Kerja</button>
         <button type="button" class="btn secondary" id="kerjaResetBtn">Borang Kosong</button>
@@ -166,6 +195,11 @@
           <option value="Meracun Rumput">Meracun Rumput</option>
           <option value="Racun Kulat">Racun Kulat</option>
           <option value="Racun Serangga">Racun Serangga</option>
+          <option value="Menuai">Menuai</option>
+          <option value="Pruning">Pruning / Memangkas</option>
+          <option value="Membersihkan">Membersihkan</option>
+          <option value="Menanam">Menanam</option>
+          <option value="Menyiram">Menyiram</option>
           <option value="Lain-lain">Lain-lain</option>
         </select>
       </label>
@@ -191,6 +225,11 @@
           <option value="Meracun Rumput">Meracun Rumput</option>
           <option value="Racun Kulat">Racun Kulat</option>
           <option value="Racun Serangga">Racun Serangga</option>
+          <option value="Menuai">Menuai</option>
+          <option value="Pruning">Pruning / Memangkas</option>
+          <option value="Membersihkan">Membersihkan</option>
+          <option value="Menanam">Menanam</option>
+          <option value="Menyiram">Menyiram</option>
           <option value="Lain-lain">Lain-lain</option>
         </select>
       </label>
@@ -208,10 +247,34 @@
     <div class="card" id="ringkasanKebun"></div>
 
     <div class="card">
+      <h3>Notifikasi</h3>
+      <p class="hint">Hantar peringatan 2 hari sebelum tarikh kerja. Di web, notifikasi pelayar hanya dihantar bila aplikasi dibuka — ia tidak berfungsi bila aplikasi ditutup sepenuhnya. Di Android, notifikasi tempatan akan berfungsi selepas build dengan plugin LocalNotifications.</p>
+      <label class="toggle-row"><input type="checkbox" id="notiToggle" checked> Hidupkan notifikasi</label>
+      <p class="hint" id="notiStatus"></p>
+      <button type="button" class="btn secondary" id="notiBenarkanBtn">Benarkan Notifikasi</button>
+      <p class="hint">Butang ini hanya meminta izin pelayar bila anda tekan. Aplikasi tidak akan meminta izin automatik semasa dibuka.</p>
+    </div>
+
+    <div class="card">
+      <h3>Akaun &amp; Sandaran</h3>
+      <div id="akaunStatus"></div>
+      <label>Backend awan (pilihan untuk masa depan — belum disambung)
+        <select id="backendPilihan">
+          <option value="belum disambung">Belum disambung</option>
+          <option value="Supabase">Supabase</option>
+          <option value="Firebase">Firebase</option>
+          <option value="Pelayan Sendiri">Pelayan Sendiri</option>
+        </select>
+      </label>
+      <p class="hint">Pilihan ini hanya direkod untuk persediaan. Tiada log masuk dan tiada sync berlaku selagi backend belum disambung.</p>
+    </div>
+
+    <div class="card">
       <h3>Data Saya</h3>
-      <p class="hint">Semua data disimpan dalam telefon / pelayar ini sahaja (offline-first). Tiada akaun dan tiada pelayan dalam MVP ini. Eksport selalu sebagai sandaran.</p>
+      <p class="hint">Semua data disimpan dalam telefon / pelayar ini sahaja (offline-first). Tiada akaun dan tiada pelayan disambung lagi. Eksport selalu sebagai sandaran.</p>
       <div class="row">
-        <button type="button" class="btn primary" id="exportBtn">Eksport JSON</button>
+        <button type="button" class="btn primary" id="exportBtn">Eksport JSON (Tanpa Gambar)</button>
+        <button type="button" class="btn secondary" id="exportFullBtn">Eksport Penuh (Termasuk Gambar)</button>
         <label class="btn secondary filebtn">Import JSON
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </label>
@@ -225,7 +288,7 @@
 </main>
 
 <footer>
-  <p>KebunKu MVP — offline-first, data disimpan dalam peranti ini. Tiada log masuk lagi.</p>
+  <p>KebunKu v2 — offline-first, data disimpan dalam peranti ini. Tiada log masuk / sync awan lagi.</p>
 </footer>
 
 <script src="app.js"></script>
