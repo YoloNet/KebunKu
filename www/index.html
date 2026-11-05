@@ -75,7 +75,7 @@
           <option value="Racun Serangga">Racun Serangga</option>
           <option value="Menuai">Menuai</option>
           <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Membersihkan">Membersihkan</option>
+          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
           <option value="Menanam">Menanam</option>
           <option value="Menyiram">Menyiram</option>
           <option value="Lain-lain">Lain-lain</option>
@@ -96,9 +96,14 @@
           <option value="Tertangguh">Tertangguh</option>
         </select>
       </label>
-      <label>Peratus Siap (%)
-        <input type="number" id="kerjaPeratus" min="0" max="100" value="0">
+      <label>Peratus Siap
+        <select id="kerjaPeratus">
+          <option value="0" hidden>0% — Belum Mula</option>
+          <option value="50">50% — Separuh Siap</option>
+          <option value="100" selected>100% — Siap Sepenuhnya</option>
+        </select>
       </label>
+      <p class="hint">Pilih 50% kalau kerja baru separuh siap, 100% kalau dah siap sepenuhnya. Kerja yang dirancang untuk masa depan disimpan 0% sehingga anda kemaskini.</p>
       <label>Bahan Digunakan
         <select id="kerjaBahan"></select>
       </label>
@@ -255,7 +260,7 @@
           <option value="Racun Serangga">Racun Serangga</option>
           <option value="Menuai">Menuai</option>
           <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Membersihkan">Membersihkan</option>
+          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
           <option value="Menanam">Menanam</option>
           <option value="Menyiram">Menyiram</option>
           <option value="Lain-lain">Lain-lain</option>
@@ -327,7 +332,7 @@
           <option value="Racun Serangga">Racun Serangga</option>
           <option value="Menuai">Menuai</option>
           <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Membersihkan">Membersihkan</option>
+          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
           <option value="Menanam">Menanam</option>
           <option value="Menyiram">Menyiram</option>
           <option value="Lain-lain">Lain-lain</option>
@@ -357,7 +362,7 @@
           <option value="Racun Serangga">Racun Serangga</option>
           <option value="Menuai">Menuai</option>
           <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Membersihkan">Membersihkan</option>
+          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
           <option value="Menanam">Menanam</option>
           <option value="Menyiram">Menyiram</option>
           <option value="Lain-lain">Lain-lain</option>

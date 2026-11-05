@@ -39,7 +39,7 @@ Aliran yang diminta pengguna, dilaksanakan sepenuhnya dalam aplikasi:
 
 ### Jenis kerja v2
 
-Membaja, Meracun Rumput, Racun Kulat, Racun Serangga, **Menuai, Pruning / Memangkas, Membersihkan, Menanam, Menyiram**, Lain-lain. Jenis lama masih boleh dibuka dan dipaparkan. Ikon SVG baharu dalam `www/assets/icons/`: `menuai.svg`, `pruning.svg`, `membersihkan.svg`, `menanam.svg`, `menyiram.svg`.
+Membaja, Meracun Rumput, Racun Kulat, Racun Serangga, **Menuai, Pruning / Memangkas, Potong Rumput / Grasscutter, Menanam, Menyiram**, Lain-lain. Jenis lama masih boleh dibuka dan dipaparkan — "Membersihkan" (nama lama untuk Potong Rumput) dinormalkan automatik kepada "Potong Rumput" semasa data dimuatkan. Ikon SVG baharu dalam `www/assets/icons/`: `menuai.svg`, `pruning.svg`, `potong-rumput.svg`, `menanam.svg`, `menyiram.svg`.
 
 ### Notifikasi — 2 hari sebelum
 
@@ -113,7 +113,7 @@ Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST te
 1. **Kebun & Blok** — tambah kebun, kemudian blok dalam kebun itu. Setiap blok ada tanaman: Koko, Sawit, Durian, atau Lain-lain (isi sendiri).
 2. **Kerja** — jenis kerja: Membaja, Meracun Rumput, Racun Kulat, Racun Serangga, Lain-lain. Setiap kerja simpan kebun, blok, tanaman, tarikh dirancang, tarikh siap, status (Dirancang, Dalam Proses, Siap Sebahagian, Siap, Tertangguh), peratus siap, bahan, dos/kuantiti, kos (RM) dan nota ringkas.
 3. **Hari Ini** — senarai kerja dirancang hari ini **ditambah** kerja tertunggak. Kerja tertunggak tidak hilang senyap-senyap; ia dibawa ke hadapan sehingga siap.
-4. **Pecah & sambung kerja** — tandakan siap sebahagian dengan peratus, kemudian tekan “Bawa ke Esok” atau “Bawa ke Lusa” untuk baki kerja itu.
+4. **Pecah & sambung kerja** — tandakan siap sebahagian dengan peratus (dropdown 50% atau 100% sahaja), kemudian tekan “Bawa ke Esok” atau “Bawa ke Lusa” untuk baki kerja itu. Kerja yang dirancang untuk masa depan disimpan 0% sehingga dikemaskini.
 5. **Rekod pantas** — butang template untuk jenis kerja yang selalu diulang, dan butang “Salin kerja semalam ke hari ini”. Borang direka supaya siap dalam masa kurang 30 saat.
 6. **Sejarah & carian** — tapis ikut kebun, blok, tanaman, jenis kerja, tarikh, dan bahan/nota. Ada juga alat “Bila kali terakhir kerja ini dibuat?” — contohnya pilih Blok 1 + Membaja untuk jawab bila Blok 1 terakhir dibaja.
 7. **Ringkasan** — 7 hari terakhir dan bulan ini: kerja siap vs belum siap, dan jumlah kos kerja siap, termasuk pecahan ikut kebun.

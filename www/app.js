@@ -10,7 +10,7 @@ var KEY = "kebunku_data_v3";
 var OLD_KEY = "kebunku_data_v2";
 var OLD_KEY_V1 = "kebunku_data_v1";
 var SEED_KEY = "kebunku_seeded_v1";
-var JENIS_KERJA = ["Membaja", "Meracun Rumput", "Racun Kulat", "Racun Serangga", "Menuai", "Pruning", "Membersihkan", "Menanam", "Menyiram", "Lain-lain"];
+var JENIS_KERJA = ["Membaja", "Meracun Rumput", "Racun Kulat", "Racun Serangga", "Menuai", "Pruning", "Potong Rumput", "Menanam", "Menyiram", "Lain-lain"];
 var TANAMAN_LIST = ["Koko", "Sawit", "Durian", "Lada", "Sayur", "Lada & Sayur", "Lain-lain"];
 var PERINGKAT_LIST = ["Bibit / Anak", "Matang", "Berbuah", "Semua Peringkat"];
 var ZON_LIST = ["Semua Zon", "Atas", "Bawah", "Tengah", "Atas & Tengah", "Tengah & Bawah", "Atas & Bawah"];
@@ -18,7 +18,13 @@ var DOS_UNIT_LIST = ["g", "kg", "ml", "L", "sudu", "karung", "pek", "botol"];
 var DOS_PER_LIST = ["", "/pokok", "/sprayer", "/kawasan", "/liter air"];
 var SYARAT_LIST = ["Tiada syarat", "Jika belum mula berbuah", "Jika masih ada simptom", "Jika masih ada rumput", "Jika hujan / cuaca tidak mengizinkan", "Lain-lain"];
 function dosPerLabel(p) { return p ? p : "Tiada"; }
-function jenisLabel(j) { return j === "Pruning" ? "Pruning / Memangkas" : j; }
+/* "Membersihkan" ialah nama lama untuk kerja ini — dipaparkan dan
+   dinormalkan kepada "Potong Rumput" supaya rekod lama tidak hilang. */
+function jenisLabel(j) {
+  if (j === "Pruning") return "Pruning / Memangkas";
+  if (j === "Potong Rumput" || j === "Membersihkan") return "Potong Rumput / Grasscutter";
+  return j;
+}
 
 function $(id) { return document.getElementById(id); }
 function uid() { return "id_" + Date.now().toString(36) + "_" + Math.floor(Math.random() * 100000).toString(36); }
@@ -85,6 +91,7 @@ function normalKerja(k) {
     zon: "Semua Zon", bahanId: "", dosJumlah: "", dosUnit: "", dosPer: "",
     nextSyarat: "Tiada syarat", nextSyaratLain: "", nextTukarBahan: false, nextBahan: "" }, k || {});
   if (!r.nextTarikh) r.nextTarikh = "";
+  if (r.jenis === "Membersihkan") r.jenis = "Potong Rumput";
   if (!r.zon) r.zon = "Semua Zon";
   if (!r.nextSyarat) r.nextSyarat = "Tiada syarat";
   /* Migrasi v2 -> v3: huraikan dos teks lama ("200g/pokok") kepada bahagian
@@ -651,7 +658,7 @@ function blokNama(id) { if (!id) return "Semua Blok"; var b = blokById(id); retu
 function blokLabel(b) { if (!b) return "-"; var tn = b.tanaman === "Lain-lain" && b.tanamanLain ? b.tanamanLain : b.tanaman; return b.nama + " — " + tn + " (" + (b.peringkat || "Semua Peringkat") + ")"; }
 function tanamanBlok(id) { var b = blokById(id); if (!b) return "-"; return b.tanaman === "Lain-lain" && b.tanamanLain ? b.tanamanLain : b.tanaman; }
 function jenisPaparan(k) { if (k.jenis === "Lain-lain" && k.jenisLain) return k.jenisLain; return jenisLabel(k.jenis); }
-function iconKerja(j) { var m = {"Membaja":"membaja.svg","Meracun Rumput":"meracun-rumput.svg","Racun Kulat":"racun-kulat.svg","Racun Serangga":"racun-serangga.svg","Menuai":"menuai.svg","Pruning":"pruning.svg","Membersihkan":"membersihkan.svg","Menanam":"menanam.svg","Menyiram":"menyiram.svg"}; return m[j] || "lain-kerja.svg"; }
+function iconKerja(j) { var m = {"Membaja":"membaja.svg","Meracun Rumput":"meracun-rumput.svg","Racun Kulat":"racun-kulat.svg","Racun Serangga":"racun-serangga.svg","Menuai":"menuai.svg","Pruning":"pruning.svg","Potong Rumput":"potong-rumput.svg","Membersihkan":"membersihkan.svg","Menanam":"menanam.svg","Menyiram":"menyiram.svg"}; return m[j] || "lain-kerja.svg"; }
 function iconTanaman(tn) { var m = {"Koko":"koko.svg","Sawit":"sawit.svg","Durian":"durian.svg"}; return m[tn] || "lain.svg"; }
 function emptyHtml(msg) { return "<div class=\"emptywrap\"><img class=\"empty-art\" src=\"assets/illustration-empty.svg\" alt=\"\"><p class=\"empty\">" + msg + "</p></div>"; }
 
@@ -783,7 +790,7 @@ function jobCard(k) {
     "<span class=\"status " + esc(k.status) + "\">" + esc(k.status) + "</span>" +
     "<div class=\"progress\"><div style=\"width:" + (Number(k.peratus) || 0) + "%\"></div></div>" +
     "<p class=\"meta\">Siap: " + (Number(k.peratus) || 0) + "%</p>" +
-    "<div class=\"pctrow\"><label style=\"flex:0 0 auto\">Peratus:</label><input type=\"number\" min=\"0\" max=\"100\" value=\"" + (Number(k.peratus) || 0) + "\" data-pct=\"" + k.id + "\">" +
+    "<div class=\"pctrow\"><label style=\"flex:0 0 auto\">Peratus:</label><select data-pct=\"" + k.id + "\"><option value=\"0\"" + ((Number(k.peratus) || 0) === 0 ? " selected" : "") + ">0%</option><option value=\"50\"" + ((Number(k.peratus) || 0) === 50 ? " selected" : "") + ">50%</option><option value=\"100\"" + ((Number(k.peratus) || 0) > 50 ? " selected" : "") + ">100%</option></select>" +
     "<button type=\"button\" class=\"btn secondary small\" data-act=\"pct\" data-id=\"" + k.id + "\">Kemaskini %</button></div>" +
     "<div class=\"row\" style=\"margin-top:10px\">" +
     "<button type=\"button\" class=\"btn primary small\" data-act=\"siap\" data-id=\"" + k.id + "\">✓ Tandakan Siap</button>" +
@@ -987,7 +994,7 @@ JENIS_KERJA.forEach(function (j) {
     $("kerjaJenis").value = j;
     $("kerjaTarikh").value = todayStr();
     $("kerjaStatus").value = "Dirancang";
-    $("kerjaPeratus").value = 0;
+    $("kerjaPeratus").value = "100"; syncPeratusStatus();
     $("kerjaId").value = "";
     setTab("kerja");
     toast("Borang pra-isi: " + jenisLabel(j) + ". Pilih kebun & blok, kemudian Simpan.");
@@ -1076,6 +1083,29 @@ function toggleNextCustom() {
   var rS = $("kerjaNextSyaratLainRow"); if (rS) rS.hidden = ($("kerjaNextSyarat").value !== "Lain-lain");
   var rB = $("kerjaNextBahanRow"); if (rB) rB.hidden = !$("kerjaNextTukar").checked;
 }
+/* Peratus siap hanya 50% atau 100% (pilihan siap). 0% bukan pilihan siap —
+   ia hanya keadaan kerja yang belum mula (Dirancang / Tertangguh), jadi
+   dropdown dikunci pada 0% selagi status itu dipilih. Status dan peratus
+   diselaraskan dua hala supaya tidak bercanggah. */
+function syncPeratusStatus() {
+  var st = $("kerjaStatus").value, sel = $("kerjaPeratus");
+  var opt0 = sel.querySelector('option[value="0"]');
+  if (st === "Dirancang" || st === "Tertangguh") {
+    if (opt0) opt0.hidden = false;
+    sel.value = "0"; sel.disabled = true;
+  } else {
+    if (opt0) opt0.hidden = true;
+    sel.disabled = false;
+    if (st === "Siap") sel.value = "100";
+    else if (st === "Siap Sebahagian" || st === "Dalam Proses") sel.value = "50";
+  }
+}
+$("kerjaStatus").addEventListener("change", syncPeratusStatus);
+$("kerjaPeratus").addEventListener("change", function () {
+  var p = Number($("kerjaPeratus").value);
+  if (p === 100) $("kerjaStatus").value = "Siap";
+  else if (p === 50) $("kerjaStatus").value = "Siap Sebahagian";
+});
 // Borang kerja — dropdown bertingkat: Kebun -> Blok -> Jenis Kerja -> Bahan -> Dos
 $("kerjaKebun").addEventListener("change", function () { refreshBlokSelects(); kemaskiniHintTerakhir(true); });
 $("kerjaBlok").addEventListener("change", function () { kemaskiniHintTerakhir(true); });
@@ -1091,10 +1121,12 @@ var _gsb = $("kerjaGunaSemulaBtn"); if (_gsb) _gsb.addEventListener("click", fun
 $("kerjaForm").addEventListener("submit", function (e) {
   e.preventDefault();
   var id = $("kerjaId").value;
-  var peratus = Math.max(0, Math.min(100, Number($("kerjaPeratus").value) || 0));
+  /* Status dan peratus sudah diselaraskan oleh syncPeratusStatus — di sini
+     hanya dibaca semula supaya simpanan sentiasa konsisten. */
   var status = $("kerjaStatus").value;
+  var peratus = Number($("kerjaPeratus").value) || 0;
   if (peratus === 100) status = "Siap";
-  else if (peratus > 0 && status === "Dirancang") status = "Siap Sebahagian";
+  else if (peratus === 50 && status !== "Dalam Proses") status = "Siap Sebahagian";
   var pilihanNext = $("kerjaNext").value || "";
   var nextTarikh = nextTarikhFrom($("kerjaTarikh").value, pilihanNext, $("kerjaNextCustom").value);
   var nextSyarat = $("kerjaNextSyarat").value || "Tiada syarat";
@@ -1157,11 +1189,11 @@ $("kerjaForm").addEventListener("submit", function (e) {
       toast("Kerja disimpan. Kerja susulan dijadualkan pada " + fmtDate(nextTarikh) + ".");
     } else { toast("Kerja disimpan."); }
   }
-  $("kerjaId").value = ""; e.target.reset(); buangGambar(); $("kerjaTarikh").value = todayStr(); $("kerjaPeratus").value = 0; toggleNextCustom();
+  $("kerjaId").value = ""; e.target.reset(); buangGambar(); $("kerjaTarikh").value = todayStr(); syncPeratusStatus(); toggleNextCustom();
   save(); renderAll();
 });
 $("kerjaResetBtn").addEventListener("click", function () {
-  $("kerjaForm").reset(); buangGambar(); $("kerjaId").value = ""; $("kerjaTarikh").value = todayStr(); $("kerjaPeratus").value = 0; toggleNextCustom(); refreshBlokSelects();
+  $("kerjaForm").reset(); buangGambar(); $("kerjaId").value = ""; $("kerjaTarikh").value = todayStr(); syncPeratusStatus(); toggleNextCustom(); refreshBlokSelects();
 });
 
 // Aksi pada kad kerja (event delegation)
@@ -1176,10 +1208,12 @@ document.addEventListener("click", function (e) {
     if (act === "lusa") { k.tarikhRancang = addDays(todayStr(), 2); k.updatedAt = Date.now(); if (k.peratus > 0 && k.status !== "Siap") k.status = "Siap Sebahagian"; toast("Baki kerja dibawa ke lusa."); }
     if (act === "pct") {
       var inp = document.querySelector('[data-pct="' + k.id + '"]');
-      var p = inp ? Math.max(0, Math.min(100, Number(inp.value) || 0)) : 0;
+      var p = inp ? (Number(inp.value) || 0) : 0;
+      if (p !== 0 && p !== 50 && p !== 100) p = 50;
       k.peratus = p; k.updatedAt = Date.now();
       if (p === 100) { k.status = "Siap"; k.tarikhSiap = todayStr(); }
-      else if (p > 0) k.status = "Siap Sebahagian";
+      else if (p === 50) k.status = "Siap Sebahagian";
+      else if (k.status === "Siap") { k.status = "Siap Sebahagian"; k.tarikhSiap = ""; }
       toast("Peratus dikemaskini: " + p + "%.");
     }
     if (act === "ubah") {
@@ -1194,7 +1228,7 @@ document.addEventListener("click", function (e) {
         else { $("kerjaBahan").value = "__LAIN__"; $("kerjaBahanLain").value = k.bahan; }
       } else { $("kerjaBahan").value = ""; }
       toggleBahanRow();
-      $("kerjaTarikh").value = k.tarikhRancang; $("kerjaStatus").value = k.status; $("kerjaPeratus").value = k.peratus;
+      $("kerjaTarikh").value = k.tarikhRancang; $("kerjaStatus").value = k.status; $("kerjaPeratus").value = (Number(k.peratus) || 0) > 0 && (Number(k.peratus) || 0) < 100 ? "50" : "100"; syncPeratusStatus();
       $("kerjaDosJumlah").value = (k.dosJumlah === "" || k.dosJumlah === null || k.dosJumlah === undefined) ? "" : k.dosJumlah;
       $("kerjaDosUnit").value = k.dosUnit || ""; $("kerjaDosPer").value = k.dosPer || "";
       $("kerjaKos").value = k.kos || ""; $("kerjaNota").value = k.nota || "";
@@ -1425,6 +1459,6 @@ if (_impC) _impC.addEventListener("click", function () {
   toast("Contoh log lama dimuatkan: " + r.jumlah + " rekod (2010) dalam Kebun Contoh — Log Lama. Gunakan 'Padam Data Contoh Sahaja' untuk membuangnya.");
 });
 var _kn = $("kerjaNext"); if (_kn) _kn.addEventListener("change", toggleNextCustom);
-toggleNextCustom(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
+toggleNextCustom(); syncPeratusStatus(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
 renderAll();
 semakNotifikasi();
