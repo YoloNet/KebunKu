@@ -3,25 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2e7d32">
+<meta name="theme-color" content="#1E4D2B">
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 <title>KebunKu — Log Kerja Kebun</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="top">
-  <div>
-    <h1>🌱 KebunKu</h1>
-    <p class="subtitle">Log kerja kebun — untuk petani solo</p>
+  <div class="brand">
+    <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="52" height="52">
+    <div>
+      <h1>KebunKu</h1>
+      <p class="subtitle">Log kerja kebun — untuk petani solo</p>
+    </div>
   </div>
   <span class="badge" id="todayLabel"></span>
 </header>
 
 <nav class="tabs" aria-label="Navigasi utama">
-  <button type="button" class="tab active" data-tab="hariini">Hari Ini</button>
-  <button type="button" class="tab" data-tab="kerja">Kerja</button>
-  <button type="button" class="tab" data-tab="kebun">Kebun &amp; Blok</button>
-  <button type="button" class="tab" data-tab="sejarah">Sejarah</button>
-  <button type="button" class="tab" data-tab="ringkasan">Ringkasan</button>
+  <button type="button" class="tab active" data-tab="hariini"><img src="assets/nav/hariini.svg" alt="" aria-hidden="true"><span>Hari Ini</span></button>
+  <button type="button" class="tab" data-tab="kerja"><img src="assets/nav/kerja.svg" alt="" aria-hidden="true"><span>Kerja</span></button>
+  <button type="button" class="tab" data-tab="kebun"><img src="assets/nav/kebun.svg" alt="" aria-hidden="true"><span>Kebun</span></button>
+  <button type="button" class="tab" data-tab="sejarah"><img src="assets/nav/sejarah.svg" alt="" aria-hidden="true"><span>Sejarah</span></button>
+  <button type="button" class="tab" data-tab="ringkasan"><img src="assets/nav/ringkasan.svg" alt="" aria-hidden="true"><span>Ringkasan</span></button>
 </nav>
 
 <main>
@@ -36,7 +40,7 @@
       <h3>Rekod Pantas</h3>
       <p class="hint">Tekan satu jenis kerja untuk pra-isi borang. Lepas itu pilih blok dan tekan Simpan — kurang 30 saat.</p>
       <div class="quickgrid" id="templateButtons"></div>
-      <button type="button" class="btn secondary" id="copyYesterdayBtn">📋 Salin kerja semalam ke hari ini</button>
+      <button type="button" class="btn secondary" id="copyYesterdayBtn">Salin kerja semalam ke hari ini</button>
     </div>
   </section>
 
@@ -92,7 +96,7 @@
       </label>
       <p class="hint">Nota: Foto belum disimpan dalam MVP ini untuk mengelakkan storan telefon penuh. Lihat README untuk penjelasan. Foto akan ditambah dalam versi seterusnya.</p>
       <div class="row">
-        <button type="submit" class="btn primary">💾 Simpan Kerja</button>
+        <button type="submit" class="btn primary">Simpan Kerja</button>
         <button type="button" class="btn secondary" id="kerjaResetBtn">Borang Kosong</button>
       </div>
     </form>
@@ -107,7 +111,7 @@
       <label>Nama Kebun
         <input type="text" id="kebunNama" required placeholder="cth: Kebun A — Sungai">
       </label>
-      <button type="submit" class="btn primary">➕ Tambah Kebun</button>
+      <button type="submit" class="btn primary">Tambah Kebun</button>
     </form>
     <div id="kebunList"></div>
 
@@ -131,7 +135,7 @@
       <label>Tanaman lain (jika Lain-lain)
         <input type="text" id="blokTanamanLain" placeholder="cth: Pisang, Getah">
       </label>
-      <button type="submit" class="btn primary">➕ Tambah Blok</button>
+      <button type="submit" class="btn primary">Tambah Blok</button>
     </form>
     <div id="blokList"></div>
   </section>
@@ -190,7 +194,7 @@
           <option value="Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <button type="button" class="btn primary" id="qBtn">🔍 Semak Terakhir</button>
+      <button type="button" class="btn primary" id="qBtn">Semak Terakhir</button>
       <p id="qResult" class="result"></p>
     </div>
     <div id="sejarahList"></div>
@@ -207,14 +211,14 @@
       <h3>Data Saya</h3>
       <p class="hint">Semua data disimpan dalam telefon / pelayar ini sahaja (offline-first). Tiada akaun dan tiada pelayan dalam MVP ini. Eksport selalu sebagai sandaran.</p>
       <div class="row">
-        <button type="button" class="btn primary" id="exportBtn">⬇️ Eksport JSON</button>
-        <label class="btn secondary filebtn">⬆️ Import JSON
+        <button type="button" class="btn primary" id="exportBtn">Eksport JSON</button>
+        <label class="btn secondary filebtn">Import JSON
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </label>
       </div>
       <div class="row">
-        <button type="button" class="btn secondary" id="deleteSampleBtn">🗑️ Padam Data Contoh Sahaja</button>
-        <button type="button" class="btn danger" id="deleteAllBtn">🗑️ Padam Semua Data</button>
+        <button type="button" class="btn secondary" id="deleteSampleBtn">Padam Data Contoh Sahaja</button>
+        <button type="button" class="btn danger" id="deleteAllBtn">Padam Semua Data</button>
       </div>
     </div>
   </section>

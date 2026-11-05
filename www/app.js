@@ -56,6 +56,9 @@ function blokById(id) { return data.bloks.find(function (x) { return x.id === id
 function blokNama(id) { var b = blokById(id); return b ? b.nama : "-"; }
 function tanamanBlok(id) { var b = blokById(id); if (!b) return "-"; return b.tanaman === "Lain-lain" && b.tanamanLain ? b.tanamanLain : b.tanaman; }
 function jenisPaparan(k) { return k.jenis === "Lain-lain" && k.jenisLain ? k.jenisLain : k.jenis; }
+function iconKerja(j) { var m = {"Membaja":"membaja.svg","Meracun Rumput":"meracun-rumput.svg","Racun Kulat":"racun-kulat.svg","Racun Serangga":"racun-serangga.svg"}; return m[j] || "lain-kerja.svg"; }
+function iconTanaman(tn) { var m = {"Koko":"koko.svg","Sawit":"sawit.svg","Durian":"durian.svg"}; return m[tn] || "lain.svg"; }
+function emptyHtml(msg) { return "<div class=\"emptywrap\"><img class=\"empty-art\" src=\"assets/illustration-empty.svg\" alt=\"\"><p class=\"empty\">" + msg + "</p></div>"; }
 
 function fillSelect(el, items, placeholder) {
   el.innerHTML = "";
@@ -88,7 +91,7 @@ function jobCard(k) {
   var div = document.createElement("div");
   div.className = "card job";
   div.innerHTML =
-    "<p class=\"title\">" + esc(jenisPaparan(k)) + " — " + esc(blokNama(k.blokId)) + "</p>" +
+    "<div class=\"jobhead\"><img class=\"jobicon\" src=\"assets/icons/" + iconKerja(k.jenis) + "\" alt=\"\"><p class=\"title\">" + esc(jenisPaparan(k)) + " — " + esc(blokNama(k.blokId)) + "</p></div>" +
     "<p class=\"meta\">" + esc(kebunNama(k.kebunId)) + " • " + esc(tanamanBlok(k.blokId)) + "<br>" +
     "Dirancang: " + esc(fmtDate(k.tarikhRancang)) + (overdue ? " <span class=\"overdue\">• Tertunggak</span>" : "") +
     (k.tarikhSiap ? "<br>Siap: " + esc(fmtDate(k.tarikhSiap)) : "") +
@@ -116,19 +119,19 @@ function renderHariIni() {
   list.sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? -1 : 1; });
   var el = $("hariIniList");
   el.innerHTML = "";
-  if (!list.length) { el.innerHTML = "<p class=\"empty\">Tiada kerja untuk hari ini. Tahniah — semua sudah siap atau belum dirancang.</p>"; return; }
+  if (!list.length) { el.innerHTML = emptyHtml("Tiada kerja untuk hari ini. Tahniah — semua sudah siap atau belum dirancang."); return; }
   list.forEach(function (k) { el.appendChild(jobCard(k)); });
 }
 function renderSemuaKerja() {
   var el = $("semuaKerjaList");
   el.innerHTML = "";
   var list = data.kerjas.slice().sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? 1 : -1; });
-  if (!list.length) { el.innerHTML = "<p class=\"empty\">Belum ada kerja. Tambah kerja pertama anda di atas.</p>"; return; }
+  if (!list.length) { el.innerHTML = emptyHtml("Belum ada kerja. Tambah kerja pertama anda di atas."); return; }
   list.forEach(function (k) { el.appendChild(jobCard(k)); });
 }
 function renderKebunBlok() {
   var kl = $("kebunList"); kl.innerHTML = "";
-  if (!data.kebuns.length) kl.innerHTML = "<p class=\"empty\">Belum ada kebun.</p>";
+  if (!data.kebuns.length) kl.innerHTML = emptyHtml("Belum ada kebun.");
   data.kebuns.forEach(function (k) {
     var d = document.createElement("div"); d.className = "card";
     d.innerHTML = "<p class=\"title\" style=\"font-weight:800\">" + esc(k.nama) + (k.contoh ? " <span class=\"status\">Contoh</span>" : "") + "</p>" +
@@ -136,10 +139,10 @@ function renderKebunBlok() {
     kl.appendChild(d);
   });
   var bl = $("blokList"); bl.innerHTML = "";
-  if (!data.bloks.length) bl.innerHTML = "<p class=\"empty\">Belum ada blok.</p>";
+  if (!data.bloks.length) bl.innerHTML = emptyHtml("Belum ada blok.");
   data.bloks.forEach(function (b) {
     var d = document.createElement("div"); d.className = "card";
-    d.innerHTML = "<p class=\"title\" style=\"font-weight:800\">" + esc(b.nama) + " — " + esc(tanamanBlok(b.id)) + (b.contoh ? " <span class=\"status\">Contoh</span>" : "") + "</p>" +
+    d.innerHTML = "<img class=\"blokicon\" src=\"assets/icons/" + iconTanaman(b.tanaman) + "\" alt=\"\"><p class=\"title\" style=\"font-weight:800\">" + esc(b.nama) + " — " + esc(tanamanBlok(b.id)) + (b.contoh ? " <span class=\"status\">Contoh</span>" : "") + "</p>" +
       "<p class=\"meta\">" + esc(kebunNama(b.kebunId)) + "</p>" +
       "<button type=\"button\" class=\"btn danger small\" data-del-blok=\"" + b.id + "\">Padam Blok</button>";
     bl.appendChild(d);
@@ -160,7 +163,7 @@ function renderSejarah() {
   }).sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? 1 : -1; });
   var el = $("sejarahList"); el.innerHTML = "";
   el.innerHTML = "<p class=\"hint\">" + list.length + " rekod dijumpai.</p>";
-  if (!list.length) { el.innerHTML += "<p class=\"empty\">Tiada rekod menepati tapisan.</p>"; return; }
+  if (!list.length) { el.innerHTML += emptyHtml("Tiada rekod menepati tapisan."); return; }
   list.forEach(function (k) { el.appendChild(jobCard(k)); });
 }
 function renderRingkasan() {
@@ -183,7 +186,7 @@ function renderRingkasan() {
     var kos = siap.reduce(function (a, k) { return a + (Number(k.kos) || 0); }, 0);
     return "<p>" + esc(kb.nama) + ": siap " + siap.length + ", belum siap " + (s.length - siap.length) + ", kos siap " + fmtRM(kos) + "</p>";
   }).join("");
-  $("ringkasanKebun").innerHTML = "<h3>Ikut Kebun — Bulan Ini</h3>" + (perKebun || "<p class=\"empty\">Belum ada kebun.</p>");
+  $("ringkasanKebun").innerHTML = "<h3>Ikut Kebun — Bulan Ini</h3>" + (perKebun || emptyHtml("Belum ada kebun."));
 }
 function renderAll() { refreshSelects(); renderHariIni(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); }
 
@@ -197,7 +200,7 @@ document.querySelectorAll(".tab").forEach(function (b) { b.addEventListener("cli
 // Template pantas
 JENIS_KERJA.forEach(function (j) {
   var btn = document.createElement("button");
-  btn.type = "button"; btn.className = "btn secondary"; btn.textContent = j;
+  btn.type = "button"; btn.className = "btn secondary"; btn.innerHTML = "<img class=\"ticon\" src=\"assets/icons/" + iconKerja(j) + "\" alt=\"\">" + j;
   btn.addEventListener("click", function () {
     $("kerjaJenis").value = j;
     $("kerjaTarikh").value = todayStr();

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KebunKu</string>
+    <string name="title_activity_main">KebunKu</string>
+    <string name="package_name">com.kebunku.app</string>
+    <string name="custom_url_scheme">com.kebunku.app</string>
+</resources>

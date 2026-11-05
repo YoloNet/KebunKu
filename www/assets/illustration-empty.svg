@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Ladang kosong">
+  <rect width="320" height="180" fill="#F7F4EC"/>
+  <circle cx="258" cy="36" r="22" fill="#C08A1A" opacity="0.85"/>
+  <path d="M0 110 Q80 78 170 106 T320 100 L320 180 L0 180 Z" fill="#DCE5D3"/>
+  <path d="M0 132 Q90 108 180 130 T320 126 L320 180 L0 180 Z" fill="#1E4D2B" opacity="0.88"/>
+  <g stroke="#1E4D2B" stroke-width="2" opacity="0.55">
+    <line x1="20" y1="150" x2="60" y2="138"/><line x1="80" y1="152" x2="120" y2="140"/>
+    <line x1="150" y1="152" x2="190" y2="142"/><line x1="220" y1="154" x2="260" y2="144"/>
+  </g>
+  <!-- palm -->
+  <path d="M62 118 Q66 88 72 62" stroke="#5A3D22" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <g fill="#2E6B3A">
+    <path d="M72 62 Q50 48 30 58 Q52 56 72 66 Z"/><path d="M72 62 Q92 44 114 54 Q92 58 72 66 Z"/>
+    <path d="M72 62 Q62 40 52 34 Q66 46 72 66 Z"/><path d="M72 62 Q82 38 96 34 Q82 48 72 66 Z"/>
+  </g>
+  <circle cx="72" cy="66" r="4" fill="#C08A1A"/>
+  <!-- small crop rows -->
+  <g fill="#2E6B3A"><circle cx="180" cy="118" r="7"/><circle cx="205" cy="122" r="7"/><circle cx="230" cy="118" r="7"/></g>
+</svg>

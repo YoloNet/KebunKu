@@ -1,4 +1,4 @@
-# KebunKu 🌱
+# KebunKu
 
 **KebunKu** ialah aplikasi log kerja kebun untuk petani yang bekerja sendiri — direka untuk menggantikan catatan dalam notes yang susah dicari balik.
 
@@ -32,24 +32,69 @@ Kemudian buka http://localhost:8000
 
 > Nota: Membuka `index.html` terus dari fail juga berfungsi untuk kebanyakan pelayar, tetapi menjalankan pelayan tempatan di atas adalah cara yang lebih boleh dipercayai, terutamanya untuk WebView.
 
+## Reka bentuk UI
+
+UI direka supaya nampak profesional dan kemas, bukan seperti aplikasi generik: hijau ladang gelap (`#1E4D2B`) dengan warna krim/batu yang hangat, hanya satu aksen emas, tiada gradient, tiada glassmorphism. Navigasi bawah pada telefon, butang sekurang-kurangnya 48px, kontras tinggi untuk bacaan di bawah matahari, dan ikon SVG tempatan (bukan emoji) untuk tanaman dan jenis kerja. Semua aset dalam `www/assets/` — tiada URL luar, jadi aplikasi kekal berfungsi offline dalam WebView.
+
+- `www/assets/logo.svg` — logo KebunKu (daun + baris ladang)
+- `www/assets/illustration-empty.svg` — ilustrasi ringkas untuk keadaan kosong
+- `www/assets/icons/` — ikon Koko, Sawit, Durian, Membaja, Meracun Rumput, Racun Kulat, Racun Serangga
+- `www/assets/nav/` — ikon navigasi bawah
+- `assets/icon.png` — ikon pelancar Android 512×512 (sumber untuk ikon dalam `android/app/src/main/res/mipmap-*/`)
+
 ## Cara bina aplikasi Android (Capacitor)
 
-Prasyarat: Node.js, npm, Java JDK, dan Android Studio.
+Prasyarat: Node.js, npm, JDK 17, dan Android SDK (command-line tools sudah memadai untuk binaan debug; Android Studio hanya diperlukan jika mahu jalankan pada emulator atau urus peranti).
+
+Bina APK debug (boleh dipasang untuk ujian, tidak ditandatangani untuk Play Store):
 
 ```bash
 npm install
-npx cap add android
+npx cap add android   # hanya sekali, jika folder android/ belum wujud
 npx cap sync
-npx cap open android
+export ANDROID_HOME="$HOME/Android/Sdk"   # atau lokasi SDK anda
+export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+cd android
+./gradlew assembleDebug
 ```
 
-Kemudian dalam Android Studio, tekan **Run** untuk pasang pada telefon atau emulator. Setiap kali anda ubah fail dalam `www/`, jalankan `npx cap sync` semula sebelum Run.
+APK debug akan terhasil di:
+
+```
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Pasang pada telefon dengan USB debugging dihidupkan:
+
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Setiap kali anda ubah fail dalam `www/`, jalankan `npx cap sync` semula sebelum bina lagi. Untuk jalankan dalam Android Studio, gunakan `npx cap open android` dan tekan **Run**.
 
 Konfigurasi sudah disediakan dalam `capacitor.config.json`:
 
 - `appId`: `com.kebunku.app`
 - `appName`: `KebunKu`
 - `webDir`: `www`
+
+### APK release yang ditandatangani (langkah masa depan, keystore TIDAK boleh di-commit)
+
+APK debug di atas **bukan** untuk Play Store. Untuk release:
+
+```bash
+keytool -genkeypair -v -keystore kebunku-release.keystore -alias kebunku \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Simpan keystore dan kata laluannya di luar repo (jangan commit — `.gitignore` sudah menyekat `*.keystore`). Kemudian tambah signing config dalam `android/app/build.gradle` yang membaca kata laluan dari pemboleh ubah persekitaran atau `local.properties` (fail ini juga diabaikan git), dan bina:
+
+```bash
+cd android
+./gradlew bundleRelease   # untuk AAB Play Store
+# atau
+./gradlew assembleRelease # untuk APK release
+```
 
 ## iOS — pada masa depan sahaja
 
@@ -73,7 +118,7 @@ Kemudian bina dan jalankan dalam Xcode. Kod web yang sama dalam `www/` akan digu
 ## Had / batasan MVP ini (jujur)
 
 - **Foto belum disimpan.** Butang foto sengaja tidak dimasukkan dalam MVP ini kerana menyimpan gambar dalam `localStorage` mudah mencecah had storan dan merosakkan aplikasi. Foto akan ditambah kemudian dengan storan fail sebenar (contohnya Capacitor Filesystem), bukan `localStorage`.
-- **Android belum dikompil di sini.** Fail Capacitor dan konfigurasi disediakan, tetapi APK/AAB belum dibina — bina dalam Android Studio ikut langkah di atas.
+- **APK release belum dibuat.** APK debug boleh dibina ikut langkah di atas untuk ujian. APK/AAB release yang ditandatangani memerlukan keystore sendiri (lihat langkah release di atas) dan belum dibuat kerana keystore tidak boleh dijana bagi pihak pengguna tanpa kata laluan yang selamat.
 - **iOS belum dibuat.** Hanya langkah masa depan didokumenkan di atas.
 - **Tiada multi-pengguna lagi.** Semua orang yang guna peranti yang sama akan nampak data yang sama. Lihat bahagian seterusnya untuk reka bentuk masa depan.
 
@@ -100,9 +145,13 @@ Dengan kata lain: MVP ini kekal ringkas untuk seorang petani, tetapi strukturnya
 ```
 kebunku/
 ├── www/
-│   ├── index.html   # Antara muka (Bahasa Malaysia, mobile-first)
-│   ├── styles.css   # Gaya, butang besar untuk guna sebelah tangan
-│   └── app.js       # Logik aplikasi, localStorage
+│   ├── index.html   # Antara muka (Bahasa Malaysia, mobile-first, navigasi bawah)
+│   ├── styles.css   # Sistem reka bentuk: hijau gelap + krim, butang min 48px
+│   ├── app.js       # Logik aplikasi, localStorage
+│   └── assets/      # logo, ilustrasi kosong, ikon tanaman/kerja/navigasi (SVG tempatan)
+├── assets/
+│   └── icon.png     # Ikon pelancar Android 512×512
+├── android/         # Projek Android Capacitor (dibina dengan Gradle, lihat di atas)
 ├── package.json
 ├── capacitor.config.json
 ├── .gitignore
