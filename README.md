@@ -48,6 +48,46 @@ Data v2 disimpan dengan kunci `kebunku_data_v2` (migrasi automatik daripada `keb
 
 **Yang pengguna mesti putuskan sebelum retrieve selepas uninstall boleh berfungsi:** (1) backend awan mana (Supabase, Firebase, atau pelayan sendiri), (2) sistem akaun/log masuk, (3) hosting gambar jika gambar juga mahu dibackup. Sehingga itu diputuskan dan disambung, sandaran sebenar pengguna ialah fail eksport JSON (tanpa gambar) — eksport selalu sebelum uninstall / tukar telefon.
 
+## Supabase — sync awan (pilihan pengguna, dilaksanakan)
+
+Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST terus (Auth + PostgREST) melalui `fetch`, **tanpa CDN SDK**, supaya aplikasi kekal berfungsi offline dalam WebView dan tiada pergantungan luar baharu.
+
+### Langkah setup (wajib, mengikut turutan)
+
+1. **Cipta projek Supabase percuma** di https://supabase.com (New project, pilih rantau terdekat, tetapkan kata laluan database).
+2. **Jalankan migrasi SQL** — dalam Supabase Dashboard, pergi ke **SQL Editor > New query**, tampal keseluruhan fail `supabase/migrations/001_kebunku.sql`, dan tekan **Run**. Fail ini mencipta jadual `kebuns`, `bloks`, `kerjas` dalam skema `public`, menghidupkan Row Level Security (RLS) pada ketiga-tiganya, menambah polisi "hanya baris sendiri" (`user_id = auth.uid()`), dan indeks `(user_id, updated_at)`. Ia idempotent untuk polisi/indeks (boleh dijalankan semula).
+3. **Salin Project URL dan anon key** — dari **Project Settings > API**: `Project URL` (contoh: `https://abcxyz.supabase.co`) dan `anon public` key. Anon key ini selamat untuk aplikasi client kerana RLS melindungi data, tetapi jangan commit ia ke GitHub — masukkan dalam aplikasi sahaja.
+4. **Masukkan dalam KebunKu** — buka **Ringkasan > Akaun & Sandaran > Supabase**, tampal URL dan anon key, isi Email dan Kata Laluan, kemudian tekan **Daftar** (akaun baharu) atau **Log Masuk** (akaun sedia ada).
+5. **Sync Sekarang** — tekan butang ini untuk sync pertama. Status akan memaparkan "Sync siap: X dihantar, Y diterima" atau mesej ralat yang jelas jika ada masalah.
+6. **Uji retrieve selepas uninstall** — pada peranti / pelayar lain (atau selepas memadam data tempatan — pastikan eksport JSON dibuat dahulu sebagai sandaran keselamatan), masukkan URL/key yang sama, log masuk dengan **email yang sama**, dan tekan **Sync Sekarang**. Kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.
+
+### Apa yang di-sync, dan apa yang tidak
+
+- **Di-sync:** kebun (`id, nama, contoh`), blok (`id, kebun_id, nama, tanaman, tanaman_lain, contoh`), kerja (`id, kebun_id, blok_id, jenis, jenis_lain, tarikh_rancang, tarikh_siap, status, peratus, bahan, dos, kos, nota, next_tarikh, contoh`, dan `updated_at` untuk last-updated-wins). Id aplikasi dikekalkan sebagai `id` TEXT dalam Supabase, jadi rekod tempatan dan awan dipadankan satu-ke-satu.
+- **Tidak di-sync:** gambar kerja (medan `image` sengaja dibuang daripada payload awan), `nextPilihan` (pilihan label sahaja — `next_tarikh` yang di-sync), dan tetapan tempatan lain. Gambar kekal dalam peranti sahaja.
+- **Padam:** padam tempatan direkod sebagai senarai tombstone dan dihantar sebagai `deleted_at` semasa sync, supaya peranti lain tahu baris itu dipadam. Baris aktif sentiasa `deleted_at IS NULL`.
+- **Gabungan (merge):** last-updated-wins ikut `updated_at`. Jika rekod jarak jauh lebih baharu, ia menggantikan tempatan (gambar tempatan dikekalkan). Jika tempatan lebih baharu, ia dihantar dan menang. Sync direka untuk seorang pengguna dengan beberapa peranti, bukan untuk suntingan serentak oleh ramai orang pada rekod yang sama.
+- **Offline:** simpanan tempatan tidak pernah dihalang oleh sync. Jika tiada internet atau sync gagal, data tempatan tetap tersimpan dan sync akan dicuba semula pada Sync Sekarang seterusnya, atau secara automatik pada simpanan seterusnya bila suis Sync Automatik HIDUP dan ada internet (dengan kelewatan 1.5 saat, tidak menghalang).
+
+### Keselamatan
+
+- URL, anon key dan sesi log masuk disimpan **dalam peranti ini sahaja**, dalam kunci `localStorage` yang berasingan (`kebunku_supabase_config_v1`, `kebunku_supabase_session_v1`, `kebunku_supabase_sync_v1`). Ia **tidak** dimasukkan dalam eksport data utama dan tidak boleh di-commit ke GitHub (tiada URL/key sebenar dalam repo ini — hanya contoh placeholder).
+- RLS memastikan pengguna yang log masuk hanya boleh SELECT / INSERT / UPDATE / DELETE baris dengan `user_id = auth.uid()` sendiri, walaupun anon key diketahui umum.
+- Token akses disimpan tempatan dan disegarkan automatik melalui `refresh_token` bila tamat tempoh. Log Keluar memadam sesi tempatan sahaja (data awan tidak dipadam). Butang "Padam Tetapan Supabase dari Peranti Ini" memadam URL/key/sesi dari peranti sahaja, bukan data awan.
+
+### Troubleshooting
+
+- **"Supabase URL tidak sah" / "Anon Key kosong":** pastikan URL bermula dengan `https://` tanpa slash di hujung, dan anon key disalin penuh dari Project Settings > API (bukan `service_role` key — jangan sesekali guna service_role key dalam aplikasi).
+- **Sync gagal (kod 404 / 406 / "relation does not exist"):** fail SQL migrasi belum dijalankan, atau dijalankan dalam projek yang salah. Jalankan semula `001_kebunku.sql` dalam SQL Editor projek yang betul.
+- **Log masuk gagal / "Email not confirmed":** dalam Supabase, pergi ke **Authentication > Providers > Email** dan semak tetapan **Confirm Email**. Jika ia HIDUP, pengguna mesti sahkan email melalui inbox dahulu sebelum boleh log masuk. Untuk ujian solo, anda boleh matikan Confirm Email, atau sahkan email tersebut — aplikasi akan memberitahu anda jika pendaftaran memerlukan pengesahan email.
+- **Data tidak muncul pada peranti kedua:** pastikan kedua-dua peranti log masuk dengan email yang sama, URL/key yang sama, dan tekan Sync Sekarang pada kedua-duanya. Semak status "Terakhir sync" dalam aplikasi.
+- **Data lama kembali selepas dipadam:** itu berlaku jika padam dibuat sebelum sync sempat menghantar tombstone, atau pada peranti yang belum sync. Padam, kemudian tekan Sync Sekarang pada peranti itu sebelum sync pada peranti lain.
+- **Had PostgREST:** sync mengambil semua baris pengguna dalam satu panggilan setiap jadual (had lalai PostgREST 1000 baris). Untuk petani solo ini lebih daripada mencukupi; jika suatu hari melebihi 1000 rekod, pagination perlu ditambah.
+
+### Masa depan (bukan sekarang)
+
+- **Supabase Storage untuk gambar:** backup gambar ke Storage dengan rujukan fail dalam rekod kerja, bukan data URL dalam pangkalan data. Ini memerlukan polisi Storage dan kod muat naik/muat turun yang berasingan — belum dilaksanakan dalam versi ini.
+
 ## Apa yang ada dalam MVP Fasa 1?
 
 1. **Kebun & Blok** — tambah kebun, kemudian blok dalam kebun itu. Setiap blok ada tanaman: Koko, Sawit, Durian, atau Lain-lain (isi sendiri).
@@ -151,9 +191,9 @@ Kemudian bina dan jalankan dalam Xcode. Kod web yang sama dalam `www/` akan digu
 ## Offline-first — bagaimana data disimpan?
 
 - Semua data disimpan dalam `localStorage` pelayar / WebView, dengan kunci `kebunku_data_v2` (migrasi automatik daripada `kebunku_data_v1`).
-- Tiada pelayan, tiada akaun, tiada log masuk dalam MVP ini.
-- Aplikasi berfungsi tanpa internet di kebun. Bila ada internet pun, data kekal dalam peranti — tiada sync automatik lagi.
-- **Sandaran penting:** eksport JSON selalu, kerana data `localStorage` boleh hilang jika data pelayar dipadam atau aplikasi dinyahpasang.
+- **Supabase (pilihan):** jika disambung dalam Ringkasan > Akaun & Sandaran, data tanpa gambar di-sync ke akaun Supabase pengguna (lihat bahagian Supabase di atas). URL/key/sesi disimpan dalam kunci berasingan dan tidak dieksport.
+- Aplikasi berfungsi tanpa internet di kebun. Bila ada internet dan Supabase disambung dengan suis Sync Automatik HIDUP, sync dicuba automatik selepas simpanan tempatan; jika tidak, sync hanya berlaku bila pengguna tekan Sync Sekarang.
+- **Sandaran penting:** eksport JSON selalu, kerana data `localStorage` boleh hilang jika data pelayar dipadam atau aplikasi dinyahpasang — kecuali anda sudah sync ke Supabase dan boleh retrieve semula dengan log masuk yang sama.
 
 ## Had / batasan MVP ini (jujur)
 
@@ -191,6 +231,9 @@ kebunku/
 │   └── assets/      # logo, ilustrasi kosong, ikon tanaman/kerja/navigasi (SVG tempatan)
 ├── assets/
 │   └── icon.png     # Ikon pelancar Android 512×512
+├── supabase/
+│   └── migrations/
+│       └── 001_kebunku.sql  # Migrasi Supabase: jadual kebuns/bloks/kerjas + RLS
 ├── android/         # Projek Android Capacitor (dibina dengan Gradle, lihat di atas)
 ├── package.json
 ├── capacitor.config.json

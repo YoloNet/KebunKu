@@ -1,6 +1,9 @@
 "use strict";
-/* KebunKu v2 — offline-first, localStorage sahaja buat masa ini. Tiada backend
-   yang disambung lagi; lihat objek Sync di bawah untuk persediaan sync awan. */
+/* KebunKu v2 — offline-first. Sync Supabase dilaksanakan melalui objek SB di
+   bawah, terus dengan REST (Auth + PostgREST), tanpa CDN SDK, supaya aplikasi
+   kekal berfungsi offline di dalam WebView. URL/key/sesi Supabase disimpan
+   dalam kunci localStorage yang berasingan dan TIDAK pernah dimasukkan
+   dalam eksport data utama. Gambar tidak pernah dihantar ke Supabase. */
 var KEY = "kebunku_data_v2";
 var OLD_KEY = "kebunku_data_v1";
 var SEED_KEY = "kebunku_seeded_v1";
@@ -84,6 +87,347 @@ var Sync = {
   }
 };
 
+/* ===== SUPABASE (SB) — Auth + PostgREST melalui fetch, tanpa CDN SDK =====
+   Kunci berasingan (bukan dalam eksport data utama):
+     kebunku_supabase_config_v1 — { url, anon } (URL + anon key sahaja)
+     kebunku_supabase_session_v1 — { access_token, refresh_token, user_id,
+       email, expires_at } (expires_at dalam milisaat epoch)
+     kebunku_supabase_sync_v1 — { lastSyncAt, autoSync,
+       deleted: { kebuns: [{id, at}], bloks: [...], kerjas: [...] } }
+   Pemetaan medan (tempatan camelCase -> lajur snake_case Supabase):
+     kebuns: id, nama, contoh
+     bloks:  id, kebunId->kebun_id, nama, tanaman, tanamanLain->tanaman_lain, contoh
+     kerjas: id, kebunId->kebun_id, blokId->blok_id, jenis, jenisLain->jenis_lain,
+             tarikhRancang->tarikh_rancang, tarikhSiap->tarikh_siap, status,
+             peratus, bahan, dos, kos, nota, nextTarikh->next_tarikh, contoh
+     Medan tempatan sahaja (tidak dihantar): image, nextPilihan, updatedAt
+     (updatedAt ditukar kepada updated_at ISO), dan settings.
+   Tarikh kosong "" ditukar kepada null untuk lajur date, kerana PostgREST
+   menolak rentetan kosong untuk date. */
+var SB_CFG_KEY = "kebunku_supabase_config_v1";
+var SB_SES_KEY = "kebunku_supabase_session_v1";
+var SB_SYNC_KEY = "kebunku_supabase_sync_v1";
+var SB = {
+  _baca: function (kunci, lalai) {
+    try { var v = localStorage.getItem(kunci); return v ? JSON.parse(v) : lalai; } catch (e) { return lalai; }
+  },
+  _tulis: function (kunci, nilai) { try { localStorage.setItem(kunci, JSON.stringify(nilai)); } catch (e) {} },
+  cfg: function () {
+    var c = this._baca(SB_CFG_KEY, {});
+    return { url: (c.url || "").replace(/\/+$/, ""), anon: c.anon || "" };
+  },
+  simpanCfg: function (url, anon) { this._tulis(SB_CFG_KEY, { url: (url || "").replace(/\/+$/, ""), anon: anon || "" }); },
+  sesi: function () { return this._baca(SB_SES_KEY, null); },
+  simpanSesi: function (s) { this._tulis(SB_SES_KEY, s); },
+  clearSesi: function () { try { localStorage.removeItem(SB_SES_KEY); } catch (e) {} },
+  clearCfgDanSesi: function () {
+    try { localStorage.removeItem(SB_CFG_KEY); } catch (e) {}
+    this.clearSesi();
+  },
+  syncState: function () {
+    var s = this._baca(SB_SYNC_KEY, null);
+    if (!s || typeof s !== "object") return { lastSyncAt: 0, autoSync: true, deleted: { kebuns: [], bloks: [], kerjas: [] } };
+    if (!s.deleted || typeof s.deleted !== "object") s.deleted = { kebuns: [], bloks: [], kerjas: [] };
+    ["kebuns", "bloks", "kerjas"].forEach(function (t) { if (!Array.isArray(s.deleted[t])) s.deleted[t] = []; });
+    if (typeof s.autoSync !== "boolean") s.autoSync = true;
+    if (!s.lastSyncAt) s.lastSyncAt = 0;
+    return s;
+  },
+  simpanSyncState: function (s) { this._tulis(SB_SYNC_KEY, s); },
+  catatPadam: function (jenis, ids) {
+    if (!ids || !ids.length) return;
+    var s = this.syncState();
+    ids.forEach(function (id) {
+      if (!id) return;
+      var ada = s.deleted[jenis].some(function (x) { return x.id === id; });
+      if (!ada) s.deleted[jenis].push({ id: id, at: Date.now() });
+    });
+    this.simpanSyncState(s);
+  },
+  tarikhKeNull: function (s) { return s ? s : null; },
+  updatedAtISO: function (rec) {
+    var ms = Number(rec && rec.updatedAt) || 0;
+    return new Date(ms > 0 ? ms : Date.now()).toISOString();
+  },
+  keKebunRemote: function (k, uid) {
+    return { id: k.id, user_id: uid, nama: k.nama || "", contoh: !!k.contoh,
+      updated_at: this.updatedAtISO(k), deleted_at: null };
+  },
+  keBlokRemote: function (b, uid) {
+    return { id: b.id, user_id: uid, kebun_id: b.kebunId || "", nama: b.nama || "",
+      tanaman: b.tanaman || "", tanaman_lain: b.tanamanLain || "", contoh: !!b.contoh,
+      updated_at: this.updatedAtISO(b), deleted_at: null };
+  },
+  keKerjaRemote: function (k, uid) {
+    /* Sengaja tiada image di sini — gambar kekal tempatan sahaja. */
+    return { id: k.id, user_id: uid, kebun_id: k.kebunId || "", blok_id: k.blokId || "",
+      jenis: k.jenis || "", jenis_lain: k.jenisLain || "",
+      tarikh_rancang: this.tarikhKeNull(k.tarikhRancang),
+      tarikh_siap: this.tarikhKeNull(k.tarikhSiap),
+      status: k.status || "Dirancang", peratus: Number(k.peratus) || 0,
+      bahan: k.bahan || "", dos: k.dos || "", kos: Number(k.kos) || 0,
+      nota: k.nota || "", next_tarikh: this.tarikhKeNull(k.nextTarikh),
+      contoh: !!k.contoh, updated_at: this.updatedAtISO(k), deleted_at: null };
+  },
+  dariKebunRemote: function (r) {
+    return { id: r.id, nama: r.nama || "", contoh: !!r.contoh, updatedAt: Date.parse(r.updated_at) || 0 };
+  },
+  dariBlokRemote: function (r) {
+    return { id: r.id, kebunId: r.kebun_id || "", nama: r.nama || "", tanaman: r.tanaman || "",
+      tanamanLain: r.tanaman_lain || "", contoh: !!r.contoh, updatedAt: Date.parse(r.updated_at) || 0 };
+  },
+  dariKerjaRemote: function (r, gambarTempatan) {
+    return { id: r.id, kebunId: r.kebun_id || "", blokId: r.blok_id || "", jenis: r.jenis || "",
+      jenisLain: r.jenis_lain || "", tarikhRancang: r.tarikh_rancang || "", tarikhSiap: r.tarikh_siap || "",
+      status: r.status || "Dirancang", peratus: Number(r.peratus) || 0, bahan: r.bahan || "",
+      dos: r.dos || "", kos: Number(r.kos) || 0, nota: r.nota || "",
+      nextTarikh: r.next_tarikh || "", nextPilihan: "", image: gambarTempatan || null,
+      contoh: !!r.contoh, updatedAt: Date.parse(r.updated_at) || 0 };
+  },
+  ralat: function (j, lalai) {
+    if (j && typeof j === "object") return j.msg || j.error_description || j.message || j.error || lalai;
+    return lalai;
+  },
+  bacaCfgDariBorang: function () {
+    var url = $("sbUrl") ? $("sbUrl").value.trim() : "";
+    var anon = $("sbAnon") ? $("sbAnon").value.trim() : "";
+    return { url: url.replace(/\/+$/, ""), anon: anon };
+  },
+  sahkanCfg: function (cfg) {
+    if (!cfg.url || cfg.url.indexOf("https://") !== 0) throw new Error("Supabase URL tidak sah. Masukkan URL penuh bermula dengan https://, contohnya https://abcxyz.supabase.co");
+    if (!cfg.anon) throw new Error("Supabase Anon Key kosong. Salin anon public key dari Supabase > Project Settings > API.");
+    return cfg;
+  },
+  authPanggil: function (cfg, laluan, badan) {
+    return fetch(cfg.url + laluan, {
+      method: "POST",
+      headers: { "apikey": cfg.anon, "Content-Type": "application/json" },
+      body: JSON.stringify(badan)
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (j) {
+        if (!res.ok) throw new Error(SB.ralat(j, "Gagal log masuk / daftar (kod " + res.status + "). Semak email, kata laluan, URL dan anon key."));
+        return j;
+      });
+    });
+  },
+  daftar: function () {
+    var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
+    var email = $("sbEmail") ? $("sbEmail").value.trim() : "";
+    var kata = $("sbPassword") ? $("sbPassword").value : "";
+    if (!email || !kata) throw new Error("Isi email dan kata laluan dahulu.");
+    this.simpanCfg(cfg.url, cfg.anon);
+    var self = this;
+    return this.authPanggil(cfg, "/auth/v1/signup", { email: email, password: kata }).then(function (j) {
+      if (j.session && j.session.access_token) {
+        self.simpanSesi({ access_token: j.session.access_token, refresh_token: j.session.refresh_token || "",
+          user_id: (j.user && j.user.id) || (j.session.user && j.session.user.id) || "",
+          email: email, expires_at: Date.now() + ((Number(j.session.expires_in) || 3600) * 1000) });
+        return { perluSahkan: false };
+      }
+      return { perluSahkan: true };
+    });
+  },
+  logMasuk: function () {
+    var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
+    var email = $("sbEmail") ? $("sbEmail").value.trim() : "";
+    var kata = $("sbPassword") ? $("sbPassword").value : "";
+    if (!email || !kata) throw new Error("Isi email dan kata laluan dahulu.");
+    this.simpanCfg(cfg.url, cfg.anon);
+    var self = this;
+    return this.authPanggil(cfg, "/auth/v1/token?grant_type=password", { email: email, password: kata }).then(function (j) {
+      if (!j.access_token) throw new Error("Log masuk gagal. Semak email dan kata laluan, dan pastikan email sudah disahkan jika Confirm Email dihidupkan dalam Supabase.");
+      self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || "",
+        user_id: (j.user && j.user.id) || "", email: email,
+        expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000) });
+      return true;
+    });
+  },
+  segarToken: function () {
+    var cfg = this.cfg(); var s = this.sesi();
+    if (!cfg.url || !cfg.anon || !s || !s.refresh_token) return Promise.reject(new Error("Sesi tamat. Sila log masuk semula."));
+    var self = this;
+    return this.authPanggil(cfg, "/auth/v1/token?grant_type=refresh_token", { refresh_token: s.refresh_token }).then(function (j) {
+      if (!j.access_token) throw new Error("Sesi tamat. Sila log masuk semula.");
+      self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || s.refresh_token,
+        user_id: (j.user && j.user.id) || s.user_id, email: s.email,
+        expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000) });
+      return j.access_token;
+    });
+  },
+  tokenSah: function () {
+    var s = this.sesi();
+    if (!s || !s.access_token) return Promise.reject(new Error("Anda belum log masuk ke Supabase. Masukkan URL/key, kemudian Log Masuk."));
+    if (s.expires_at && s.expires_at > Date.now() + 60000) return Promise.resolve(s.access_token);
+    return this.segarToken();
+  },
+  logKeluar: function () {
+    var cfg = this.cfg(); var s = this.sesi();
+    var p = Promise.resolve();
+    if (cfg.url && cfg.anon && s && s.access_token) {
+      p = fetch(cfg.url + "/auth/v1/logout", {
+        method: "POST",
+        headers: { "apikey": cfg.anon, "Authorization": "Bearer " + s.access_token, "Content-Type": "application/json" },
+        body: "{}"
+      }).catch(function () {}).then(function () {});
+    }
+    var self = this;
+    return p.then(function () { self.clearSesi(); });
+  },
+  rest: function (token, jadual, kaedah, query, badan, prefer) {
+    var cfg = this.cfg();
+    var headers = { "apikey": cfg.anon, "Authorization": "Bearer " + token, "Content-Type": "application/json" };
+    if (prefer) headers["Prefer"] = prefer;
+    return fetch(cfg.url + "/rest/v1/" + jadual + (query || ""), {
+      method: kaedah, headers: headers, body: badan ? JSON.stringify(badan) : undefined
+    }).then(function (res) {
+      return res.text().then(function (teks) {
+        var j = null; try { j = teks ? JSON.parse(teks) : null; } catch (e) { j = null; }
+        if (!res.ok) throw new Error(SB.ralat(j, "Supabase gagal (kod " + res.status + "). Semak URL/key, log masuk, dan pastikan fail SQL migrasi sudah dijalankan."));
+        return j;
+      });
+    });
+  },
+  ambilSemua: function (token, uid, jadual) {
+    return this.rest(token, jadual, "GET", "?select=*&user_id=eq." + encodeURIComponent(uid) + "&order=updated_at.asc");
+  },
+  syncSedangBerjalan: false,
+  _autoTimer: null,
+  jadualAutoSync: function () {
+    if (this.syncSedangBerjalan) return;
+    if (this._lastSyncComplete && (Date.now() - this._lastSyncComplete < 5000)) return;
+    var st = this.syncState();
+    if (!st.autoSync) return;
+    if (!this.sesi() || !this.cfg().url) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    var self = this;
+    if (this._autoTimer) clearTimeout(this._autoTimer);
+    this._autoTimer = setTimeout(function () {
+      self.syncPenuh(true).catch(function (e) {
+        try { var el = $("sbStatus"); if (el) el.textContent = "Sync automatik gagal: " + (e.message || e) + " — cuba Sync Sekarang bila ada internet."; } catch (e2) {}
+      });
+    }, 1500);
+  },
+  syncPenuh: function (auto) {
+    var self = this;
+    var cfg;
+    try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.reject(e); }
+    if (this.syncSedangBerjalan) return Promise.reject(new Error("Sync sedang berjalan. Sila tunggu."));
+    this.syncSedangBerjalan = true;
+    var state = this.syncState();
+    var sesi = this.sesi();
+    if (!sesi) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Anda belum log masuk ke Supabase.")); }
+    var uid = sesi.user_id;
+    if (!uid) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Sesi log masuk tidak lengkap (tiada user_id). Sila log keluar dan log masuk semula.")); }
+    return this.tokenSah().then(function (token) {
+      /* Langkah 1 — tarik keadaan awan dahulu (aktif + dipadam), supaya
+         keputusan last-updated-wins boleh dibuat sebelum apa-apa dihantar. */
+      return Promise.all([
+        self.ambilSemua(token, uid, "kebuns"),
+        self.ambilSemua(token, uid, "bloks"),
+        self.ambilSemua(token, uid, "kerjas")
+      ]).then(function (res) {
+        var jauh = { kebuns: res[0] || [], bloks: res[1] || [], kerjas: res[2] || [] };
+        var terima = 0;
+        function gambarLama(id) { var l = data.kerjas.find(function (x) { return x.id === id; }); return l ? (l.image || null) : null; }
+        /* Padam jarak jauh yang lebih baharu daripada salinan tempatan. */
+        ["kebuns", "bloks", "kerjas"].forEach(function (jenis) {
+          jauh[jenis].forEach(function (r) {
+            if (!r.deleted_at) return;
+            var senarai = data[jenis];
+            var tempatan = senarai.find(function (x) { return x.id === r.id; });
+            if (!tempatan) return;
+            var jauhMs = Date.parse(r.deleted_at) || 0;
+            var tempatanMs = Number(tempatan.updatedAt) || 0;
+            if (jauhMs >= tempatanMs) {
+              data[jenis] = senarai.filter(function (x) { return x.id !== r.id; });
+              terima++;
+            }
+            /* Jika tempatan lebih baharu, ia akan dihantar semula di bawah
+               dengan deleted_at null, jadi padam jarak jauh itu dibatalkan. */
+          });
+        });
+        /* Gabung baris aktif jarak jauh: jauh lebih baharu menang, gambar
+           tempatan dikekalkan kerana gambar tidak pernah dihantar. */
+        var gabung = function (jenis, dariRemote) {
+          jauh[jenis].forEach(function (r) {
+            if (r.deleted_at) return;
+            var tempatan = data[jenis].find(function (x) { return x.id === r.id; });
+            var jauhMs = Date.parse(r.updated_at) || 0;
+            if (!tempatan) { data[jenis].push(dariRemote(r)); terima++; }
+            else if (jauhMs > (Number(tempatan.updatedAt) || 0)) {
+              var ganti = dariRemote(r);
+              if (jenis === "kerjas" && tempatan.image) ganti.image = tempatan.image;
+              Object.assign(tempatan, ganti); terima++;
+            }
+          });
+        };
+        gabung("kebuns", function (r) { return self.dariKebunRemote(r); });
+        gabung("bloks", function (r) { return self.dariBlokRemote(r); });
+        gabung("kerjas", function (r) { return self.dariKerjaRemote(r, gambarLama(r.id)); });
+        /* Langkah 2 — hantar padam tempatan sebagai tombstone. */
+        var hantarPadam = [];
+        ["kebuns", "bloks", "kerjas"].forEach(function (jenis) {
+          state.deleted[jenis].forEach(function (e) {
+            hantarPadam.push(self.rest(token, jenis, "PATCH", "?id=eq." + encodeURIComponent(e.id),
+              { deleted_at: new Date(e.at || Date.now()).toISOString() }, "return=minimal"));
+          });
+        });
+        return Promise.all(hantarPadam).then(function () {
+          /* Langkah 3 — upsert semua baris tempatan yang aktif (tanpa gambar),
+             dengan deleted_at null supaya padam lama yang sudah dibatalkan
+             oleh suntingan tempatan yang lebih baharu tidak kekal. */
+          var upserts = [];
+          if (data.kebuns.length) upserts.push(self.rest(token, "kebuns", "POST", "?on_conflict=id",
+            data.kebuns.map(function (k) { return self.keKebunRemote(k, uid); }), "resolution=merge-duplicates,return=minimal"));
+          if (data.bloks.length) upserts.push(self.rest(token, "bloks", "POST", "?on_conflict=id",
+            data.bloks.map(function (b) { return self.keBlokRemote(b, uid); }), "resolution=merge-duplicates,return=minimal"));
+          if (data.kerjas.length) upserts.push(self.rest(token, "kerjas", "POST", "?on_conflict=id",
+            data.kerjas.map(function (k) { return self.keKerjaRemote(k, uid); }), "resolution=merge-duplicates,return=minimal"));
+          var dihantar = data.kebuns.length + data.bloks.length + data.kerjas.length + hantarPadam.length;
+          return Promise.all(upserts).then(function () {
+            /* Berjaya sahaja barulah senarai padam dibersihkan. */
+            state.deleted = { kebuns: [], bloks: [], kerjas: [] };
+            state.lastSyncAt = Date.now();
+            self.simpanSyncState(state);
+            data.settings = data.settings || tetapanLalai();
+            data.settings.backend = "Supabase";
+            /* Simpan hasil gabungan ke peranti — penting untuk sync automatik,
+               yang tidak mempunyai pemanggil yang menyimpan selepasnya.
+               save() di sini tidak mencetuskan sync semula kerana
+               syncSedangBerjalan masih true pada ketika ini. */
+            try { save(); } catch (eS) {}
+            return { dihantar: dihantar, diterima: terima };
+          });
+        });
+      });
+    }).then(function (ringkasan) {
+      self.syncSedangBerjalan = false;
+      self._lastSyncComplete = Date.now();
+      return ringkasan;
+    }).catch(function (e) {
+      self.syncSedangBerjalan = false;
+      throw e;
+    });
+  },
+  renderStatus: function () {
+    var el = $("sbStatus"); if (!el) return;
+    var cfg = this.cfg(); var s = this.sesi(); var st = this.syncState();
+    if ($("sbUrl")) $("sbUrl").value = cfg.url;
+    if ($("sbAnon")) $("sbAnon").value = cfg.anon;
+    if ($("sbAutoToggle")) $("sbAutoToggle").checked = !!st.autoSync;
+    if ($("sbEmail") && s && s.email) $("sbEmail").value = s.email;
+    var akhir = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleString("ms-MY") : "belum pernah";
+    if (s && s.email) {
+      el.textContent = "Log masuk sebagai " + s.email + " • Terakhir sync: " + akhir +
+        " • Sync automatik: " + (st.autoSync ? "HIDUP" : "MATI") + ".";
+    } else if (cfg.url && cfg.anon) {
+      el.textContent = "Belum log masuk — Supabase sudah dikonfigurasi. Masukkan email dan kata laluan, kemudian Daftar atau Log Masuk, kemudian Sync Sekarang.";
+    } else {
+      el.textContent = "Belum disambung. Masukkan Supabase URL dan anon key, kemudian Daftar atau Log Masuk.";
+    }
+  }
+};
+
 function seedData() {
   var t = todayStr();
   var kebunId = uid();
@@ -123,7 +467,12 @@ function load() {
   return emptyData();
 }
 var data = load();
-function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(data));
+  /* Sync automatik Supabase: dijadualkan (debounce), tidak menghalang
+     simpanan tempatan, dan tidak berjalan semasa sync sedang berlangsung. */
+  try { if (typeof SB !== "undefined" && SB && !SB.syncSedangBerjalan) SB.jadualAutoSync(); } catch (e) {}
+}
 
 function toast(msg) { var el = $("toast"); el.textContent = msg; el.hidden = false; setTimeout(function () { el.hidden = true; }, 3500); }
 function kebunNama(id) { var k = data.kebuns.find(function (x) { return x.id === id; }); return k ? k.nama : "-"; }
@@ -226,11 +575,29 @@ function renderNotifikasiStatus() {
 function renderAkaunStatus() {
   var el = $("akaunStatus"); if (!el) return;
   var bk = (data.settings && data.settings.backend) || "belum disambung";
-  el.innerHTML = "<p><b>Status sandaran:</b> Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda. " +
-    "Jika aplikasi dinyahpasang tanpa eksport, data akan hilang.</p>" +
-    "<p><b>Untuk boleh retrieve selepas uninstall,</b> aplikasi perlu disambung ke backend awan (pilihan backend yang direkod sekarang: " + esc(bk) + "). " +
-    "Backend itu <b>belum disambung</b> — tiada log masuk dan tiada sync berlaku sekarang. Pilihan backend + akaun perlu diputuskan dahulu sebelum retrieve selepas uninstall boleh berfungsi.</p>" +
-    "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan). Pada masa depan, gambar boleh dibackup ke hosting — itu langkah seterusnya, bukan sekarang.</p>";
+  var sbSesi = null, sbCfgAda = false, sbAkhir = "belum pernah";
+  try {
+    if (typeof SB !== "undefined" && SB) {
+      sbSesi = SB.sesi(); var c = SB.cfg(); sbCfgAda = !!(c.url && c.anon);
+      var st = SB.syncState(); if (st.lastSyncAt) sbAkhir = new Date(st.lastSyncAt).toLocaleString("ms-MY");
+    }
+  } catch (e) {}
+  if (sbSesi && sbSesi.email) {
+    el.innerHTML = "<p><b>Status sandaran:</b> Supabase disambung dan anda log masuk sebagai " + esc(sbSesi.email) +
+      ". Terakhir sync: " + esc(sbAkhir) + ". Data tanpa gambar di-sync ke akaun ini.</p>" +
+      "<p><b>Retrieve selepas uninstall:</b> pada peranti baharu, masukkan Supabase URL/key yang sama, log masuk dengan email yang sama, dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>" +
+      "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> dihantar ke Supabase dalam versi ini (untuk jimat storan). Pada masa depan, gambar boleh dibackup ke Supabase Storage — itu langkah seterusnya, bukan sekarang.</p>";
+  } else if (sbCfgAda) {
+    el.innerHTML = "<p><b>Status sandaran:</b> Supabase sudah dikonfigurasi, tetapi anda belum log masuk. Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda.</p>" +
+      "<p><b>Untuk boleh retrieve selepas uninstall,</b> log masuk di bawah dengan email anda, kemudian tekan Sync Sekarang. Selepas sync pertama berjaya, data tanpa gambar akan tersimpan dalam akaun Supabase anda.</p>" +
+      "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa atau sync Supabase (untuk jimat storan).</p>";
+  } else {
+    el.innerHTML = "<p><b>Status sandaran:</b> Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda. " +
+      "Jika aplikasi dinyahpasang tanpa eksport, data akan hilang.</p>" +
+      "<p><b>Untuk boleh retrieve selepas uninstall,</b> sambungkan Supabase di bawah (pilihan backend yang direkod sekarang: " + esc(bk) + "). " +
+      "Sehingga anda cipta projek Supabase, jalankan fail SQL migrasi, masukkan URL/key, dan log masuk, tiada sync berlaku.</p>" +
+      "<p>Gambar pula disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan). Pada masa depan, gambar boleh dibackup ke hosting — itu langkah seterusnya, bukan sekarang.</p>";
+  }
 }
 function semakNotifikasi() {
   try {
@@ -318,7 +685,7 @@ function renderRingkasan() {
   }).join("");
   $("ringkasanKebun").innerHTML = "<h3>Ikut Kebun — Bulan Ini</h3>" + (perKebun || emptyHtml("Belum ada kebun."));
 }
-function renderAll() { refreshSelects(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); }
+function renderAll() { refreshSelects(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} }
 
 function setTab(name) {
   document.querySelectorAll(".tab").forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
@@ -360,14 +727,14 @@ $("kebunForm").addEventListener("submit", function (e) {
   e.preventDefault();
   var nama = $("kebunNama").value.trim();
   if (!nama) return;
-  data.kebuns.push({ id: uid(), nama: nama, contoh: false });
+  data.kebuns.push({ id: uid(), nama: nama, contoh: false, updatedAt: Date.now() });
   $("kebunNama").value = ""; save(); renderAll(); toast("Kebun ditambah.");
 });
 $("blokForm").addEventListener("submit", function (e) {
   e.preventDefault();
   var kebunId = $("blokKebun").value, nama = $("blokNama").value.trim(), tan = $("blokTanaman").value;
   if (!kebunId || !nama) { toast("Pilih kebun dan isi nama blok."); return; }
-  data.bloks.push({ id: uid(), kebunId: kebunId, nama: nama, tanaman: tan, tanamanLain: $("blokTanamanLain").value.trim(), contoh: false });
+  data.bloks.push({ id: uid(), kebunId: kebunId, nama: nama, tanaman: tan, tanamanLain: $("blokTanamanLain").value.trim(), contoh: false, updatedAt: Date.now() });
   $("blokNama").value = ""; $("blokTanamanLain").value = ""; save(); renderAll(); toast("Blok ditambah.");
 });
 
@@ -462,13 +829,13 @@ document.addEventListener("click", function (e) {
     var k = data.kerjas.find(function (x) { return x.id === btn.dataset.id; });
     if (!k) return;
     var act = btn.dataset.act;
-    if (act === "siap") { k.status = "Siap"; k.peratus = 100; k.tarikhSiap = todayStr(); toast("Kerja ditandakan siap."); }
-    if (act === "esok") { k.tarikhRancang = addDays(todayStr(), 1); if (k.status === "Siap") k.status = "Siap Sebahagian"; if (k.status !== "Siap Sebahagian" && k.peratus > 0) k.status = "Siap Sebahagian"; toast("Baki kerja dibawa ke esok."); }
-    if (act === "lusa") { k.tarikhRancang = addDays(todayStr(), 2); if (k.peratus > 0 && k.status !== "Siap") k.status = "Siap Sebahagian"; toast("Baki kerja dibawa ke lusa."); }
+    if (act === "siap") { k.status = "Siap"; k.peratus = 100; k.tarikhSiap = todayStr(); k.updatedAt = Date.now(); toast("Kerja ditandakan siap."); }
+    if (act === "esok") { k.tarikhRancang = addDays(todayStr(), 1); k.updatedAt = Date.now(); if (k.status === "Siap") k.status = "Siap Sebahagian"; if (k.status !== "Siap Sebahagian" && k.peratus > 0) k.status = "Siap Sebahagian"; toast("Baki kerja dibawa ke esok."); }
+    if (act === "lusa") { k.tarikhRancang = addDays(todayStr(), 2); k.updatedAt = Date.now(); if (k.peratus > 0 && k.status !== "Siap") k.status = "Siap Sebahagian"; toast("Baki kerja dibawa ke lusa."); }
     if (act === "pct") {
       var inp = document.querySelector('[data-pct="' + k.id + '"]');
       var p = inp ? Math.max(0, Math.min(100, Number(inp.value) || 0)) : 0;
-      k.peratus = p;
+      k.peratus = p; k.updatedAt = Date.now();
       if (p === 100) { k.status = "Siap"; k.tarikhSiap = todayStr(); }
       else if (p > 0) k.status = "Siap Sebahagian";
       toast("Peratus dikemaskini: " + p + "%.");
@@ -486,6 +853,7 @@ document.addEventListener("click", function (e) {
     }
     if (act === "padam") {
       if (!confirm("Padam kerja ini?")) return;
+      try { if (typeof SB !== "undefined" && SB) SB.catatPadam("kerjas", [k.id]); } catch (e) {}
       data.kerjas = data.kerjas.filter(function (x) { return x.id !== k.id; }); toast("Kerja dipadam.");
     }
     save(); renderAll(); return;
@@ -494,6 +862,11 @@ document.addEventListener("click", function (e) {
   if (delK) {
     if (!confirm("Padam kebun ini? Blok dan kerja di bawahnya juga akan dipadam.")) return;
     var kid = delK.dataset.delKebun;
+    try { if (typeof SB !== "undefined" && SB) {
+      SB.catatPadam("kebuns", [kid]);
+      SB.catatPadam("bloks", data.bloks.filter(function (x) { return x.kebunId === kid; }).map(function (x) { return x.id; }));
+      SB.catatPadam("kerjas", data.kerjas.filter(function (x) { return x.kebunId === kid; }).map(function (x) { return x.id; }));
+    } } catch (e) {}
     data.kebuns = data.kebuns.filter(function (x) { return x.id !== kid; });
     data.bloks = data.bloks.filter(function (x) { return x.kebunId !== kid; });
     data.kerjas = data.kerjas.filter(function (x) { return x.kebunId !== kid; });
@@ -503,6 +876,10 @@ document.addEventListener("click", function (e) {
   if (delB) {
     if (!confirm("Padam blok ini? Kerja di blok ini juga akan dipadam.")) return;
     var bid = delB.dataset.delBlok;
+    try { if (typeof SB !== "undefined" && SB) {
+      SB.catatPadam("bloks", [bid]);
+      SB.catatPadam("kerjas", data.kerjas.filter(function (x) { return x.blokId === bid; }).map(function (x) { return x.id; }));
+    } } catch (e) {}
     data.bloks = data.bloks.filter(function (x) { return x.id !== bid; });
     data.kerjas = data.kerjas.filter(function (x) { return x.blokId !== bid; });
     save(); renderAll(); toast("Blok dipadam.");
@@ -576,6 +953,11 @@ $("deleteSampleBtn").addEventListener("click", function () {
   var ada = data.kebuns.some(function (k) { return k.contoh; }) || data.bloks.some(function (k) { return k.contoh; }) || data.kerjas.some(function (k) { return k.contoh; });
   if (!ada) { toast("Tiada data contoh lagi."); return; }
   if (!confirm("Padam semua data contoh sahaja? Data anda yang lain dikekalkan.")) return;
+  try { if (typeof SB !== "undefined" && SB) {
+    SB.catatPadam("kebuns", data.kebuns.filter(function (k) { return k.contoh; }).map(function (k) { return k.id; }));
+    SB.catatPadam("bloks", data.bloks.filter(function (k) { return k.contoh; }).map(function (k) { return k.id; }));
+    SB.catatPadam("kerjas", data.kerjas.filter(function (k) { return k.contoh; }).map(function (k) { return k.id; }));
+  } } catch (e) {}
   var kebunContoh = data.kebuns.filter(function (k) { return k.contoh; }).map(function (k) { return k.id; });
   data.kebuns = data.kebuns.filter(function (k) { return !k.contoh; });
   data.bloks = data.bloks.filter(function (k) { return !k.contoh && kebunContoh.indexOf(k.kebunId) < 0; });
@@ -584,7 +966,83 @@ $("deleteSampleBtn").addEventListener("click", function () {
 });
 $("deleteAllBtn").addEventListener("click", function () {
   if (!confirm("Padam SEMUA data? Tindakan ini tidak boleh dibatalkan. Eksport dahulu jika perlu.")) return;
+  try { if (typeof SB !== "undefined" && SB) {
+    SB.catatPadam("kebuns", data.kebuns.map(function (k) { return k.id; }));
+    SB.catatPadam("bloks", data.bloks.map(function (k) { return k.id; }));
+    SB.catatPadam("kerjas", data.kerjas.map(function (k) { return k.id; }));
+  } } catch (e) {}
   data = emptyData(); save(); renderAll(); toast("Semua data dipadam.");
+});
+
+/* ===== Supabase — butang dalam Ringkasan > Akaun & Sandaran ===== */
+function sbSetStatus(teks) { var el = $("sbStatus"); if (el) el.textContent = teks; }
+function sbJalankanSync(manual) {
+  sbSetStatus("Sync sedang berjalan…");
+  SB.syncPenuh(!manual).then(function (r) {
+    data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save();
+    renderAll();
+    sbSetStatus("Sync siap: " + r.dihantar + " dihantar, " + r.diterima + " diterima. Terakhir sync: " + new Date(SB.syncState().lastSyncAt).toLocaleString("ms-MY") + ".");
+    toast("Sync siap: " + r.dihantar + " dihantar, " + r.diterima + " diterima.");
+  }).catch(function (e) {
+    var msg = (e && e.message) ? e.message : String(e);
+    sbSetStatus("Sync gagal: " + msg + " — semak URL/key, log masuk, dan sambungan internet.");
+    if (manual) toast("Sync gagal: " + msg);
+    try { SB.renderStatus(); } catch (e2) {}
+    /* Kekalkan mesej gagal di atas: renderStatus menulis semula status
+       umum, jadi tulis semula mesej gagal selepas itu. */
+    sbSetStatus("Sync gagal: " + msg + " — semak URL/key, log masuk, dan sambungan internet.");
+  });
+}
+var _sbDaftar = $("sbDaftarBtn");
+if (_sbDaftar) _sbDaftar.addEventListener("click", function () {
+  try {
+    SB.daftar().then(function (h) {
+      if (h.perluSahkan) {
+        sbSetStatus("Daftar berjaya — sila sahkan email anda dahulu (semak inbox) jika Confirm Email dihidupkan dalam Supabase, kemudian Log Masuk.");
+        toast("Daftar berjaya. Sahkan email dahulu jika diminta, kemudian Log Masuk.");
+      } else {
+        data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save(); renderAll();
+        sbSetStatus("Daftar dan log masuk berjaya. Tekan Sync Sekarang untuk sync pertama.");
+        toast("Daftar berjaya.");
+      }
+    }).catch(function (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); toast("Daftar gagal: " + (e.message || e)); });
+  } catch (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); }
+});
+var _sbLogin = $("sbLoginBtn");
+if (_sbLogin) _sbLogin.addEventListener("click", function () {
+  try {
+    SB.logMasuk().then(function () {
+      data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save(); renderAll();
+      sbSetStatus("Log masuk berjaya. Tekan Sync Sekarang untuk muat turun / hantar data.");
+      toast("Log masuk berjaya.");
+    }).catch(function (e) { sbSetStatus("Log masuk gagal: " + (e.message || e)); toast("Log masuk gagal: " + (e.message || e)); });
+  } catch (e) { sbSetStatus("Log masuk gagal: " + (e.message || e)); }
+});
+var _sbLogout = $("sbLogoutBtn");
+if (_sbLogout) _sbLogout.addEventListener("click", function () {
+  SB.logKeluar().then(function () { renderAll(); toast("Log keluar. Data tempatan dikekalkan; data awan tidak dipadam."); });
+});
+var _sbSync = $("sbSyncBtn");
+if (_sbSync) _sbSync.addEventListener("click", function () { sbJalankanSync(true); });
+var _sbAuto = $("sbAutoToggle");
+if (_sbAuto) _sbAuto.addEventListener("change", function () {
+  var st = SB.syncState(); st.autoSync = _sbAuto.checked; SB.simpanSyncState(st); renderAll();
+  toast(_sbAuto.checked ? "Sync automatik dihidupkan." : "Sync automatik dimatikan.");
+});
+var _sbAnonT = $("sbAnonToggle");
+if (_sbAnonT) _sbAnonT.addEventListener("click", function () {
+  var inp = $("sbAnon"); if (!inp) return;
+  inp.type = (inp.type === "password") ? "text" : "password";
+});
+var _sbClear = $("sbClearBtn");
+if (_sbClear) _sbClear.addEventListener("click", function () {
+  if (!confirm("Padam tetapan Supabase dari peranti ini? URL, anon key dan sesi log masuk akan dipadam dari peranti ini sahaja. Data dalam Supabase TIDAK akan dipadam.")) return;
+  SB.clearCfgDanSesi();
+  data.settings = data.settings || tetapanLalai(); data.settings.backend = "belum disambung"; save(); renderAll();
+  var u = $("sbUrl"); if (u) u.value = ""; var a = $("sbAnon"); if (a) a.value = "";
+  var em = $("sbEmail"); if (em) em.value = ""; var pw = $("sbPassword"); if (pw) pw.value = "";
+  sbSetStatus("Belum disambung. Tetapan Supabase sudah dipadam dari peranti ini.");
+  toast("Tetapan Supabase dipadam dari peranti ini.");
 });
 
 // Mula

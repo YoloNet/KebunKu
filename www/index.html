@@ -258,7 +258,7 @@
     <div class="card">
       <h3>Akaun &amp; Sandaran</h3>
       <div id="akaunStatus"></div>
-      <label>Backend awan (pilihan untuk masa depan — belum disambung)
+      <label>Backend awan
         <select id="backendPilihan">
           <option value="belum disambung">Belum disambung</option>
           <option value="Supabase">Supabase</option>
@@ -266,12 +266,42 @@
           <option value="Pelayan Sendiri">Pelayan Sendiri</option>
         </select>
       </label>
-      <p class="hint">Pilihan ini hanya direkod untuk persediaan. Tiada log masuk dan tiada sync berlaku selagi backend belum disambung.</p>
+      <p class="hint">Pilih Supabase untuk sync awan di bawah. Firebase dan Pelayan Sendiri belum disambung — pilihan itu hanya direkod.</p>
+
+      <h3>Supabase — Sync Awan</h3>
+      <p class="hint">Masukkan Project URL dan anon key dari Supabase anda (Project Settings &gt; API). Jalankan fail <code>supabase/migrations/001_kebunku.sql</code> dalam SQL Editor Supabase dahulu. Lihat README untuk langkah penuh.</p>
+      <p class="hint"><b>Amaran:</b> Anon Key disimpan dalam peranti ini sahaja dan tidak pernah dimasukkan dalam eksport data. Jangan commit URL/key ke GitHub. Walaupun anon key diketahui umum, Row Level Security (RLS) dalam Supabase memastikan setiap pengguna hanya boleh capai barisnya sendiri.</p>
+      <label>Supabase URL
+        <input type="text" id="sbUrl" placeholder="cth: https://abcxyz.supabase.co" autocomplete="off">
+      </label>
+      <label>Supabase Anon Key
+        <input type="password" id="sbAnon" placeholder="Anon public key dari Project Settings &gt; API" autocomplete="off">
+      </label>
+      <button type="button" class="btn secondary small" id="sbAnonToggle">Tunjuk / Sembunyi Anon Key</button>
+      <label>Email
+        <input type="email" id="sbEmail" placeholder="cth: anda@email.com" autocomplete="email">
+      </label>
+      <label>Kata Laluan
+        <input type="password" id="sbPassword" placeholder="Kata laluan akaun Supabase anda" autocomplete="current-password">
+      </label>
+      <p class="result" id="sbStatus">Belum disambung.</p>
+      <div class="row">
+        <button type="button" class="btn primary" id="sbDaftarBtn">Daftar</button>
+        <button type="button" class="btn primary" id="sbLoginBtn">Log Masuk</button>
+        <button type="button" class="btn secondary" id="sbLogoutBtn">Log Keluar</button>
+      </div>
+      <label class="toggle-row"><input type="checkbox" id="sbAutoToggle" checked> Sync Automatik Bila Online</label>
+      <p class="hint">Bila suis ini HIDUP dan anda sudah log masuk, setiap kali data tempatan disimpan dan ada internet, aplikasi akan cuba sync automatik (dengan sedikit kelewatan, tanpa menghalang simpanan tempatan).</p>
+      <div class="row">
+        <button type="button" class="btn primary" id="sbSyncBtn">Sync Sekarang</button>
+        <button type="button" class="btn danger" id="sbClearBtn">Padam Tetapan Supabase dari Peranti Ini</button>
+      </div>
+      <p class="hint">Butang padam tetapan hanya memadam URL, anon key dan sesi log masuk dari peranti ini sahaja. Ia <b>tidak</b> memadam data anda dalam Supabase. Untuk retrieve selepas uninstall: pada peranti baharu, masukkan URL/key yang sama, log masuk dengan email yang sama, dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
     </div>
 
     <div class="card">
       <h3>Data Saya</h3>
-      <p class="hint">Semua data disimpan dalam telefon / pelayar ini sahaja (offline-first). Tiada akaun dan tiada pelayan disambung lagi. Eksport selalu sebagai sandaran.</p>
+      <p class="hint">Data disimpan dalam telefon / pelayar ini dahulu (offline-first). Jika Supabase disambung di atas, data tanpa gambar akan di-sync ke akaun anda. Eksport selalu sebagai sandaran.</p>
       <div class="row">
         <button type="button" class="btn primary" id="exportBtn">Eksport JSON (Tanpa Gambar)</button>
         <button type="button" class="btn secondary" id="exportFullBtn">Eksport Penuh (Termasuk Gambar)</button>
@@ -288,7 +318,7 @@
 </main>
 
 <footer>
-  <p>KebunKu v2 — offline-first, data disimpan dalam peranti ini. Tiada log masuk / sync awan lagi.</p>
+  <p>KebunKu v2 — offline-first. Sync Supabase tersedia dalam Ringkasan &gt; Akaun &amp; Sandaran bila anda sambungkannya.</p>
 </footer>
 
 <script src="app.js"></script>
