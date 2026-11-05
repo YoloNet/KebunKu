@@ -4,15 +4,14 @@
    kekal berfungsi offline di dalam WebView. Tetapan sambungan dibaca
    daripada fail www/supabase-config.js (diisi pemilik) atau tetapan
    peranti yang disimpan sebelum ini — tiada medan tetapan dalam UI.
-   Sesi log masuk disimpan dalam kunci localStorage yang berasingan dan
+   Sesi daftar masuk disimpan dalam kunci localStorage yang berasingan dan
    TIDAK pernah dimasukkan dalam eksport data utama. Gambar tidak pernah
    dihantar ke awan.
-   v3 (dari log Excel sebenar pengguna): zon, bahan berstruktur (jumlah+unit+per),
+   v3 (dari rekod Excel sebenar pengguna): zon, bahan berstruktur (jumlah+unit+per),
    pustaka bahan, peringkat blok, syarat kerja seterusnya + tukar bahan. */
 var KEY = "kebunku_data_v3";
 var OLD_KEY = "kebunku_data_v2";
 var OLD_KEY_V1 = "kebunku_data_v1";
-var SEED_KEY = "kebunku_seeded_v1";
 var JENIS_KERJA = ["Membaja", "Meracun Rumput", "Racun Kulat", "Racun Serangga", "Menuai", "Pruning", "Potong Rumput", "Menanam", "Menyiram", "Lain-lain"];
 var TANAMAN_LIST = ["Koko", "Sawit", "Durian", "Lada", "Sayur", "Lada & Sayur", "Lain-lain"];
 var PERINGKAT_LIST = ["Bibit / Anak", "Matang", "Berbuah", "Semua Peringkat"];
@@ -89,7 +88,7 @@ function composeDos(k) {
 function dosPaparan(k) { var c = composeDos(k); return c || "-"; }
 
 function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung", mod: "", namaPaparan: "", namaDitanya: false }; }
-/* mod: "" (belum pilih) | "tetamu" (guest, tempatan sahaja) | "akaun" (log masuk).
+/* mod: "" (belum pilih) | "tetamu" (guest, tempatan sahaja) | "akaun" (daftar masuk).
    namaPaparan: nama yang dipaparkan pada dashboard; namaDitanya: true bila
    prompt nama sudah ditunjuk / dilangkau / disimpan, supaya tidak mengganggu
    setiap kali aplikasi dibuka. */
@@ -119,24 +118,9 @@ function normalBahan(b) {
   var r = Object.assign({ nama: "", jenisKerja: "", unitLalai: "", dosLalai: "", nota: "", contoh: false, updatedAt: 0 }, b || {});
   return r;
 }
-/* Pustaka bahan lalai — diambil daripada log Excel sebenar pengguna
-   (ejaan dibetulkan: Imidacloprid, Metalaxyl) + contoh asal. */
-function seedBahans() {
-  var kini = Date.now();
-  function b(nama, jenis, unit, dos, nota) { return { id: uid(), nama: nama, jenisKerja: jenis, unitLalai: unit, dosLalai: dos, nota: nota, contoh: false, updatedAt: kini }; }
-  return [
-    b("NPK 16-16-16", "Membaja", "g", "100g", "Lada & sayur"),
-    b("NPK 12-12-17", "Membaja", "kg", "2kg/pokok", "Durian matang, koko"),
-    b("NPK 8-9-30", "Membaja", "kg", "2kg/pokok", "Sawit"),
-    b("Baja NPK 15-15-15", "Membaja", "g", "500g/pokok", "Contoh asal"),
-    b("Imidacloprid", "Racun Serangga", "ml", "7ml", "Lada & sayur"),
-    b("Halexyl", "Racun Serangga", "ml", "5ml/sprayer", "Durian matang"),
-    b("Metalaxyl", "Racun Kulat", "g", "7g", "Lada & sayur, bibit durian"),
-    b("Antracol", "Racun Kulat", "g", "70g/pokok", "Durian matang"),
-    b("Monex", "Racun Rumput", "ml", "255ml/sprayer", "Sawit"),
-    b("Glyphosate", "Racun Rumput", "ml", "", "Contoh asal")
-  ];
-}
+/* v3.6: tiada lagi pustaka bahan lalai — pengguna baharu mula dengan
+   pustaka kosong dan tambah bahan sendiri. Data sedia ada (termasuk
+   bahan pengguna lama) tidak disentuh oleh migrasi. */
 function emptyData() { return { version: 3, kebuns: [], bloks: [], kerjas: [], bahans: [], settings: tetapanLalai() }; }
 function normalData(d) {
   var r = { version: 3, kebuns: [], bloks: [], kerjas: [], bahans: [], settings: tetapanLalai() };
@@ -144,10 +128,11 @@ function normalData(d) {
   if (Array.isArray(d.kebuns)) r.kebuns = d.kebuns;
   if (Array.isArray(d.bloks)) r.bloks = d.bloks.map(normalBlok);
   if (Array.isArray(d.kerjas)) r.kerjas = d.kerjas.map(normalKerja);
-  /* Data lama (v1/v2) tiada bahans: isi pustaka lalai. Jika pengguna sudah
-     ada pustaka (walaupun kosong kerana dipadam semua), hormati pilihannya. */
+  /* Data lama (v1/v2) tiada bahans: mula dengan pustaka kosong (v3.6).
+     Jika pengguna sudah ada pustaka (walaupun kosong kerana dipadam
+     semua), hormati pilihannya. */
   if (Array.isArray(d.bahans)) r.bahans = d.bahans.map(normalBahan);
-  else r.bahans = seedBahans();
+  else r.bahans = [];
   if (d.settings && typeof d.settings === "object") {
     if (typeof d.settings.notifikasiHidup === "boolean") r.settings.notifikasiHidup = d.settings.notifikasiHidup;
     if (typeof d.settings.backend === "string" && d.settings.backend) r.settings.backend = d.settings.backend;
@@ -330,7 +315,7 @@ var SB = {
       body: badan ? JSON.stringify(badan) : undefined
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (j) {
-        if (!res.ok) throw new Error(SB.ralat(j, "Gagal log masuk / daftar (kod " + res.status + "). Semak email dan kata laluan, kemudian cuba lagi."));
+        if (!res.ok) throw new Error(SB.ralat(j, "Gagal daftar masuk / daftar (kod " + res.status + "). Semak email dan kata laluan, kemudian cuba lagi."));
         return j;
       });
     });
@@ -342,7 +327,7 @@ var SB = {
      kaedah: "email" | "otp" | "google" (sesi lama tanpa medan ini = "email"). */
   simpanSesiDariToken: function (j, email, kaedah) {
     var ses = j.session || j;
-    if (!ses || !ses.access_token) throw new Error("Log masuk tidak mengembalikan sesi. Sila cuba lagi.");
+    if (!ses || !ses.access_token) throw new Error("Daftar masuk tidak mengembalikan sesi. Sila cuba lagi.");
     var pengguna = j.user || ses.user || {};
     this.simpanSesi({ access_token: ses.access_token, refresh_token: ses.refresh_token || "",
       user_id: pengguna.id || "", email: email || pengguna.email || "",
@@ -352,7 +337,7 @@ var SB = {
   },
   /* ===== OTP (kod pengesahan email) — anti-spam pendaftaran =====
      Hanya pemilik email yang memegang kod 6 digit boleh siapkan pendaftaran
-     atau log masuk dengan kod. Supabase sendiri menghadkan kadar permintaan
+     atau daftar masuk dengan kod. Supabase sendiri menghadkan kadar permintaan
      OTP; aplikasi menambah cooldown hantar-semula 60 saat (lihat
      mulaCooldownOtp). Kod tidak pernah disimpan dalam localStorage. */
   hantarOtp: function (email, createUser) {
@@ -369,8 +354,8 @@ var SB = {
       .then(function (j) { self.simpanSesiDariToken(j, email, "otp"); return j; });
   },
   /* Tetapkan kata laluan selepas daftar OTP, supaya akaun itu juga boleh
-     log masuk dengan email + kata laluan kemudian. Gagal di sini tidak
-     membatalkan pendaftaran — pengguna masih log masuk melalui kod. */
+     daftar masuk dengan email + kata laluan kemudian. Gagal di sini tidak
+     membatalkan pendaftaran — pengguna masih daftar masuk melalui kod. */
   tetapKataLaluan: function (token, kata) {
     var cfg = this.cfg();
     return this.panggilAuth(cfg, "PUT", "/auth/v1/user", { password: kata }, token);
@@ -380,7 +365,7 @@ var SB = {
     if (/expired|invalid/i.test(m) && /token|kod/i.test(m)) return "Kod salah atau sudah tamat tempoh. Tekan Hantar Semula Kod untuk kod baharu.";
     if (/Token has expired|invalid/i.test(m)) return "Kod salah atau sudah tamat tempoh. Tekan Hantar Semula Kod untuk kod baharu.";
     if (/rate limit|too many/i.test(m)) return "Terlalu banyak permintaan kod. Tunggu sebentar (lebih kurang 1 minit) kemudian cuba lagi.";
-    if (/already registered|already exists/i.test(m)) return "Email ini sudah berdaftar. Guna Log Masuk atau Log Masuk dengan Kod.";
+    if (/already registered|already exists/i.test(m)) return "Email ini sudah berdaftar. Guna Daftar Masuk atau Daftar Masuk dengan Kod.";
     if (/not found|user not found/i.test(m)) return "Email ini belum berdaftar. Daftar dahulu dengan kod pengesahan.";
     if (/email.*not confirmed|not confirmed/i.test(m)) return "Email belum disahkan. Minta kod baharu dan sahkan dahulu.";
     return m || "Kod tidak dapat disahkan. Semak kod dan cuba lagi.";
@@ -420,8 +405,8 @@ var SB = {
       refresh = h.get("refresh_token") || q.get("refresh_token") || "";
       tamat = Number(h.get("expires_in") || q.get("expires_in")) || 3600;
       var ralat = h.get("error") || q.get("error");
-      if (ralat) return Promise.resolve({ ralat: /access_denied/i.test(ralat) ? "Log masuk Google dibatalkan." : "Log masuk Google gagal: " + ralat });
-    } catch (e) { return Promise.resolve({ ralat: "Pautan log masuk tidak sah." }); }
+      if (ralat) return Promise.resolve({ ralat: /access_denied/i.test(ralat) ? "Daftar masuk Google dibatalkan." : "Daftar masuk Google gagal: " + ralat });
+    } catch (e) { return Promise.resolve({ ralat: "Pautan daftar masuk tidak sah." }); }
     if (!token) return Promise.resolve(null);
     var cfg;
     try { cfg = this.sahkanCfg(this.cfg()); } catch (e2) { return Promise.resolve({ ralat: "Sesi Google diterima, tetapi aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi." }); }
@@ -477,7 +462,7 @@ var SB = {
     location.href = cfg.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(balik);
   },
   /* Baca profil pengguna semasa (untuk nama paparan daripada user_metadata).
-     Kegagalan mengembalikan null — ia tidak membatalkan log masuk. */
+     Kegagalan mengembalikan null — ia tidak membatalkan daftar masuk. */
   ambilProfil: function () {
     var cfg = this.cfg();
     var self = this;
@@ -502,9 +487,9 @@ var SB = {
     var ralatDes = h.get("error_description") || carian.get("error_description") || "";
     if (ralat) {
       try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
-      var msg = /access_denied/i.test(ralat) ? "Log masuk Google dibatalkan."
-        : (/provider (is )?not enabled|provider_disabled/i.test(ralat + " " + ralatDes) ? "Log masuk Google belum dihidupkan untuk aplikasi ini. Sila hubungi pemilik aplikasi."
-        : "Log masuk Google gagal: " + (decodeURIComponent(ralatDes.replace(/\+/g, " ")) || ralat));
+      var msg = /access_denied/i.test(ralat) ? "Daftar masuk Google dibatalkan."
+        : (/provider (is )?not enabled|provider_disabled/i.test(ralat + " " + ralatDes) ? "Daftar masuk Google belum dihidupkan untuk aplikasi ini. Sila hubungi pemilik aplikasi."
+        : "Daftar masuk Google gagal: " + (decodeURIComponent(ralatDes.replace(/\+/g, " ")) || ralat));
       return Promise.resolve({ ralat: msg });
     }
     var token = h.get("access_token");
@@ -539,7 +524,7 @@ var SB = {
     if (!email || !kata) throw new Error("Isi email dan kata laluan dahulu.");
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/token?grant_type=password", { email: email, password: kata }).then(function (j) {
-      if (!j.access_token) throw new Error("Log masuk gagal. Semak email dan kata laluan, dan pastikan email sudah disahkan jika pengesahan email diperlukan.");
+      if (!j.access_token) throw new Error("Daftar masuk gagal. Semak email dan kata laluan, dan pastikan email sudah disahkan jika pengesahan email diperlukan.");
       self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || "",
         user_id: (j.user && j.user.id) || "", email: email,
         expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000),
@@ -549,10 +534,10 @@ var SB = {
   },
   segarToken: function () {
     var cfg = this.cfg(); var s = this.sesi();
-    if (!cfg.url || !cfg.anon || !s || !s.refresh_token) return Promise.reject(new Error("Sesi tamat. Sila log masuk semula."));
+    if (!cfg.url || !cfg.anon || !s || !s.refresh_token) return Promise.reject(new Error("Sesi tamat. Sila daftar masuk semula."));
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/token?grant_type=refresh_token", { refresh_token: s.refresh_token }).then(function (j) {
-      if (!j.access_token) throw new Error("Sesi tamat. Sila log masuk semula.");
+      if (!j.access_token) throw new Error("Sesi tamat. Sila daftar masuk semula.");
       self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || s.refresh_token,
         user_id: (j.user && j.user.id) || s.user_id, email: s.email,
         expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000),
@@ -562,7 +547,7 @@ var SB = {
   },
   tokenSah: function () {
     var s = this.sesi();
-    if (!s || !s.access_token) return Promise.reject(new Error("Anda belum log masuk. Sila log masuk dahulu."));
+    if (!s || !s.access_token) return Promise.reject(new Error("Anda belum daftar masuk. Sila daftar masuk dahulu."));
     if (s.expires_at && s.expires_at > Date.now() + 60000) return Promise.resolve(s.access_token);
     return this.segarToken();
   },
@@ -588,7 +573,7 @@ var SB = {
     }).then(function (res) {
       return res.text().then(function (teks) {
         var j = null; try { j = teks ? JSON.parse(teks) : null; } catch (e) { j = null; }
-        if (!res.ok) throw new Error(SB.ralat(j, "Sync gagal (kod " + res.status + "). Sila log masuk semula dan cuba lagi. Jika masalah berterusan, hubungi pemilik aplikasi."));
+        if (!res.ok) throw new Error(SB.ralat(j, "Sync gagal (kod " + res.status + "). Sila daftar masuk semula dan cuba lagi. Jika masalah berterusan, hubungi pemilik aplikasi."));
         return j;
       });
     });
@@ -620,14 +605,14 @@ var SB = {
     var cfg;
     try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.reject(e); }
     /* v3.5 Mod Tetamu: tolak sync terus — data tetamu kekal tempatan sahaja. */
-    try { if (typeof data !== "undefined" && data && data.settings && data.settings.mod === "tetamu") return Promise.reject(new Error("Mod Tetamu — data hanya dalam peranti ini. Log masuk untuk backup data anda ke cloud.")); } catch (e2) {}
+    try { if (typeof data !== "undefined" && data && data.settings && data.settings.mod === "tetamu") return Promise.reject(new Error("Mod Tetamu — data hanya dalam peranti ini. Daftar masuk untuk backup data anda ke cloud.")); } catch (e2) {}
     if (this.syncSedangBerjalan) return Promise.reject(new Error("Sync sedang berjalan. Sila tunggu."));
     this.syncSedangBerjalan = true;
     var state = this.syncState();
     var sesi = this.sesi();
-    if (!sesi) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Anda belum log masuk.")); }
+    if (!sesi) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Anda belum daftar masuk.")); }
     var uid = sesi.user_id;
-    if (!uid) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Sesi log masuk tidak lengkap (tiada user_id). Sila log keluar dan log masuk semula.")); }
+    if (!uid) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Sesi daftar masuk tidak lengkap (tiada user_id). Sila keluar dan daftar masuk semula.")); }
     return this.tokenSah().then(function (token) {
       /* Langkah 1 — tarik keadaan awan dahulu (aktif + dipadam), supaya
          keputusan last-updated-wins boleh dibuat sebelum apa-apa dihantar. */
@@ -735,11 +720,11 @@ var SB = {
     if ($("sbEmail") && s && s.email) $("sbEmail").value = s.email;
     var akhir = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleString("ms-MY") : "belum pernah";
     if (s && s.email) {
-      el.textContent = "Log masuk sebagai " + s.email + " (" + this.kaedahLabel(s.kaedah) + ") • Terakhir sync: " + akhir +
+      el.textContent = "Daftar masuk sebagai " + s.email + " (" + this.kaedahLabel(s.kaedah) + ") • Terakhir sync: " + akhir +
         " • Sync automatik: " + (st.autoSync ? "HIDUP" : "MATI") + ".";
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah("logmasuk");
     } else if (cfg.url && cfg.anon) {
-      el.textContent = "Belum log masuk. Log masuk dengan Google, email + kata laluan, atau kod pengesahan, kemudian Sync Sekarang.";
+      el.textContent = "Belum daftar masuk. Daftar masuk dengan Google, email + kata laluan, atau kod pengesahan, kemudian Sync Sekarang.";
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah((sbLangkahSemasa === "logmasuk" || !sbLangkahSemasa) ? "utama" : sbLangkahSemasa);
     } else {
       el.textContent = "Aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi.";
@@ -748,27 +733,9 @@ var SB = {
   }
 };
 
-function seedData() {
-  var t = todayStr();
-  var kebunId = uid();
-  var b1 = uid(), b2 = uid(), b3 = uid();
-  return { version: 3, settings: tetapanLalai(),
-    kebuns: [{ id: kebunId, nama: "Kebun Contoh", contoh: true }],
-    bloks: [
-      { id: b1, kebunId: kebunId, nama: "Blok 1", tanaman: "Koko", tanamanLain: "", peringkat: "Matang", contoh: true },
-      { id: b2, kebunId: kebunId, nama: "Blok 2", tanaman: "Sawit", tanamanLain: "", peringkat: "Matang", contoh: true },
-      { id: b3, kebunId: kebunId, nama: "Blok 3", tanaman: "Durian", tanamanLain: "", peringkat: "Matang", contoh: true }
-    ],
-    bahans: seedBahans(),
-    kerjas: [
-      { id: uid(), kebunId: kebunId, blokId: b1, jenis: "Membaja", jenisLain: "", tarikhRancang: t, tarikhSiap: "", status: "Dirancang", peratus: 0, bahan: "Baja NPK 15-15-15", dos: "500g sepokok", kos: 120, nota: "Contoh: Blok 1 hari ini", contoh: true },
-      { id: uid(), kebunId: kebunId, blokId: b2, jenis: "Meracun Rumput", jenisLain: "", tarikhRancang: addDays(t, -1), tarikhSiap: "", status: "Tertangguh", peratus: 0, bahan: "Racun rumput", dos: "2 liter", kos: 80, nota: "Contoh: tertunggak dari semalam, dibawa ke hadapan", contoh: true },
-      { id: uid(), kebunId: kebunId, blokId: b1, jenis: "Membaja", jenisLain: "", tarikhRancang: addDays(t, -7), tarikhSiap: addDays(t, -7), status: "Siap", peratus: 100, bahan: "Baja NPK 15-15-15", dos: "500g sepokok", kos: 115, nota: "Contoh: kerja siap minggu lepas", contoh: true },
-      { id: uid(), kebunId: kebunId, blokId: b3, jenis: "Racun Kulat", jenisLain: "", tarikhRancang: addDays(t, 1), tarikhSiap: "", status: "Dirancang", peratus: 0, bahan: "Racun kulat", dos: "Ikut label", kos: 60, nota: "Contoh: dirancang esok", contoh: true }
-    ]
-  };
-}
-
+/* v3.6: tiada lagi data contoh automatik — pemasangan baharu bermula
+   kosong dan pengguna isi kebun/blok sendiri. Data sedia ada pengguna
+   lama (termasuk rekod contoh yang pernah dimuatkan) tidak disentuh. */
 function load() {
   try {
     var raw = localStorage.getItem(KEY);
@@ -785,68 +752,12 @@ function load() {
     var lama1 = localStorage.getItem(OLD_KEY_V1);
     if (lama1) { var dv1 = JSON.parse(lama1); if (dv1 && Array.isArray(dv1.kerjas)) { var mig1 = normalData(dv1); localStorage.setItem(KEY, JSON.stringify(mig1)); return mig1; } }
   } catch (e3) { /* abaikan */ }
-  if (!localStorage.getItem(SEED_KEY)) {
-    localStorage.setItem(SEED_KEY, "1");
-    var seeded = normalData(seedData());
-    localStorage.setItem(KEY, JSON.stringify(seeded));
-    return seeded;
-  }
   return emptyData();
 }
-/* ===== CONTOH LOG LAMA — daripada fail Excel sebenar pengguna =====
-   Fail itu mengandungi 13 rekod kerja (2010), bukan 17 — 20 baris fail
-   termasuk tajuk dan baris kosong pemisah. Ejaan dibetulkan di sini
-   (Imidacloprid, Metalaxyl), "baja" dinormalkan kepada "Membaja",
-   dan "blok 1 / blok 1&2 / blok 1-2" disimpan dalam nota kerana ia
-   skop blok, bukan zon. Kerja susulan TIDAK dicipta automatik untuk
-   rekod lama ini — hanya nextTarikh/syarat direkodkan pada kerja Siap itu. */
-var CONTOH_LOG_LAMA = [
-  { tarikh: "2010-01-01", kumpulan: "Lada & Sayur", tanaman: "Lada & Sayur", peringkat: "Semua Peringkat", zon: "Semua Zon", bahagian: "", jenis: "Membaja", bahan: "NPK 16-16-16", dos: "100g", plan: "2 Bulan", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-01-03", kumpulan: "Lada & Sayur", tanaman: "Lada & Sayur", peringkat: "Semua Peringkat", zon: "Semua Zon", bahagian: "", jenis: "Racun Serangga", bahan: "Imidacloprid", dos: "7ml", plan: "2 Minggu", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-01-06", kumpulan: "Lada & Sayur", tanaman: "Lada & Sayur", peringkat: "Semua Peringkat", zon: "Semua Zon", bahagian: "", jenis: "Racun Kulat", bahan: "Metalaxyl", dos: "7sudu", plan: "2 Minggu", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-01-01", kumpulan: "Bibit Durian", tanaman: "Durian", peringkat: "Bibit / Anak", zon: "Semua Zon", bahagian: "", jenis: "Membaja", bahan: "NPK 16-16-16", dos: "200g/pokok", plan: "2 Bulan", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-01-09", kumpulan: "Bibit Durian", tanaman: "Durian", peringkat: "Bibit / Anak", zon: "Semua Zon", bahagian: "", jenis: "Racun Kulat", bahan: "Metalaxyl", dos: "7g", plan: "2 Bulan", syarat: "Tiada syarat", tukar: true, nextBahan: "Racun kulat lain" },
-  { tarikh: "2010-04-01", kumpulan: "Durian Matang", tanaman: "Durian", peringkat: "Matang", zon: "Semua Zon", bahagian: "", jenis: "Membaja", bahan: "NPK 12-12-17", dos: "2kg/pokok", plan: "2 Bulan", syarat: "Jika belum mula berbuah", tukar: false, nextBahan: "" },
-  { tarikh: "2010-04-12", kumpulan: "Durian Matang", tanaman: "Durian", peringkat: "Matang", zon: "Semua Zon", bahagian: "blok 1", jenis: "Racun Kulat", bahan: "Antracol", dos: "70g/pokok", plan: "3 Minggu", syarat: "Jika masih ada simptom", tukar: false, nextBahan: "" },
-  { tarikh: "2010-04-15", kumpulan: "Durian Matang", tanaman: "Durian", peringkat: "Matang", zon: "Semua Zon", bahagian: "blok 1&2", jenis: "Racun Serangga", bahan: "Halexyl", dos: "5ml/sprayer", plan: "3 Minggu", syarat: "Jika masih ada simptom", tukar: false, nextBahan: "" },
-  { tarikh: "2010-03-12", kumpulan: "Koko", tanaman: "Koko", peringkat: "Semua Peringkat", zon: "Semua Zon", bahagian: "", jenis: "Membaja", bahan: "NPK 12-12-17", dos: "1 karung semua kawasan", plan: "1 Bulan", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-04-15", kumpulan: "Koko", tanaman: "Koko", peringkat: "Semua Peringkat", zon: "Semua Zon", bahagian: "blok 1-2", jenis: "Racun Kulat", bahan: "Metalaxyl", dos: "40g/sprayer", plan: "1 Bulan", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-01-09", kumpulan: "Sawit", tanaman: "Sawit", peringkat: "Semua Peringkat", zon: "Atas", bahagian: "", jenis: "Membaja", bahan: "NPK 8-9-30", dos: "2kg/pokok", plan: "6 Bulan", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-01-19", kumpulan: "Sawit", tanaman: "Sawit", peringkat: "Semua Peringkat", zon: "Bawah", bahagian: "", jenis: "Membaja", bahan: "NPK 8-9-30", dos: "2kg/pokok", plan: "6 Bulan", syarat: "Tiada syarat", tukar: false, nextBahan: "" },
-  { tarikh: "2010-08-27", kumpulan: "Sawit", tanaman: "Sawit", peringkat: "Semua Peringkat", zon: "Tengah & Bawah", bahagian: "", jenis: "Meracun Rumput", bahan: "Monex", dos: "255ml/sprayer", plan: "6 Bulan", syarat: "Tiada syarat", tukar: false, nextBahan: "" }
-];
-function cariBahanId(nama, jenis) {
-  var b = data.bahans.find(function (x) { return x.nama === nama && (!jenis || x.jenisKerja === jenis); });
-  return b ? b.id : "";
-}
-function muatContohLogLama() {
-  if (data.kebuns.some(function (k) { return k.nama === "Kebun Contoh — Log Lama"; })) return { sudahAda: true, jumlah: 0 };
-  var kebunId = uid();
-  data.kebuns.push({ id: kebunId, nama: "Kebun Contoh — Log Lama", contoh: true, updatedAt: Date.now() });
-  var blokMap = {};
-  CONTOH_LOG_LAMA.forEach(function (r) {
-    if (!blokMap[r.kumpulan]) {
-      var bid = uid();
-      blokMap[r.kumpulan] = bid;
-      data.bloks.push({ id: bid, kebunId: kebunId, nama: r.kumpulan, tanaman: r.tanaman, tanamanLain: "", peringkat: r.peringkat, contoh: true, updatedAt: Date.now() });
-    }
-  });
-  CONTOH_LOG_LAMA.forEach(function (r) {
-    var p = parseDos(r.dos);
-    var nota = "Contoh log lama (Excel).";
-    if (r.bahagian) nota += " Bahagian kawasan asal: " + r.bahagian + ".";
-    var nextTarikh = nextTarikhFrom(r.tarikh, r.plan, "");
-    data.kerjas.push(normalKerja({ id: uid(), kebunId: kebunId, blokId: blokMap[r.kumpulan],
-      jenis: r.jenis, jenisLain: "", tarikhRancang: r.tarikh, tarikhSiap: r.tarikh,
-      status: "Siap", peratus: 100, bahan: r.bahan, bahanId: cariBahanId(r.bahan, r.jenis),
-      dos: r.dos, dosJumlah: p.jumlah, dosUnit: p.unit, dosPer: p.per,
-      kos: 0, nota: nota, zon: r.zon,
-      nextTarikh: nextTarikh, nextPilihan: r.plan,
-      nextSyarat: r.syarat, nextSyaratLain: "", nextTukarBahan: r.tukar, nextBahan: r.nextBahan,
-      contoh: true, image: null, updatedAt: Date.now() }));
-  });
-  return { sudahAda: false, jumlah: CONTOH_LOG_LAMA.length };
-}
+/* v3.6: import contoh (13 rekod Excel lama) dibuang — pengguna baharu
+   isi kebun/blok sendiri. Rekod contoh yang sudah dimuatkan sebelum ini
+   kekal dalam data pengguna dan boleh dibuang dengan butang
+   "Padam Data Contoh Sahaja" (hanya muncul bila ada data contoh). */
 var data = load();
 function save() {
   localStorage.setItem(KEY, JSON.stringify(data));
@@ -909,7 +820,9 @@ function refreshBahanSelect() {
   var jenis = $("kerjaJenis").value;
   var cur = el.value;
   var senarai = data.bahans.filter(function (b) { return !jenis || b.jenisKerja === jenis || !b.jenisKerja; });
-  var opts = [{ value: "", label: "Pilih bahan…" }].concat(senarai.map(function (b) {
+  /* v3.6: pustaka bermula kosong — tunjuk keadaan kosong dengan jelas. */
+  var labelKosong = senarai.length ? "Pilih bahan…" : "Tiada bahan — tambah baharu";
+  var opts = [{ value: "", label: labelKosong }].concat(senarai.map(function (b) {
     return { value: b.id, label: b.nama + (b.dosLalai ? " (" + b.dosLalai + ")" : "") };
   }));
   opts.push({ value: "__TAMBAH__", label: "+ Tambah bahan baharu…" });
@@ -1049,14 +962,14 @@ function renderAkaunStatus() {
     }
   } catch (e) {}
   if (sbSesi && sbSesi.email) {
-    el.innerHTML = "<p><b>Status sandaran:</b> Anda log masuk sebagai " + esc(sbSesi.email) +
+    el.innerHTML = "<p><b>Status sandaran:</b> Anda daftar masuk sebagai " + esc(sbSesi.email) +
       (namaPaparan() ? " (Nama paparan: " + esc(namaPaparan()) + ")" : "") +
       ". Terakhir sync: " + esc(sbAkhir) + ". Data tanpa gambar di-sync ke akaun ini.</p>" +
-      "<p><b>Jika tukar telefon:</b> log masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>" +
+      "<p><b>Jika tukar telefon:</b> daftar masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>" +
       "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> dihantar dalam versi ini (untuk jimat storan).</p>";
   } else if (sbCfgAda) {
-    el.innerHTML = "<p><b>Status sandaran:</b> Anda belum log masuk. Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda.</p>" +
-      "<p><b>Untuk simpan data dalam akaun,</b> log masuk di bawah dengan Google atau email, kemudian tekan Sync Sekarang. Selepas sync pertama berjaya, data tanpa gambar akan tersimpan dalam akaun anda.</p>" +
+    el.innerHTML = "<p><b>Status sandaran:</b> Anda belum daftar masuk. Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda.</p>" +
+      "<p><b>Untuk simpan data dalam akaun,</b> daftar masuk di bawah dengan Google atau email, kemudian tekan Sync Sekarang. Selepas sync pertama berjaya, data tanpa gambar akan tersimpan dalam akaun anda.</p>" +
       "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan).</p>";
   } else {
     el.innerHTML = "<p><b>Status sandaran:</b> Aplikasi ini belum dikonfigurasi oleh pemilik, jadi data hanya dalam peranti ini buat masa ini. Sila hubungi pemilik aplikasi.</p>" +
@@ -1084,12 +997,23 @@ function semakNotifikasi() {
     });
   } catch (e) {}
 }
+/* v3.6: senarai Kerja dipaginasi 10 demi 10 (terkini dahulu). Kerja yang
+   sudah Siap (100%) TIDAK dipaparkan di sini — ia hanya dalam Sejarah. */
+var kerjaHad = 10;
 function renderSemuaKerja() {
   var el = $("semuaKerjaList");
   el.innerHTML = "";
-  var list = data.kerjas.slice().sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? 1 : -1; });
-  if (!list.length) { el.innerHTML = emptyHtml("Belum ada kerja. Tambah kerja pertama anda di atas."); return; }
-  list.forEach(function (k) { el.appendChild(jobCard(k)); });
+  var list = data.kerjas.filter(function (k) { return k.status !== "Siap"; })
+    .sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? 1 : -1; });
+  if (!list.length) { el.innerHTML = emptyHtml("Belum ada kerja belum siap. Tambah kerja baharu di atas — kerja yang sudah siap ada dalam Sejarah."); return; }
+  list.slice(0, kerjaHad).forEach(function (k) { el.appendChild(jobCard(k)); });
+  if (list.length > kerjaHad) {
+    var baki = list.length - kerjaHad;
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn secondary"; btn.textContent = "Tunjuk Lagi (" + baki + " lagi)";
+    btn.addEventListener("click", function () { kerjaHad += 10; renderSemuaKerja(); });
+    el.appendChild(btn);
+  }
 }
 function renderKebunBlok() {
   var kl = $("kebunList"); kl.innerHTML = "";
@@ -1127,11 +1051,21 @@ function renderBahans() {
     el.appendChild(d);
   });
 }
-function renderSejarah() {
+/* ===== v3.6 — Sejarah: Kalendar bulan + Senarai =====
+   Tarikh paparan kerja ialah tarikhSiap jika ada, jika tidak tarikhRancang.
+   Tapisan (kebun/blok/tanaman/jenis/bahan/zon/cari/dari/hingga) menapis
+   kedua-dua paparan: titik dalam kalendar DAN senarai hari/senarai penuh. */
+function tarikhPaparanKerja(k) { return k.tarikhSiap || k.tarikhRancang; }
+var NAMA_BULAN = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+var sejarahMod = "kalendar";
+var sejarahBulan = todayStr().slice(0, 7);
+var sejarahHari = null;
+var sejarahHad = 20;
+function tapisanSejarah() {
   var fKebun = $("fKebun").value, fBlok = $("fBlok").value, fTan = $("fTanaman").value, fJen = $("fJenis").value;
   var fBahan = $("fBahan") ? $("fBahan").value : "", fZon = $("fZon") ? $("fZon").value : "";
   var cari = ($("fCari").value || "").toLowerCase(), dari = $("fDari").value, hingga = $("fHingga").value;
-  var list = data.kerjas.filter(function (k) {
+  return data.kerjas.filter(function (k) {
     if (fKebun && k.kebunId !== fKebun) return false;
     if (fBlok && k.blokId !== fBlok) return false;
     if (fTan) { var tb = tanamanBlok(k.blokId); var raw = blokById(k.blokId); if (fTan === "Lain-lain" ? !(raw && raw.tanaman === "Lain-lain") : tb !== fTan) return false; }
@@ -1143,10 +1077,90 @@ function renderSejarah() {
     if (hingga && k.tarikhRancang > hingga) return false;
     return true;
   }).sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? 1 : -1; });
-  var el = $("sejarahList"); el.innerHTML = "";
+}
+function renderSejarah() {
+  var list = tapisanSejarah();
+  var elKal = $("sejarahKalendar"), elHari = $("sejarahHariList"), elSen = $("sejarahList");
+  var bKal = $("sejarahKalendarBtn"), bSen = $("sejarahSenaraiBtn");
+  if (bKal) bKal.classList.toggle("active", sejarahMod === "kalendar");
+  if (bSen) bSen.classList.toggle("active", sejarahMod === "senarai");
+  if (elKal) elKal.hidden = (sejarahMod !== "kalendar");
+  if (elHari) elHari.hidden = (sejarahMod !== "kalendar");
+  if (elSen) elSen.hidden = (sejarahMod !== "senarai");
+  if (sejarahMod === "kalendar") { renderKalendarSejarah(list); return; }
+  renderSenaraiSejarah(list);
+}
+function tukarBulan(bulan, n) {
+  var y = Number(bulan.slice(0, 4)), m = Number(bulan.slice(5, 7)) - 1 + n;
+  var y2 = y + Math.floor(m / 12); var m2 = ((m % 12) + 12) % 12;
+  return y2 + "-" + String(m2 + 1).padStart(2, "0");
+}
+function renderKalendarSejarah(list) {
+  var el = $("sejarahKalendar"); if (!el) return;
+  var y = Number(sejarahBulan.slice(0, 4)), m = Number(sejarahBulan.slice(5, 7));
+  var label = NAMA_BULAN[m - 1] + " " + y;
+  var kira = {};
+  list.forEach(function (k) { var d = tarikhPaparanKerja(k); if (!d) return; kira[d] = (kira[d] || 0) + 1; });
+  if (!sejarahHari && sejarahBulan === todayStr().slice(0, 7)) sejarahHari = todayStr();
+  var hariPertama = new Date(y, m - 1, 1).getDay();
+  var hariDalamBulan = new Date(y, m, 0).getDate();
+  var t = todayStr();
+  var html = "<div class=\"kal-nav\"><button type=\"button\" class=\"btn secondary small\" id=\"kalPrevBtn\">‹ Bulan Lepas</button>" +
+    "<p class=\"kal-label\">" + esc(label) + "</p>" +
+    "<button type=\"button\" class=\"btn secondary small\" id=\"kalNextBtn\">Bulan Depan ›</button></div>" +
+    "<p class=\"hint\">" + Object.keys(kira).length + " hari ada kerja dalam bulan ini • " + list.length + " rekod menepati tapisan. Tekan satu hari untuk lihat kerja hari itu.</p>" +
+    "<div class=\"kal-grid\">" +
+    ["Aha", "Isn", "Sel", "Rab", "Kha", "Jum", "Sab"].map(function (h) { return "<div class=\"kal-hari-nama\">" + h + "</div>"; }).join("");
+  for (var i = 0; i < hariPertama; i++) html += "<div class=\"kal-hari kosong\"></div>";
+  for (var d = 1; d <= hariDalamBulan; d++) {
+    var ds = y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    var n = kira[ds] || 0;
+    var kelas = "kal-hari" + (n ? " ada" : "") + (ds === t ? " hari-ini" : "") + (ds === sejarahHari ? " pilih" : "");
+    html += "<button type=\"button\" class=\"" + kelas + "\" data-kal-hari=\"" + ds + "\"><span class=\"kal-nombor\">" + d + "</span>" +
+      (n ? "<span class=\"kal-badge\">" + n + "</span>" : "") + "</button>";
+  }
+  html += "</div>";
+  el.innerHTML = html;
+  var prev = $("kalPrevBtn"), next = $("kalNextBtn");
+  if (prev) prev.addEventListener("click", function () { sejarahBulan = tukarBulan(sejarahBulan, -1); sejarahHari = null; renderSejarah(); });
+  if (next) next.addEventListener("click", function () { sejarahBulan = tukarBulan(sejarahBulan, 1); sejarahHari = null; renderSejarah(); });
+  renderHariSejarah(list);
+}
+function renderHariSejarah(list) {
+  var el = $("sejarahHariList"); if (!el) return;
+  el.innerHTML = "";
+  if (!sejarahHari) { el.innerHTML = "<p class=\"hint\">Pilih satu hari dalam kalendar di atas untuk lihat kerja hari itu.</p>"; return; }
+  var hariList = list.filter(function (k) { return tarikhPaparanKerja(k) === sejarahHari; });
+  var h = document.createElement("p"); h.className = "hint";
+  h.textContent = hariList.length + " rekod pada " + fmtDate(sejarahHari) + ".";
+  el.appendChild(h);
+  if (!hariList.length) { el.innerHTML += emptyHtml("Tiada rekod pada hari ini."); return; }
+  hariList.forEach(function (k) { el.appendChild(jobCard(k)); });
+}
+function renderSenaraiSejarah(list) {
+  var el = $("sejarahList"); if (!el) return;
+  el.innerHTML = "";
   el.innerHTML = "<p class=\"hint\">" + list.length + " rekod dijumpai.</p>";
   if (!list.length) { el.innerHTML += emptyHtml("Tiada rekod menepati tapisan."); return; }
-  list.forEach(function (k) { el.appendChild(jobCard(k)); });
+  var tunjuk = list.slice(0, sejarahHad);
+  var bulanSkrg = "";
+  tunjuk.forEach(function (k) {
+    var b = (tarikhPaparanKerja(k) || "").slice(0, 7);
+    if (b !== bulanSkrg) {
+      bulanSkrg = b;
+      var hh = document.createElement("h3"); hh.className = "sejarah-bulan";
+      hh.textContent = b ? (NAMA_BULAN[Number(b.slice(5, 7)) - 1] + " " + b.slice(0, 4)) : "Tiada tarikh";
+      el.appendChild(hh);
+    }
+    el.appendChild(jobCard(k));
+  });
+  if (list.length > sejarahHad) {
+    var baki = list.length - sejarahHad;
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn secondary"; btn.textContent = "Tunjuk Lagi (" + baki + " lagi)";
+    btn.addEventListener("click", function () { sejarahHad += 20; renderSejarah(); });
+    el.appendChild(btn);
+  }
 }
 /* Ringkasan visual — kad nombor besar, carta donut, bar 7 hari, bar ikut
    kebun dan bar bahan. Tiada carta luar / CDN: SVG + CSS sahaja, supaya
@@ -1238,9 +1252,107 @@ function renderRingkasan() {
       }).join("") : "<p class=\"hint\">Belum ada kerja siap bulan ini.</p>");
   }
 }
-function renderAll() { refreshSelects(); refreshBahanSelect(); renderDashboard(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} tunjukOnboarding(); kemaskiniUiTetamu(); }
+function renderAll() { refreshSelects(); refreshBahanSelect(); renderDashboard(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} tunjukOnboarding(); kemaskiniUiTetamu(); kemaskiniButangContoh(); renderPengumuman(); }
 
-/* ===== v3.5 — Dashboard, onboarding (tetamu vs log masuk), nama paparan ===== */
+/* v3.6: butang "Padam Data Contoh Sahaja" hanya muncul bila masih ada
+   data contoh (pengguna lama yang pernah muat contoh) — pengguna baharu
+   tidak pernah nampaknya kerana tiada contoh dimuatkan lagi. */
+function adaDataContoh() {
+  return data.kebuns.some(function (k) { return k.contoh; }) ||
+    data.bloks.some(function (k) { return k.contoh; }) ||
+    data.kerjas.some(function (k) { return k.contoh; }) ||
+    data.bahans.some(function (k) { return k.contoh; });
+}
+function kemaskiniButangContoh() {
+  var b = $("deleteSampleBtn"); if (!b) return;
+  b.hidden = !adaDataContoh();
+}
+
+/* ===== v3.6 — Mesej Pembangun (pengumuman) =====
+   Jadual public.pengumuman (migrasi 003): pemilik tulis pengumuman
+   melalui SQL Editor Supabase; aplikasi mengambil yang aktif (limit 5)
+   bila daftar masuk dan ada config. Tetamu dan tanpa config dilangkau.
+   Gagal (jadual belum wujud / tiada internet) adalah senyap — aplikasi
+   tidak terjejas. Yang sudah dibaca tidak muncul lagi; yang baharu
+   muncul pada pengambilan seterusnya. */
+var PENG_KEY = "kebunku_pengumuman_v1";
+function bacaPengumuman() {
+  try { var v = localStorage.getItem(PENG_KEY); if (v) { var p = JSON.parse(v); if (p && Array.isArray(p.items) && Array.isArray(p.dibaca)) return p; } } catch (e) {}
+  return { items: [], dibaca: [] };
+}
+function simpanPengumuman(p) { try { localStorage.setItem(PENG_KEY, JSON.stringify(p)); } catch (e) {} }
+function muatPengumuman() {
+  try {
+    if (typeof SB === "undefined" || !SB) return;
+    if (data.settings && data.settings.mod === "tetamu") return;
+    var sesi = SB.sesi(); if (!sesi || !sesi.access_token) return;
+    var cfg = SB.cfg(); if (!cfg.url || !cfg.anon) return;
+    SB.tokenSah().then(function (token) {
+      return SB.rest(token, "pengumuman", "GET", "?select=*&aktif=eq.true&order=tarikh.desc&limit=5");
+    }).then(function (rows) {
+      if (!Array.isArray(rows)) return;
+      var s = bacaPengumuman();
+      s.items = rows.map(function (r) {
+        return { id: String(r.id || ""), tajuk: r.tajuk || "", mesej: r.mesej || "",
+          jenis: r.jenis || "makluman", tarikh: r.tarikh || "" };
+      }).filter(function (x) { return x.id && x.tajuk; });
+      var idBaru = s.items.map(function (x) { return x.id; });
+      s.dibaca = s.dibaca.filter(function (id) { return idBaru.indexOf(id) >= 0; });
+      simpanPengumuman(s);
+      renderPengumuman();
+    }).catch(function () { /* senyap — jadual mungkin belum wujud */ });
+  } catch (e) {}
+}
+function renderPengumuman() {
+  var el = $("pengumumanList"); if (!el) return;
+  var s = bacaPengumuman();
+  var belum = s.items.filter(function (x) { return s.dibaca.indexOf(x.id) < 0; });
+  el.innerHTML = "";
+  if (!belum.length) return;
+  belum.forEach(function (x) {
+    var d = document.createElement("div");
+    d.className = "card pengumuman";
+    d.innerHTML = "<p class=\"section-label\">Mesej Pembangun</p>" +
+      "<p class=\"title\" style=\"font-weight:800\">" + esc(x.tajuk) + "</p>" +
+      "<p class=\"meta\">" + esc(x.mesej) + "</p>" +
+      (x.tarikh ? "<p class=\"hint\">" + esc(fmtDate((x.tarikh || "").slice(0, 10))) + "</p>" : "") +
+      "<button type=\"button\" class=\"btn secondary small\" data-dismiss-pengumuman=\"" + esc(x.id) + "\">Tanda Sudah Dibaca</button>";
+    el.appendChild(d);
+  });
+}
+
+/* ===== v3.6 — Push notifications (scaffolding) =====
+   Hanya berjalan dalam APK (window.Capacitor wujud); di web ia tidak buat
+   apa-apa. Semua di dalam try/catch supaya plugin yang tiada / FCM yang
+   belum dikonfigurasi tidak pernah merosakkan aplikasi. Token FCM disimpan
+   tempatan sahaja (kebunku_push_token_v1). Penghantaran sebenar memerlukan
+   projek Firebase + google-services.json — lihat README (bahagian v3.6). */
+var PUSH_TOKEN_KEY = "kebunku_push_token_v1";
+function daftarPushNotifications() {
+  try {
+    if (typeof window === "undefined" || !window.Capacitor) return;
+    var PN = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+    if (!PN) return;
+    if (PN.addListener) {
+      PN.addListener("registration", function (tok) {
+        try { if (tok && tok.value) localStorage.setItem(PUSH_TOKEN_KEY, tok.value); } catch (e) {}
+      });
+      PN.addListener("registrationError", function () {});
+      PN.addListener("pushNotificationReceived", function () {});
+      PN.addListener("pushNotificationActionPerformed", function () {});
+    }
+    if (PN.checkPermissions && PN.requestPermissions && PN.register) {
+      PN.checkPermissions().then(function (res) {
+        if (res && res.receive === "granted") { PN.register().catch(function () {}); return; }
+        PN.requestPermissions().then(function (r2) {
+          if (r2 && r2.receive === "granted") PN.register().catch(function () {});
+        }).catch(function () {});
+      }).catch(function () {});
+    }
+  } catch (e) {}
+}
+
+/* ===== v3.5 — Dashboard, onboarding (tetamu vs daftar masuk), nama paparan ===== */
 function salamWaktu() { var jam = new Date().getHours(); if (jam < 12) return "Selamat pagi"; if (jam < 15) return "Selamat tengah hari"; if (jam < 19) return "Selamat petang"; return "Selamat malam"; }
 function namaPaparan() { return (data.settings && data.settings.namaPaparan) ? data.settings.namaPaparan.trim() : ""; }
 function renderDashboard() {
@@ -1258,7 +1370,7 @@ function renderDashboard() {
     "<div class=\"stat mini\"><p class=\"num\">" + siapHariIni + "</p><p class=\"lbl\">Siap Hari Ini</p></div>";
 }
 /* Onboarding — hanya pada pemasangan baharu: tiada sesi DAN mod belum dipilih.
-   Pengguna lama yang sudah log masuk tidak pernah nampaknya; pengguna dengan
+   Pengguna lama yang sudah daftar masuk tidak pernah nampaknya; pengguna dengan
    data tempatan tetapi tiada sesi dan tiada mod nampaknya sekali sehingga
    mereka memilih. */
 var _onboardingDitutupSesi = false;
@@ -1277,19 +1389,19 @@ function pilihTetamu() {
   tutupOnboarding(); renderAll(); toast("Mod Tetamu — data hanya dalam telefon ini.");
 }
 /* Mod Tetamu dalam UI: Sync Sekarang dilumpuhkan dengan hint, suis sync
-   automatik dilumpuhkan, dan kad Akaun menunjukkan butang log masuk. */
+   automatik dilumpuhkan, dan kad Akaun menunjukkan butang daftar masuk. */
 function kemaskiniUiTetamu() {
   var tetamu = !!(data.settings && data.settings.mod === "tetamu");
   var syncBtn = $("sbSyncBtn");
   if (syncBtn) syncBtn.disabled = tetamu;
   var hint = $("sbSyncHint");
-  if (hint) { hint.hidden = !tetamu; if (tetamu) hint.textContent = "Log masuk untuk backup data anda ke cloud."; }
+  if (hint) { hint.hidden = !tetamu; if (tetamu) hint.textContent = "Daftar masuk untuk backup data anda ke cloud."; }
   var auto = $("sbAutoToggle");
   if (auto) auto.disabled = tetamu;
   var akaunTetamu = $("akaunTetamu");
   if (akaunTetamu) akaunTetamu.hidden = !tetamu;
 }
-/* Nama paparan — ditanya sekali selepas log masuk jika belum ada. */
+/* Nama paparan — ditanya sekali selepas daftar masuk jika belum ada. */
 function tunjukNamaModal() {
   var m = $("namaModal"); if (!m) return;
   var inp = $("namaPaparanInput"); if (inp) inp.value = namaPaparan();
@@ -1308,7 +1420,7 @@ function simpanNamaPaparan(nama, senyap) {
   }
   if (!senyap) toast(nama ? "Nama paparan disimpan." : "Nama paparan dikosongkan.");
 }
-/* Selepas log masuk: jika tiada nama paparan, cuba ambil daripada akaun
+/* Selepas daftar masuk: jika tiada nama paparan, cuba ambil daripada akaun
    (user_metadata.nama_paparan, atau full_name untuk Google); jika masih
    tiada, tunjuk prompt sekali sahaja (namaDitanya dicatat bila dilangkau
    atau disimpan, supaya tidak mengganggu setiap kali dibuka). */
@@ -1329,7 +1441,7 @@ function semakNamaPaparan() {
     if (data.settings && !data.settings.namaDitanya) tunjukNamaModal();
   });
 }
-/* Log masuk Google yang berjaya — web (hash) dan APK (deep link) berkongsi
+/* Daftar masuk Google yang berjaya — web (hash) dan APK (deep link) berkongsi
    laluan ini: tandakan mod akaun, ambil nama daripada metadata jika ada,
    dan tunjuk prompt nama jika masih tiada. */
 function selepasGoogleBerjaya(hasil) {
@@ -1339,8 +1451,9 @@ function selepasGoogleBerjaya(hasil) {
   var nama = (md.nama_paparan || md.full_name || "").trim();
   if (nama && !namaPaparan()) { data.settings.namaPaparan = nama; save(); renderAll(); }
   else { try { semakNamaPaparan(); } catch (e) {} }
-  sbSetStatus("Log masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ". Tekan Sync Sekarang untuk muat turun / hantar data.");
-  toast("Log masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ".");
+  sbSetStatus("Daftar masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ". Tekan Sync Sekarang untuk muat turun / hantar data.");
+  toast("Daftar masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ".");
+  try { muatPengumuman(); } catch (e) {}
 }
 /* Dipanggil oleh listener AppUrlOpen (plugin App) dalam APK selepas Google
    memulangkan pengguna melalui deep link com.kebunku.app://login-callback. */
@@ -1377,12 +1490,20 @@ $("copyYesterdayBtn").addEventListener("click", function () {
   var semalam = addDays(todayStr(), -1);
   var semalamJobs = data.kerjas.filter(function (k) { return k.tarikhRancang === semalam; });
   if (!semalamJobs.length) { toast("Tiada kerja semalam untuk disalin."); return; }
+  var disalin = 0;
   semalamJobs.forEach(function (k) {
+    /* v3.6: jangan salin dua kali — langkau kerja yang sudah disalin hari ini. */
+    var ada = data.kerjas.some(function (x) {
+      return x.tarikhRancang === todayStr() && x.kebunId === k.kebunId && (x.blokId || "") === (k.blokId || "") &&
+        x.jenis === k.jenis && (x.bahan || "") === (k.bahan || "") && (x.dos || "") === (k.dos || "");
+    });
+    if (ada) return;
     var salinan = Object.assign({}, k, { id: uid(), tarikhRancang: todayStr(), tarikhSiap: "", status: "Dirancang", peratus: 0, contoh: false, nextTarikh: "", nextPilihan: "", nextSyarat: "Tiada syarat", nextSyaratLain: "", nextTukarBahan: false, nextBahan: "", image: null, updatedAt: Date.now() });
     data.kerjas.push(salinan);
+    disalin++;
   });
   save(); renderAll();
-  toast(semalamJobs.length + " kerja semalam disalin ke hari ini.");
+  toast(disalin ? disalin + " kerja semalam disalin ke hari ini." : "Kerja semalam sudah disalin ke hari ini.");
 });
 
 // Borang kebun / blok
@@ -1489,8 +1610,35 @@ $("kerjaBahan").addEventListener("change", function () {
 $("kerjaNextSyarat").addEventListener("change", toggleNextCustom);
 $("kerjaNextTukar").addEventListener("change", toggleNextCustom);
 var _gsb = $("kerjaGunaSemulaBtn"); if (_gsb) _gsb.addEventListener("click", function () { gunaSemulaTerakhir(false); });
+/* v3.6 anti-spam simpan: bendera + butang dikunci semasa simpanan
+   berjalan, supaya tekan berkali-kali tidak mencipta kerja berganda. */
+var _simpanKerja = false;
 $("kerjaForm").addEventListener("submit", function (e) {
   e.preventDefault();
+  if (_simpanKerja) return;
+  _simpanKerja = true;
+  var _btnSimpan = $("kerjaSimpanBtn");
+  if (_btnSimpan) _btnSimpan.disabled = true;
+  var _btnPantas = document.querySelectorAll("#templateButtons button, #copyYesterdayBtn");
+  _btnPantas.forEach(function (b) { b.disabled = true; });
+  var selesaiSimpan = function (lewat) {
+    /* Berjaya disimpan: kekalkan butang terkunci 1.5 saat lagi supaya
+       tap berturut-turut (selepas borang di-reset) tidak mencipta kerja
+       baharu — borang reset masih ada kebun/tarikh yang sah. Gagal
+       validasi / duplikat: buka kunci serta-merta supaya pengguna boleh
+       betulkan dan hantar semula. */
+    if (lewat) {
+      setTimeout(function () {
+        _simpanKerja = false;
+        if (_btnSimpan) _btnSimpan.disabled = false;
+        _btnPantas.forEach(function (b) { b.disabled = false; });
+      }, 1500);
+      return;
+    }
+    _simpanKerja = false;
+    if (_btnSimpan) _btnSimpan.disabled = false;
+    _btnPantas.forEach(function (b) { b.disabled = false; });
+  };
   var id = $("kerjaId").value;
   /* Status dan peratus sudah diselaraskan oleh syncPeratusStatus — di sini
      hanya dibaca semula supaya simpanan sentiasa konsisten. */
@@ -1532,9 +1680,22 @@ $("kerjaForm").addEventListener("submit", function (e) {
     nextTukarBahan: nextTukar, nextBahan: nextBahan,
     image: gambarSemasa, updatedAt: Date.now()
   };
-  if (!rec.kebunId || !rec.tarikhRancang) { toast("Lengkapkan kebun dan tarikh. Blok boleh dibiarkan 'Semua Blok'."); return; }
-  if (pilihanNext === "Tarikh Custom" && !nextTarikh) { toast("Pilih tarikh custom untuk kerja seterusnya."); return; }
-  if (nextTukar && !nextBahan) { toast("Anda tandakan 'Tukar bahan lain kali' — isi bahan yang akan digunakan lain kali."); return; }
+  if (!rec.kebunId || !rec.tarikhRancang) { toast("Lengkapkan kebun dan tarikh. Blok boleh dibiarkan 'Semua Blok'."); selesaiSimpan(); return; }
+  if (pilihanNext === "Tarikh Custom" && !nextTarikh) { toast("Pilih tarikh custom untuk kerja seterusnya."); selesaiSimpan(); return; }
+  if (nextTukar && !nextBahan) { toast("Anda tandakan 'Tukar bahan lain kali' — isi bahan yang akan digunakan lain kali."); selesaiSimpan(); return; }
+  /* v3.6 idempotensi: kerja baharu yang sama (kebun, blok, jenis, bahan,
+     dos, tarikh) dalam 60 saat terakhir disekat — elak spam bila butang
+     Simpan ditekan berkali-kali. Ubah kerja sedia ada tidak disekat. */
+  if (!id) {
+    var kiniMs = Date.now();
+    var duplikat = data.kerjas.some(function (x) {
+      return x.kebunId === rec.kebunId && (x.blokId || "") === (rec.blokId || "") &&
+        x.jenis === rec.jenis && (x.bahan || "") === (rec.bahan || "") &&
+        (x.dos || "") === (rec.dos || "") && x.tarikhRancang === rec.tarikhRancang &&
+        (Number(x.updatedAt) || 0) > kiniMs - 60000;
+    });
+    if (duplikat) { toast("Kerja ini sudah disimpan."); selesaiSimpan(); return; }
+  }
   if (id) {
     var lama = data.kerjas.find(function (k) { return k.id === id; });
     if (lama) { Object.assign(lama, rec); if (lama.status === "Siap" && !lama.tarikhSiap) lama.tarikhSiap = todayStr(); }
@@ -1556,12 +1717,20 @@ $("kerjaForm").addEventListener("submit", function (e) {
         susulan.dosJumlah = ""; susulan.dosUnit = ""; susulan.dosPer = "";
         susulan.nota = "Tukar bahan: guna " + nextBahan + " — bukan " + (rec.bahan || "bahan lama") + ". Susulan daripada kerja pada " + fmtDate(rec.tarikhRancang) + ".";
       }
-      data.kerjas.push(susulan);
+      /* v3.6: jangan cipta susulan berganda untuk tarikh/jenis yang sama. */
+      var susulanAda = data.kerjas.some(function (x) {
+        return x.kebunId === susulan.kebunId && (x.blokId || "") === (susulan.blokId || "") &&
+          x.jenis === susulan.jenis && x.tarikhRancang === susulan.tarikhRancang &&
+          x.status === "Dirancang" &&
+          ((x.nota || "").indexOf("Susulan automatik") >= 0 || (x.nota || "").indexOf("Tukar bahan:") === 0);
+      });
+      if (!susulanAda) data.kerjas.push(susulan);
       toast("Kerja disimpan. Kerja susulan dijadualkan pada " + fmtDate(nextTarikh) + ".");
     } else { toast("Kerja disimpan."); }
   }
   $("kerjaId").value = ""; e.target.reset(); buangGambar(); $("kerjaTarikh").value = todayStr(); syncPeratusStatus(); toggleNextCustom();
-  save(); renderAll();
+  kerjaHad = 10;
+  save(); renderAll(); selesaiSimpan(true);
 });
 $("kerjaResetBtn").addEventListener("click", function () {
   $("kerjaForm").reset(); buangGambar(); $("kerjaId").value = ""; $("kerjaTarikh").value = todayStr(); syncPeratusStatus(); toggleNextCustom(); refreshBlokSelects();
@@ -1569,6 +1738,17 @@ $("kerjaResetBtn").addEventListener("click", function () {
 
 // Aksi pada kad kerja (event delegation)
 document.addEventListener("click", function (e) {
+  /* v3.6: tekan hari dalam kalendar Sejarah. */
+  var kalHari = e.target.closest("[data-kal-hari]");
+  if (kalHari) { sejarahHari = kalHari.dataset.kalHari; renderSejarah(); return; }
+  /* v3.6: tanda mesej pembangun sudah dibaca. */
+  var disP = e.target.closest("[data-dismiss-pengumuman]");
+  if (disP) {
+    var sp = bacaPengumuman();
+    if (sp.dibaca.indexOf(disP.dataset.dismissPengumuman) < 0) sp.dibaca.push(disP.dataset.dismissPengumuman);
+    simpanPengumuman(sp); renderPengumuman();
+    return;
+  }
   var btn = e.target.closest("[data-act]");
   if (btn) {
     var k = data.kerjas.find(function (x) { return x.id === btn.dataset.id; });
@@ -1659,8 +1839,11 @@ document.addEventListener("click", function (e) {
 
 // Tapisan sejarah
 ["fKebun", "fBlok", "fTanaman", "fJenis", "fBahan", "fZon", "fCari", "fDari", "fHingga"].forEach(function (id) {
-  $(id).addEventListener("input", function () { if (id === "fKebun") refreshBlokSelects(); renderSejarah(); });
+  $(id).addEventListener("input", function () { if (id === "fKebun") refreshBlokSelects(); sejarahHad = 20; renderSejarah(); });
 });
+/* v3.6: suis paparan Sejarah — Kalendar / Senarai. */
+var _skb = $("sejarahKalendarBtn"); if (_skb) _skb.addEventListener("click", function () { sejarahMod = "kalendar"; renderSejarah(); });
+var _ssb = $("sejarahSenaraiBtn"); if (_ssb) _ssb.addEventListener("click", function () { sejarahMod = "senarai"; renderSejarah(); });
 $("fResetBtn").addEventListener("click", function () {
   ["fKebun", "fBlok", "fTanaman", "fJenis", "fBahan", "fZon", "fCari", "fDari", "fHingga"].forEach(function (id) { $(id).value = ""; });
   refreshBlokSelects(); renderSejarah();
@@ -1748,19 +1931,20 @@ function sbJalankanSync(manual) {
   SB.syncPenuh(!manual).then(function (r) {
     data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save();
     renderAll();
+    try { muatPengumuman(); } catch (e) {}
     sbSetStatus("Sync siap: " + r.dihantar + " dihantar, " + r.diterima + " diterima. Terakhir sync: " + new Date(SB.syncState().lastSyncAt).toLocaleString("ms-MY") + ".");
     toast("Sync siap: " + r.dihantar + " dihantar, " + r.diterima + " diterima.");
   }).catch(function (e) {
     var msg = (e && e.message) ? e.message : String(e);
-    sbSetStatus("Sync gagal: " + msg + " — semak log masuk dan sambungan internet.");
+    sbSetStatus("Sync gagal: " + msg + " — semak daftar masuk dan sambungan internet.");
     if (manual) toast("Sync gagal: " + msg);
     try { SB.renderStatus(); } catch (e2) {}
     /* Kekalkan mesej gagal di atas: renderStatus menulis semula status
        umum, jadi tulis semula mesej gagal selepas itu. */
-    sbSetStatus("Sync gagal: " + msg + " — semak log masuk dan sambungan internet.");
+    sbSetStatus("Sync gagal: " + msg + " — semak daftar masuk dan sambungan internet.");
   });
 }
-/* ===== Log masuk — langkah yang ditunjukkan (satu pada satu masa) ===== */
+/* ===== Daftar masuk — langkah yang ditunjukkan (satu pada satu masa) ===== */
 var sbLangkahSemasa = "utama";
 var sbOtpEmailDaftar = "", sbOtpEmailLogin = "";
 function sbTunjukLangkah(nama) {
@@ -1773,18 +1957,19 @@ function sbTunjukLangkah(nama) {
 function sbEmailUtama() { return $("sbEmail") ? $("sbEmail").value.trim() : ""; }
 function sbSelepasLogMasuk(kaedahLabel) {
   data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase";
-  /* v3.5: log masuk berjaya menamatkan onboarding — mod direkodkan supaya
-     overlay pilihan tidak muncul lagi, dan tetamu lama yang log masuk akan
+  /* v3.5: daftar masuk berjaya menamatkan onboarding — mod direkodkan supaya
+     overlay pilihan tidak muncul lagi, dan tetamu lama yang daftar masuk akan
      sync data tempatannya ke cloud (last-updated-wins, seperti biasa). */
   data.settings.mod = "akaun"; save(); renderAll();
-  sbSetStatus("Log masuk berjaya (" + kaedahLabel + "). Tekan Sync Sekarang untuk muat turun / hantar data.");
-  toast("Log masuk berjaya.");
+  sbSetStatus("Daftar masuk berjaya (" + kaedahLabel + "). Tekan Sync Sekarang untuk muat turun / hantar data.");
+  toast("Daftar masuk berjaya.");
   try { semakNamaPaparan(); } catch (e) {}
+  try { muatPengumuman(); } catch (e2) {}
 }
 /* Google — butang di atas kad Supabase. */
 var _sbGoogle = $("sbGoogleBtn");
 if (_sbGoogle) _sbGoogle.addEventListener("click", function () {
-  try { SB.googleLogin(); } catch (e) { sbSetStatus("Log masuk Google gagal: " + (e.message || e)); }
+  try { SB.googleLogin(); } catch (e) { sbSetStatus("Daftar masuk Google gagal: " + (e.message || e)); }
 });
 /* Daftar baharu — laluan utama: OTP. Kod 6 digit dihantar ke email; hanya
    pemilik email yang ada kod itu boleh siapkan pendaftaran (anti-spam). */
@@ -1809,11 +1994,11 @@ if (_sbOtpSah) _sbOtpSah.addEventListener("click", function () {
   if (!kata || kata.length < 6) { sbSetStatus("Kata laluan baharu mesti sekurang-kurangnya 6 aksara."); return; }
   SB.sahkanOtp(sbOtpEmailDaftar, kod, "signup").then(function (j) {
     var token = j.session ? j.session.access_token : "";
-    /* Tetapkan kata laluan supaya akaun ini juga boleh log masuk dengan
+    /* Tetapkan kata laluan supaya akaun ini juga boleh daftar masuk dengan
        email + kata laluan kemudian. Jika langkah ini gagal, pendaftaran
-       tetap sah — pengguna masih boleh log masuk dengan kod. */
+       tetap sah — pengguna masih boleh daftar masuk dengan kod. */
     return SB.tetapKataLaluan(token, kata).catch(function (eKata) {
-      toast("Daftar berjaya, tetapi kata laluan tidak dapat ditetapkan — guna Log Masuk dengan Kod buat masa ini.");
+      toast("Daftar berjaya, tetapi kata laluan tidak dapat ditetapkan — guna Daftar Masuk dengan Kod buat masa ini.");
     }).then(function () { sbSelepasLogMasuk("Kod Pengesahan"); });
   }).catch(function (e) { sbSetStatus("Pengesahan gagal: " + (e.message || e)); toast("Pengesahan gagal: " + (e.message || e)); });
 });
@@ -1833,24 +2018,24 @@ if (_sbDaftarLama) _sbDaftarLama.addEventListener("click", function () {
   try {
     SB.daftar().then(function (h) {
       if (h.perluSahkan) {
-        sbSetStatus("Daftar berjaya — sila sahkan email anda dahulu (semak inbox) jika pengesahan email diperlukan, kemudian Log Masuk.");
-        toast("Daftar berjaya. Sahkan email dahulu jika diminta, kemudian Log Masuk.");
+        sbSetStatus("Daftar berjaya — sila sahkan email anda dahulu (semak inbox) jika pengesahan email diperlukan, kemudian Daftar Masuk.");
+        toast("Daftar berjaya. Sahkan email dahulu jika diminta, kemudian Daftar Masuk.");
       } else {
         sbSelepasLogMasuk("Email");
       }
     }).catch(function (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); toast("Daftar gagal: " + (e.message || e)); });
   } catch (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); }
 });
-/* Log masuk email + kata laluan — kekal seperti sebelum ini. */
+/* Daftar masuk email + kata laluan — kekal seperti sebelum ini. */
 var _sbLogin = $("sbLoginBtn");
 if (_sbLogin) _sbLogin.addEventListener("click", function () {
   try {
     SB.logMasuk().then(function () {
       sbSelepasLogMasuk("Email");
-    }).catch(function (e) { sbSetStatus("Log masuk gagal: " + (e.message || e)); toast("Log masuk gagal: " + (e.message || e)); });
-  } catch (e) { sbSetStatus("Log masuk gagal: " + (e.message || e)); }
+    }).catch(function (e) { sbSetStatus("Daftar masuk gagal: " + (e.message || e)); toast("Daftar masuk gagal: " + (e.message || e)); });
+  } catch (e) { sbSetStatus("Daftar masuk gagal: " + (e.message || e)); }
 });
-/* Log masuk dengan kod — email sedia ada, tanpa kata laluan. */
+/* Daftar masuk dengan kod — email sedia ada, tanpa kata laluan. */
 var _sbKodLogin = $("sbKodLoginBtn");
 if (_sbKodLogin) _sbKodLogin.addEventListener("click", function () {
   var email = sbEmailUtama();
@@ -1860,9 +2045,9 @@ if (_sbKodLogin) _sbKodLogin.addEventListener("click", function () {
       var info = $("sbOtpLoginInfo"); if (info) info.textContent = "Kod 6 digit dihantar ke " + email + ". Semak inbox / spam.";
       sbTunjukLangkah("otplogin");
       SB.mulaCooldownOtp($("sbOtpLoginHantarSemulaBtn"));
-      sbSetStatus("Kod log masuk dihantar ke " + email + ".");
-    }).catch(function (e) { sbSetStatus("Gagal hantar kod log masuk: " + (e.message || e) + " — cuba Log Masuk dengan kata laluan."); });
-  } catch (e) { sbSetStatus("Gagal hantar kod log masuk: " + (e.message || e)); }
+      sbSetStatus("Kod daftar masuk dihantar ke " + email + ".");
+    }).catch(function (e) { sbSetStatus("Gagal hantar kod daftar masuk: " + (e.message || e) + " — cuba Daftar Masuk dengan kata laluan."); });
+  } catch (e) { sbSetStatus("Gagal hantar kod daftar masuk: " + (e.message || e)); }
 });
 var _sbOtpLoginSah = $("sbOtpLoginSahkanBtn");
 if (_sbOtpLoginSah) _sbOtpLoginSah.addEventListener("click", function () {
@@ -1870,7 +2055,7 @@ if (_sbOtpLoginSah) _sbOtpLoginSah.addEventListener("click", function () {
   if (!/^\d{6}$/.test(kod)) { sbSetStatus("Kod pengesahan mesti 6 digit nombor."); return; }
   SB.sahkanOtp(sbOtpEmailLogin, kod, "email").then(function () {
     sbSelepasLogMasuk("Kod Pengesahan");
-  }).catch(function (e) { sbSetStatus("Log masuk dengan kod gagal: " + (e.message || e) + " — cuba Log Masuk dengan kata laluan."); });
+  }).catch(function (e) { sbSetStatus("Daftar masuk dengan kod gagal: " + (e.message || e) + " — cuba Daftar Masuk dengan kata laluan."); });
 });
 var _sbOtpLoginSemula = $("sbOtpLoginHantarSemulaBtn");
 if (_sbOtpLoginSemula) _sbOtpLoginSemula.addEventListener("click", function () {
@@ -1884,11 +2069,11 @@ if (_sbOtpLoginTukar) _sbOtpLoginTukar.addEventListener("click", function () { s
 var _sbLogout = $("sbLogoutBtn");
 if (_sbLogout) _sbLogout.addEventListener("click", function () {
   SB.logKeluar().then(function () {
-    /* v3.5: log keluar memadam mod — pengguna kembali ke pilihan onboarding
-       (Log Masuk atau Teruskan sebagai Tetamu) pada paparan seterusnya. */
+    /* v3.5: keluar memadam mod — pengguna kembali ke pilihan onboarding
+       (Daftar Masuk atau Teruskan sebagai Tetamu) pada paparan seterusnya. */
     data.settings = data.settings || tetapanLalai(); data.settings.mod = ""; save();
     _onboardingDitutupSesi = false;
-    renderAll(); toast("Log keluar. Data tempatan dikekalkan; data awan tidak dipadam.");
+    renderAll(); toast("Keluar. Data tempatan dikekalkan; data awan tidak dipadam.");
   });
 });
 var _sbSync = $("sbSyncBtn");
@@ -1898,18 +2083,18 @@ if (_sbAuto) _sbAuto.addEventListener("change", function () {
   var st = SB.syncState(); st.autoSync = _sbAuto.checked; SB.simpanSyncState(st); renderAll();
   toast(_sbAuto.checked ? "Sync automatik dihidupkan." : "Sync automatik dimatikan.");
 });
-/* Butang ini hanya memadam SESI log masuk dari peranti ini. Tetapan
+/* Butang ini hanya memadam SESI daftar masuk dari peranti ini. Tetapan
    aplikasi (fail config pemilik / tetapan peranti) TIDAK disentuh, dan
    data dalam akaun TIDAK dipadam. */
 var _sbClear = $("sbClearBtn");
 if (_sbClear) _sbClear.addEventListener("click", function () {
-  if (!confirm("Log keluar dan padam sesi dari peranti ini? Data dalam akaun anda TIDAK akan dipadam.")) return;
+  if (!confirm("Keluar dan padam sesi dari peranti ini? Data dalam akaun anda TIDAK akan dipadam.")) return;
   SB.logKeluar().then(function () {
     var em = $("sbEmail"); if (em) em.value = ""; var pw = $("sbPassword"); if (pw) pw.value = "";
     data.settings = data.settings || tetapanLalai(); data.settings.mod = ""; save();
     _onboardingDitutupSesi = false;
     renderAll();
-    sbSetStatus("Sesi sudah dipadam dari peranti ini. Log masuk semula untuk sync.");
+    sbSetStatus("Sesi sudah dipadam dari peranti ini. Daftar masuk semula untuk sync.");
     toast("Sesi dipadam dari peranti ini.");
   });
 });
@@ -1919,13 +2104,6 @@ $("todayLabel").textContent = fmtDate(todayStr());
 $("kerjaTarikh").value = todayStr();
 daftarGambarInput();
 var _gb = $("gambarBuangBtn"); if (_gb) _gb.addEventListener("click", buangGambar);
-var _impC = $("importContohBtn");
-if (_impC) _impC.addEventListener("click", function () {
-  var r = muatContohLogLama();
-  if (r.sudahAda) { toast("Contoh log lama sudah dimuatkan sebelum ini."); return; }
-  save(); renderAll();
-  toast("Contoh log lama dimuatkan: " + r.jumlah + " rekod (2010) dalam Kebun Contoh — Log Lama. Gunakan 'Padam Data Contoh Sahaja' untuk membuangnya.");
-});
 var _kn = $("kerjaNext"); if (_kn) _kn.addEventListener("change", toggleNextCustom);
 toggleNextCustom(); syncPeratusStatus(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
 /* v3.5 — onboarding, nama paparan, mod tetamu. */
@@ -1961,6 +2139,7 @@ if (_akaunNamaSimpan) _akaunNamaSimpan.addEventListener("click", function () {
    sebelum paparan pertama; jika tidak, terus render seperti biasa. */
 SB.kendaliOAuthCallback().then(function (hasil) {
   renderAll();
+  try { muatPengumuman(); daftarPushNotifications(); } catch (e) {}
   if (hasil && hasil.ok) {
     selepasGoogleBerjaya(hasil);
     sbJalankanSync(true);
@@ -1970,6 +2149,7 @@ SB.kendaliOAuthCallback().then(function (hasil) {
   semakNotifikasi();
 }).catch(function (e) {
   renderAll();
-  sbSetStatus("Log masuk Google gagal: " + (e.message || e));
+  try { daftarPushNotifications(); } catch (e2) {}
+  sbSetStatus("Daftar masuk Google gagal: " + (e.message || e));
   semakNotifikasi();
 });

@@ -1,6 +1,6 @@
 # KebunKu
 
-**KebunKu** ialah aplikasi log kerja kebun untuk petani yang bekerja sendiri — direka untuk menggantikan catatan dalam notes yang susah dicari balik.
+**KebunKu** ialah aplikasi rekod kerja kebun untuk petani yang bekerja sendiri — direka untuk menggantikan catatan dalam notes yang susah dicari balik.
 
 > English summary: KebunKu is an offline-first farm work-log app for solo farmers. Android first (via Capacitor WebView), web now, iOS later. Supabase cloud sync + Google/email/OTP login (v3.3–v3.5) — all data is stored on the device first, then synced to the user's own account when logged in.
 
@@ -23,6 +23,39 @@ v3 dibina daripada fail log Excel sebenar pengguna (13 rekod kerja 2010). Matlam
 7. **Sejarah & Ringkasan** — tapisan baharu: Bahan dan Zon; carian kini meliputi bahan dan dos. Ringkasan kini visual, bukan teks sahaja (v3.2): 4 kad nombor besar (Siap / Belum Siap / Tertunggak / Kos bulan ini), carta donut % siap bulan ini, bar kerja siap 7 hari terakhir, bar kemajuan ikut kebun, dan bar "Bahan Paling Kerap Digunakan — Bulan Ini". Semua carta dibina dengan SVG + CSS sahaja (tiada CDN), supaya kekal offline.
 8. **Muat Contoh Log Lama** — dalam Ringkasan → Data Saya, butang "Muat Contoh Log Lama (13 rekod)" memuatkan 13 rekod kerja sebenar daripada log Excel lama (2010) ke dalam kebun "Kebun Contoh — Log Lama" (5 blok ikut kumpulan tanaman), dengan bahan/dos/zon dan kerja seterusnya + syarat yang sudah dihuraikan. Ia hanya dimuatkan sekali (tekan lagi tidak menduakan) dan boleh dibuang dengan "Padam Data Contoh Sahaja". Nota: fail Excel itu mengandungi 13 rekod kerja, bukan 17 — 20 baris fail termasuk tajuk dan baris kosong pemisah.
 9. **Migrasi automatik v2 → v3** — data lama dikekalkan sepenuhnya; teks dos lama dihuraikan kepada bahagian berstruktur bila boleh ("200g/pokok" → 200/g//pokok, "5ml/sprayer", "1 karung semua kawasan" → 1/karung//kawasan); teks yang tidak dapat dihuraikan ("Ikut label") dikekalkan sebagai teks. Data disimpan dengan kunci `kebunku_data_v3`.
+
+## KebunKu v3.6 — anti-spam, perkataan "rekod", tiada contoh, Sejarah Kalendar, Mesej Pembangun
+
+v3.6 membaiki 8 perkara yang Jean jumpa semasa menguji APK (item 9 dalam mesejnya kosong — tiada apa-apa):
+
+1. **Anti-spam Simpan Kerja.** Butang Simpan dikunci serta-merta semasa simpanan berjalan (termasuk butang Rekod Pantas) dan satu bendera `_simpanKerja` mengabaikan submit berganda. Tambahan pula semakan idempotensi: kerja baharu yang sama (kebun, blok, jenis, bahan, dos, tarikh) dalam 60 saat terakhir disekat dengan mesej "Kerja ini sudah disimpan." Kerja susulan automatik juga tidak dicipta dua kali untuk tarikh/jenis yang sama, dan "Salin kerja semalam" melangkau kerja yang sudah disalin hari ini.
+2. **Perkataan "log" → "rekod".** Semua perkataan "log" yang merujuk kepada rekod kerja ditukar kepada "rekod" dalam UI — tajuk, tagline header kini **"Semua Rekod Kebun, Dalam Satu Tempat."**, butang dan mesej. "Log Masuk"/"Log Keluar" (istilah log masuk) turut ditukar kepada **"Daftar Masuk"** / **"Keluar"** supaya perkataan "log" tidak lagi muncul dalam UI. Tagline grafik Play Store dalam `scripts/make-assets.py` juga dikemas kini.
+3. **Tiada lagi data contoh.** Butang "Muat Contoh Log Lama" dan import 13 rekod contoh dibuang sepenuhnya, dan pemasangan baharu TIDAK lagi mencipta "Kebun Contoh" automatik — pengguna isi kebun/blok sendiri dari kosong. Data contoh pengguna lama yang sudah dimuatkan TIDAK dipadam; butang "Padam Data Contoh Sahaja" masih ada tetapi hanya muncul bila ada data contoh.
+4. **Pustaka bahan bermula kosong.** 10 bahan lalai dibuang — pemasangan baharu mula dengan pustaka kosong. Dropdown bahan menunjukkan "Tiada bahan — tambah baharu" dan aliran "Tambah bahan baharu…" masih berfungsi; bahan pengguna lama dikekalkan.
+5. **Senarai Kerja dipaginasi.** Tab Kerja menunjukkan 10 kerja terkini dahulu, butang "Tunjuk Lagi" memuat 10 lagi setiap kali.
+6. **Kerja siap keluar dari tab Kerja.** Kerja berstatus "Siap" (100%) tidak lagi disenaraikan dalam tab Kerja — ia hanya dalam Sejarah. "Siap Sebahagian" (50%) dan kerja dirancang / dalam proses kekal dalam Kerja.
+7. **Sejarah — Kalendar bulan + Senarai.** Paparan lalai kini Kalendar: grid bulan dengan navigasi bulan lepas/depan, sel hari menunjukkan lencana bilangan kerja pada hari itu, tekan satu hari untuk lihat kerja hari itu di bawah. Tapisan sedia ada (kebun, blok, tanaman, jenis, bahan, zon, carian, julat tarikh) menapis titik kalendar DAN senarai hari. Suis "Kalendar | Senarai" bertukar ke paparan Senarai — dikumpulkan mengikut tajuk bulan dan dipaginasi 20 demi 20 dengan "Tunjuk Lagi". Tarikh paparan kerja ialah tarikhSiap jika ada, jika tidak tarikhRancang.
+8. **Mesej Pembangun (pengumuman) — infrastruktur untuk notifikasi masa depan.** Migrasi baharu `supabase/migrations/003_pengumuman.sql` mencipta jadual `public.pengumuman` (id, tajuk, mesej, jenis, tarikh, aktif) dengan RLS: semua orang boleh BACA pengumuman aktif sahaja; TIADA polisi tulis — hanya pemilik boleh tulis melalui SQL Editor / service_role. Aplikasi mengambil 5 pengumuman aktif terkini bila log masuk / sync (tetamu dan tanpa config dilangkau) dan memaparkannya sebagai kad "Mesej Pembangun" di atas tab Hari Ini, dengan butang "Tanda Sudah Dibaca" (yang sudah dibaca tidak muncul lagi). Jika migrasi 003 belum dijalankan, pengambilan gagal secara senyap dan aplikasi tidak terjejas. Plugin `@capacitor/push-notifications` ditambah dan kod pendaftaran FCM (minta izin + simpan token dalam `kebunku_push_token_v1`) disediakan secara guarded — hanya berjalan dalam APK, tidak buat apa-apa di web.
+
+### Cara Jean menghantar pengumuman (mesej pembangun)
+
+1. Jalankan `supabase/migrations/003_pengumuman.sql` dalam Supabase SQL Editor (selepas 001 dan 002).
+2. Hantar pengumuman pertama dalam SQL Editor:
+   ```sql
+   insert into public.pengumuman (id, tajuk, mesej, jenis, aktif)
+   values ('v36-01', 'KebunKu v3.6 sudah keluar!',
+     'Kemas kini aplikasi anda: Sejarah kini ada paparan Kalendar, senarai Kerja dipaginasi, dan kerja siap tidak lagi bercampur dengan kerja belum siap. Terima kasih kerana menggunakan KebunKu.',
+     'kemaskini', true);
+   ```
+3. Pengguna akan nampak kad "Mesej Pembangun" di atas tab Hari Ini pada log masuk / sync seterusnya. Sembunyikan pengumuman lama dengan `update public.pengumuman set aktif = false where id = 'v36-01';`.
+
+### Notifikasi push sebenar (FCM) — masih perlu disediakan kemudian
+
+Pengumuman dalam aplikasi (di atas) berfungsi SEKARANG selepas 003 dijalankan — ia tidak memerlukan Firebase. Untuk notifikasi push sebenar (mesej sampai walaupun aplikasi ditutup), Jean masih perlu sediakan kemudian: (1) cipta projek Firebase dan daftarkan aplikasi Android `com.kebunku.app`; (2) muat turun `google-services.json` dan letakkan dalam `android/app/` (jangan commit kunci server); (3) dalam Firebase Console, hantar mesej melalui Cloud Messaging (FCM HTTP v1 API) kepada token yang disimpan dalam `kebunku_push_token_v1` — token itu perlu dihantar ke server sendiri atau disimpan dalam jadual Supabase pada masa depan (belum dibuat). Kod dalam aplikasi sudah bersedia menerima dan menyimpan token itu.
+
+### Versi Android (v3.6)
+
+`android/app/build.gradle`: `versionCode 3`, `versionName "3.6.0"`. `package.json` versi `3.6.0`.
 
 ## KebunKu v3.5 — Android / Play Store: onboarding, nama paparan, dashboard, deep link Google
 

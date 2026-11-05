@@ -175,3 +175,26 @@ footer a { color: var(--green); font-weight: 700; }
   .stat.mini .num { font-size: 20px; }
   .stat.mini .lbl { font-size: 11.5px; }
 }
+
+/* v3.6: butang dikunci (anti-spam simpan), suis Kalendar/Senarai,
+   kalendar Sejarah, kad Mesej Pembangun, tajuk bulan Sejarah. */
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.sejarah-toggle { margin: 12px 0 4px; }
+.sejarah-toggle .btn { flex: 1 1 0; }
+.sejarah-toggle .btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+.sejarah-bulan { margin: 18px 0 4px; font-size: 17px; border-bottom: 2px solid var(--green); padding-bottom: 4px; }
+.kal-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0 4px; }
+.kal-label { font-weight: 800; font-size: 17px; margin: 0; text-align: center; flex: 1; }
+.kal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
+.kal-hari-nama { text-align: center; font-size: 12px; font-weight: 800; color: var(--muted); padding: 4px 0; }
+.kal-hari { min-height: 52px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; font-family: inherit; }
+.kal-hari.kosong { border-color: transparent; background: transparent; cursor: default; }
+.kal-nombor { font-weight: 800; font-size: 15px; color: var(--text); }
+.kal-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 999px; background: var(--green); color: #fff; font-size: 11.5px; font-weight: 800; padding: 0 5px; }
+.kal-hari.ada { background: var(--green-soft); border-color: #C4D3BE; }
+.kal-hari.hari-ini .kal-nombor { color: var(--gold); }
+.kal-hari.pilih { background: var(--green); border-color: var(--green-dark); }
+.kal-hari.pilih .kal-nombor { color: #fff; }
+.kal-hari.pilih .kal-badge { background: #fff; color: var(--green-dark); }
+.pengumuman { border-left: 5px solid #C08A1A; }
+.pengumuman .meta { color: var(--text); font-size: 14.5px; line-height: 1.55; }

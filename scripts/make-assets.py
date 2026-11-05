@@ -118,12 +118,12 @@ def buat_feature_graphic(laluan):
     lukis_logo(d, 70, (500 - saiz_logo) // 2, saiz_logo / 96)
     # Garis emas pemisah menegak.
     d.rectangle([400, 110, 406, 390], fill=EMAS)
-    # Teks: "KebunKu" + tagline.
+    # Teks: "KebunKu" + tagline baharu (v3.6) — dua baris supaya muat.
     fon_judul = cari_font(bold=True, saiz=96)
     fon_tag = cari_font(bold=False, saiz=36)
     d.text((440, 140), "KebunKu", font=fon_judul, fill=KRIM)
-    d.text((440, 260), "Log kerja kebun", font=fon_tag, fill=KRIM)
-    d.text((440, 310), "untuk petani solo", font=fon_tag, fill=EMAS_TERANG)
+    d.text((440, 260), "Semua Rekod Kebun,", font=fon_tag, fill=KRIM)
+    d.text((440, 310), "Dalam Satu Tempat.", font=fon_tag, fill=EMAS_TERANG)
     img.save(laluan, "PNG")
     return img.size
 

@@ -5,23 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1E4D2B">
 <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
-<title>KebunKu — Log Kerja Kebun</title>
+<title>KebunKu — Rekod Kerja Kebun</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<!-- v3.5: Onboarding — pilihan pertama untuk pemasangan baharu (Log Masuk / Tetamu).
+<!-- v3.5: Onboarding — pilihan pertama untuk pemasangan baharu (Daftar Masuk / Tetamu).
      Hanya ditunjukkan bila tiada sesi dan mod belum dipilih; lihat app.js (tunjukOnboarding). -->
 <div id="onboardingOverlay" class="overlay" hidden>
   <div class="overlay-card">
     <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="72" height="72">
     <h2>Selamat Datang ke KebunKu</h2>
-    <p class="hint">Log kerja kebun anda — kebun, blok, bahan dan dos — semuanya dalam satu tempat, walaupun tanpa internet.</p>
-    <button type="button" class="btn primary besar" id="onbLoginBtn">Log Masuk</button>
+    <p class="hint">Rekod kerja kebun anda — kebun, blok, bahan dan dos — semuanya dalam satu tempat, walaupun tanpa internet.</p>
+    <button type="button" class="btn primary besar" id="onbLoginBtn">Daftar Masuk</button>
     <button type="button" class="btn secondary besar" id="onbGuestBtn">Teruskan sebagai Tetamu</button>
-    <p class="hint">Data tetamu hanya dalam telefon ini dan tidak di-backup ke cloud. Anda boleh log masuk kemudian.</p>
+    <p class="hint">Data tetamu hanya dalam telefon ini dan tidak di-backup ke cloud. Anda boleh daftar masuk kemudian.</p>
   </div>
 </div>
-<!-- v3.5: Prompt nama paparan — ditunjuk sekali selepas log masuk jika tiada nama disimpan. -->
+<!-- v3.5: Prompt nama paparan — ditunjuk sekali selepas daftar masuk jika tiada nama disimpan. -->
 <div id="namaModal" class="overlay" hidden>
   <div class="overlay-card">
     <h2>Nama yang anda ingin gunakan?</h2>
@@ -38,7 +38,7 @@
     <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="52" height="52">
     <div>
       <h1>KebunKu</h1>
-      <p class="subtitle">Log kerja kebun — untuk petani solo</p>
+      <p class="subtitle">Semua Rekod Kebun, Dalam Satu Tempat.</p>
     </div>
   </div>
   <span class="badge" id="todayLabel"></span>
@@ -57,6 +57,7 @@
 
   <!-- HARI INI -->
   <section id="view-hariini" class="view active">
+    <div id="pengumumanList"></div>
     <div id="dashboardSalam" class="salam"></div>
     <div id="dashboardStat" class="statgrid tiga"></div>
     <h2>Hari Ini</h2>
@@ -219,7 +220,7 @@
       <button type="button" class="btn secondary small" id="gambarBuangBtn">Buang Gambar</button>
       <p class="hint">Gambar akan dimampatkan dahulu (JPEG, maks 1280px, kualiti 0.82) supaya jimat storan dengan kualiti tidak hilang banyak. Gambar disimpan tempatan sahaja dan tidak termasuk dalam eksport JSON biasa.</p>
       <div class="row">
-        <button type="submit" class="btn primary">Simpan Kerja</button>
+        <button type="submit" class="btn primary" id="kerjaSimpanBtn">Simpan Kerja</button>
         <button type="button" class="btn secondary" id="kerjaResetBtn">Borang Kosong</button>
       </div>
     </form>
@@ -398,6 +399,13 @@
       <button type="button" class="btn primary" id="qBtn">Semak Terakhir</button>
       <p id="qResult" class="result"></p>
     </div>
+    <!-- v3.6: Sejarah — Kalendar bulan atau Senarai berkumpulan ikut bulan. -->
+    <div class="row sejarah-toggle" role="group" aria-label="Paparan sejarah">
+      <button type="button" class="btn secondary small" id="sejarahKalendarBtn">Kalendar</button>
+      <button type="button" class="btn secondary small" id="sejarahSenaraiBtn">Senarai</button>
+    </div>
+    <div id="sejarahKalendar"></div>
+    <div id="sejarahHariList"></div>
     <div id="sejarahList"></div>
   </section>
 
@@ -407,11 +415,11 @@
     <div class="card panduan">
       <h3>Cara Guna KebunKu</h3>
       <ol class="langkah">
-        <li><span class="nombor">1</span><div><b>Log masuk</b><p>Guna Google atau email. Data anda hanya anda yang nampak.</p></div></li>
+        <li><span class="nombor">1</span><div><b>Daftar masuk</b><p>Guna Google atau email. Data anda hanya anda yang nampak.</p></div></li>
         <li><span class="nombor">2</span><div><b>Tambah Kebun &amp; Blok</b><p>Sekali sahaja, di tab Kebun — contoh: Kebun A, Blok 1 Koko.</p></div></li>
         <li><span class="nombor">3</span><div><b>Rekod kerja</b><p>Lepas siap kerja, di tab Kerja: pilih kebun, blok, jenis kerja, bahan dan dos, kemudian pilih 50% (separuh siap) atau 100% (siap).</p></div></li>
         <li><span class="nombor">4</span><div><b>Semak Hari Ini</b><p>Kerja hari ini dan yang tertunggak ada di tab Hari Ini; kerja tertunggak dibawa ke hadapan sehingga siap.</p></div></li>
-        <li><span class="nombor">5</span><div><b>Data tersimpan automatik</b><p>Selagi log masuk, kerja anda di-sync dan boleh didapatkan semula bila tukar telefon — log masuk dengan akaun yang sama.</p></div></li>
+        <li><span class="nombor">5</span><div><b>Data tersimpan automatik</b><p>Selagi daftar masuk, kerja anda di-sync dan boleh didapatkan semula bila tukar telefon — daftar masuk dengan akaun yang sama.</p></div></li>
       </ol>
     </div>
     <div id="ringkasanStat"></div>
@@ -435,18 +443,18 @@
 
       <div id="akaunTetamu" hidden>
         <p><b>Mod Tetamu</b> — data hanya dalam peranti ini dan tidak di-backup ke cloud.</p>
-        <button type="button" class="btn primary" id="akaunGuestLoginBtn">Log Masuk untuk Backup</button>
+        <button type="button" class="btn primary" id="akaunGuestLoginBtn">Daftar Masuk untuk Backup</button>
       </div>
 
       <label>Nama Paparan
         <input type="text" id="akaunNamaPaparan" placeholder="cth: Jean" autocomplete="name">
       </label>
       <div class="row"><button type="button" class="btn secondary" id="akaunNamaSimpanBtn">Simpan Nama</button></div>
-      <p class="hint">Nama ini dipaparkan pada dashboard (Hari Ini) dan disimpan dalam akaun anda bila log masuk.</p>
+      <p class="hint">Nama ini dipaparkan pada dashboard (Hari Ini) dan disimpan dalam akaun anda bila daftar masuk.</p>
 
-      <button type="button" class="btn google" id="sbGoogleBtn"><span class="gbadge">G</span> Log Masuk dengan Google</button>
+      <button type="button" class="btn google" id="sbGoogleBtn"><span class="gbadge">G</span> Daftar Masuk dengan Google</button>
       <p class="hint">Paling senang — tiada kata laluan baharu. Anda akan dibawa ke Google, kemudian kembali ke KebunKu.</p>
-      <p class="result" id="sbStatus">Belum log masuk.</p>
+      <p class="result" id="sbStatus">Belum daftar masuk.</p>
 
       <div id="sbStepUtama">
         <label>Email
@@ -457,10 +465,10 @@
         </label>
         <div class="row">
           <button type="button" class="btn primary" id="sbDaftarBtn">Daftar (Kod Pengesahan)</button>
-          <button type="button" class="btn primary" id="sbLoginBtn">Log Masuk</button>
+          <button type="button" class="btn primary" id="sbLoginBtn">Daftar Masuk</button>
         </div>
         <div class="row">
-          <button type="button" class="btn secondary" id="sbKodLoginBtn">Log Masuk dengan Kod</button>
+          <button type="button" class="btn secondary" id="sbKodLoginBtn">Daftar Masuk dengan Kod</button>
         </div>
         <p class="hint">Daftar: kami hantar kod 6 digit ke email anda — hanya pemilik email yang ada kod itu boleh siapkan pendaftaran. Ini mengelakkan pendaftaran spam.</p>
       </div>
@@ -472,7 +480,7 @@
           <input type="text" id="sbOtpKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456">
         </label>
         <label>Kata Laluan Baharu (min. 6 aksara)
-          <input type="password" id="sbOtpKata" placeholder="Cipta kata laluan untuk log masuk kemudian" autocomplete="new-password">
+          <input type="password" id="sbOtpKata" placeholder="Cipta kata laluan untuk daftar masuk kemudian" autocomplete="new-password">
         </label>
         <div class="row">
           <button type="button" class="btn primary" id="sbOtpSahkanBtn">Sahkan &amp; Daftar</button>
@@ -483,31 +491,31 @@
       </div>
 
       <div id="sbStepOtpLogin" hidden>
-        <h3>Log Masuk dengan Kod</h3>
+        <h3>Daftar Masuk dengan Kod</h3>
         <p class="hint" id="sbOtpLoginInfo">Kod 6 digit dihantar ke email anda.</p>
         <label>Kod Pengesahan (6 digit)
           <input type="text" id="sbOtpLoginKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456">
         </label>
         <div class="row">
-          <button type="button" class="btn primary" id="sbOtpLoginSahkanBtn">Sahkan &amp; Log Masuk</button>
+          <button type="button" class="btn primary" id="sbOtpLoginSahkanBtn">Sahkan &amp; Daftar Masuk</button>
           <button type="button" class="btn secondary" id="sbOtpLoginHantarSemulaBtn">Hantar Semula Kod</button>
         </div>
         <p><button type="button" class="linkbtn" id="sbOtpLoginTukarEmailBtn">← Tukar Email</button></p>
       </div>
       <label class="toggle-row"><input type="checkbox" id="sbAutoToggle" checked> Sync Automatik Bila Online</label>
-      <p class="hint">Bila suis ini HIDUP dan anda sudah log masuk, setiap kali data tempatan disimpan dan ada internet, aplikasi akan cuba sync automatik (dengan sedikit kelewatan, tanpa menghalang simpanan tempatan).</p>
+      <p class="hint">Bila suis ini HIDUP dan anda sudah daftar masuk, setiap kali data tempatan disimpan dan ada internet, aplikasi akan cuba sync automatik (dengan sedikit kelewatan, tanpa menghalang simpanan tempatan).</p>
       <div class="row">
         <button type="button" class="btn primary" id="sbSyncBtn">Sync Sekarang</button>
-        <button type="button" class="btn secondary" id="sbLogoutBtn">Log Keluar</button>
-        <button type="button" class="btn danger" id="sbClearBtn">Log Keluar &amp; Padam Sesi Dari Peranti Ini</button>
+        <button type="button" class="btn secondary" id="sbLogoutBtn">Keluar</button>
+        <button type="button" class="btn danger" id="sbClearBtn">Keluar &amp; Padam Sesi Dari Peranti Ini</button>
       </div>
       <p class="hint" id="sbSyncHint" hidden></p>
-      <p class="hint">Butang ini hanya memadam sesi log masuk dari peranti ini sahaja. Tetapan aplikasi kekal, dan data anda dalam akaun <b>tidak</b> dipadam. Untuk dapatkan data semula pada peranti baharu, log masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
+      <p class="hint">Butang ini hanya memadam sesi daftar masuk dari peranti ini sahaja. Tetapan aplikasi kekal, dan data anda dalam akaun <b>tidak</b> dipadam. Untuk dapatkan data semula pada peranti baharu, daftar masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
     </div>
 
     <div class="card">
       <h3>Data Saya</h3>
-      <p class="hint">Data disimpan dalam telefon / pelayar ini dahulu (offline-first). Jika anda sudah log masuk di atas, data tanpa gambar akan di-sync ke akaun anda. Eksport selalu sebagai sandaran.</p>
+      <p class="hint">Data disimpan dalam telefon / pelayar ini dahulu (offline-first). Jika anda sudah daftar masuk di atas, data tanpa gambar akan di-sync ke akaun anda. Eksport selalu sebagai sandaran.</p>
       <div class="row">
         <button type="button" class="btn primary" id="exportBtn">Eksport JSON (Tanpa Gambar)</button>
         <button type="button" class="btn secondary" id="exportFullBtn">Eksport Penuh (Termasuk Gambar)</button>
@@ -515,10 +523,6 @@
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </label>
       </div>
-      <div class="row">
-        <button type="button" class="btn secondary" id="importContohBtn">Muat Contoh Log Lama (13 rekod)</button>
-      </div>
-      <p class="hint">Butang ini memuatkan 13 rekod kerja sebenar daripada log Excel lama anda (2010) ke dalam satu kebun “Kebun Contoh — Log Lama”, dengan bahan dan dos yang sudah dibersihkan ejaannya. Ia hanya dimuatkan sekali — tekan lagi tidak akan menduakan rekod. Gunakan “Padam Data Contoh Sahaja” untuk membuangnya.</p>
       <div class="row">
         <button type="button" class="btn secondary" id="deleteSampleBtn">Padam Data Contoh Sahaja</button>
         <button type="button" class="btn danger" id="deleteAllBtn">Padam Semua Data</button>
@@ -528,7 +532,7 @@
 </main>
 
 <footer>
-  <p>KebunKu v3.5 — offline-first. Log masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
+  <p>KebunKu v3.6 — offline-first. Daftar masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
   <p>© 2026 RJ TECH SOLUTIONS — Hak cipta terpelihara. &nbsp;<a href="privacy.html">Privasi</a></p>
 </footer>
 
