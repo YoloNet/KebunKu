@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2e7d32">
+<title>KebunKu — Log Kerja Kebun</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>🌱 KebunKu</h1>
+    <p class="subtitle">Log kerja kebun — untuk petani solo</p>
+  </div>
+  <span class="badge" id="todayLabel"></span>
+</header>
+
+<nav class="tabs" aria-label="Navigasi utama">
+  <button type="button" class="tab active" data-tab="hariini">Hari Ini</button>
+  <button type="button" class="tab" data-tab="kerja">Kerja</button>
+  <button type="button" class="tab" data-tab="kebun">Kebun &amp; Blok</button>
+  <button type="button" class="tab" data-tab="sejarah">Sejarah</button>
+  <button type="button" class="tab" data-tab="ringkasan">Ringkasan</button>
+</nav>
+
+<main>
+  <p class="toast" id="toast" hidden></p>
+
+  <!-- HARI INI -->
+  <section id="view-hariini" class="view active">
+    <h2>Hari Ini</h2>
+    <p class="hint">Kerja yang dirancang hari ini, ditambah kerja tertunggak yang belum siap. Kerja tertunggak tidak akan hilang — ia dibawa ke hadapan sehingga siap.</p>
+    <div id="hariIniList"></div>
+    <div class="card">
+      <h3>Rekod Pantas</h3>
+      <p class="hint">Tekan satu jenis kerja untuk pra-isi borang. Lepas itu pilih blok dan tekan Simpan — kurang 30 saat.</p>
+      <div class="quickgrid" id="templateButtons"></div>
+      <button type="button" class="btn secondary" id="copyYesterdayBtn">📋 Salin kerja semalam ke hari ini</button>
+    </div>
+  </section>
+
+  <!-- KERJA -->
+  <section id="view-kerja" class="view">
+    <h2>Tambah / Ubah Kerja</h2>
+    <form id="kerjaForm" class="card form">
+      <input type="hidden" id="kerjaId">
+      <label>Kebun
+        <select id="kerjaKebun" required></select>
+      </label>
+      <label>Blok
+        <select id="kerjaBlok" required></select>
+      </label>
+      <label>Jenis Kerja
+        <select id="kerjaJenis" required>
+          <option value="Membaja">Membaja</option>
+          <option value="Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga">Racun Serangga</option>
+          <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <label>Jenis kerja lain (jika Lain-lain)
+        <input type="text" id="kerjaJenisLain" placeholder="cth: Menebas, Memangkas">
+      </label>
+      <label>Tarikh Dirancang
+        <input type="date" id="kerjaTarikh" required>
+      </label>
+      <label>Status
+        <select id="kerjaStatus">
+          <option value="Dirancang">Dirancang</option>
+          <option value="Dalam Proses">Dalam Proses</option>
+          <option value="Siap Sebahagian">Siap Sebahagian</option>
+          <option value="Siap">Siap</option>
+          <option value="Tertangguh">Tertangguh</option>
+        </select>
+      </label>
+      <label>Peratus Siap (%)
+        <input type="number" id="kerjaPeratus" min="0" max="100" value="0">
+      </label>
+      <label>Bahan Digunakan
+        <input type="text" id="kerjaBahan" placeholder="cth: Baja NPK 15-15-15, Racun glyphosate">
+      </label>
+      <label>Dos / Kuantiti
+        <input type="text" id="kerjaDos" placeholder="cth: 500g sepokok, 2 liter">
+      </label>
+      <label>Kos (RM)
+        <input type="number" id="kerjaKos" min="0" step="0.01" placeholder="0.00">
+      </label>
+      <label>Nota Ringkas
+        <textarea id="kerjaNota" rows="3" placeholder="cth: Hujan petang, Blok 2 sambung esok"></textarea>
+      </label>
+      <p class="hint">Nota: Foto belum disimpan dalam MVP ini untuk mengelakkan storan telefon penuh. Lihat README untuk penjelasan. Foto akan ditambah dalam versi seterusnya.</p>
+      <div class="row">
+        <button type="submit" class="btn primary">💾 Simpan Kerja</button>
+        <button type="button" class="btn secondary" id="kerjaResetBtn">Borang Kosong</button>
+      </div>
+    </form>
+    <h2>Semua Kerja</h2>
+    <div id="semuaKerjaList"></div>
+  </section>
+
+  <!-- KEBUN & BLOK -->
+  <section id="view-kebun" class="view">
+    <h2>Kebun</h2>
+    <form id="kebunForm" class="card form">
+      <label>Nama Kebun
+        <input type="text" id="kebunNama" required placeholder="cth: Kebun A — Sungai">
+      </label>
+      <button type="submit" class="btn primary">➕ Tambah Kebun</button>
+    </form>
+    <div id="kebunList"></div>
+
+    <h2>Blok</h2>
+    <p class="hint">Setiap blok ada satu jenis tanaman utama. Kerja dipecahkan ikut blok, jadi anda boleh buat Blok 1 hari ini dan Blok 2 esok.</p>
+    <form id="blokForm" class="card form">
+      <label>Kebun
+        <select id="blokKebun" required></select>
+      </label>
+      <label>Nama Blok
+        <input type="text" id="blokNama" required placeholder="cth: Blok 1">
+      </label>
+      <label>Tanaman
+        <select id="blokTanaman" required>
+          <option value="Koko">Koko</option>
+          <option value="Sawit">Sawit</option>
+          <option value="Durian">Durian</option>
+          <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <label>Tanaman lain (jika Lain-lain)
+        <input type="text" id="blokTanamanLain" placeholder="cth: Pisang, Getah">
+      </label>
+      <button type="submit" class="btn primary">➕ Tambah Blok</button>
+    </form>
+    <div id="blokList"></div>
+  </section>
+
+  <!-- SEJARAH -->
+  <section id="view-sejarah" class="view">
+    <h2>Sejarah &amp; Carian</h2>
+    <div class="card form">
+      <label>Kebun
+        <select id="fKebun"><option value="">Semua Kebun</option></select>
+      </label>
+      <label>Blok
+        <select id="fBlok"><option value="">Semua Blok</option></select>
+      </label>
+      <label>Tanaman
+        <select id="fTanaman">
+          <option value="">Semua Tanaman</option>
+          <option value="Koko">Koko</option>
+          <option value="Sawit">Sawit</option>
+          <option value="Durian">Durian</option>
+          <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <label>Jenis Kerja
+        <select id="fJenis">
+          <option value="">Semua Kerja</option>
+          <option value="Membaja">Membaja</option>
+          <option value="Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga">Racun Serangga</option>
+          <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <label>Cari Bahan / Nota
+        <input type="text" id="fCari" placeholder="cth: NPK, glyphosate">
+      </label>
+      <div class="row">
+        <label>Dari Tarikh <input type="date" id="fDari"></label>
+        <label>Hingga Tarikh <input type="date" id="fHingga"></label>
+      </div>
+      <button type="button" class="btn secondary" id="fResetBtn">Kosongkan Tapisan</button>
+    </div>
+
+    <div class="card">
+      <h3>Bila kali terakhir kerja ini dibuat?</h3>
+      <p class="hint">Contoh: pilih Blok 1 dan Membaja untuk jawab “bila Blok 1 terakhir dibaja?”</p>
+      <label>Blok
+        <select id="qBlok"></select>
+      </label>
+      <label>Jenis Kerja
+        <select id="qJenis">
+          <option value="Membaja">Membaja</option>
+          <option value="Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga">Racun Serangga</option>
+          <option value="Lain-lain">Lain-lain</option>
+        </select>
+      </label>
+      <button type="button" class="btn primary" id="qBtn">🔍 Semak Terakhir</button>
+      <p id="qResult" class="result"></p>
+    </div>
+    <div id="sejarahList"></div>
+  </section>
+
+  <!-- RINGKASAN -->
+  <section id="view-ringkasan" class="view">
+    <h2>Ringkasan</h2>
+    <div class="card" id="ringkasanMinggu"></div>
+    <div class="card" id="ringkasanBulan"></div>
+    <div class="card" id="ringkasanKebun"></div>
+
+    <div class="card">
+      <h3>Data Saya</h3>
+      <p class="hint">Semua data disimpan dalam telefon / pelayar ini sahaja (offline-first). Tiada akaun dan tiada pelayan dalam MVP ini. Eksport selalu sebagai sandaran.</p>
+      <div class="row">
+        <button type="button" class="btn primary" id="exportBtn">⬇️ Eksport JSON</button>
+        <label class="btn secondary filebtn">⬆️ Import JSON
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+        </label>
+      </div>
+      <div class="row">
+        <button type="button" class="btn secondary" id="deleteSampleBtn">🗑️ Padam Data Contoh Sahaja</button>
+        <button type="button" class="btn danger" id="deleteAllBtn">🗑️ Padam Semua Data</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>KebunKu MVP — offline-first, data disimpan dalam peranti ini. Tiada log masuk lagi.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

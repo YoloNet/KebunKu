@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Capacitor / Android build outputs (bukan keseluruhan projek android/)
+android/app/build/
+android/build/
+android/.gradle/
+*.apk
+*.aab
+*.keystore
+local.properties
+
+# iOS build outputs (projek iOS belum dibuat dalam MVP ini)
+ios/build/
+ios/DerivedData/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
