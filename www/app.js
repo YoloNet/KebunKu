@@ -19,13 +19,44 @@ var ZON_LIST = ["Semua Zon", "Atas", "Bawah", "Tengah", "Atas & Tengah", "Tengah
 var DOS_UNIT_LIST = ["g", "kg", "ml", "L", "sudu", "karung", "pek", "botol"];
 var DOS_PER_LIST = ["", "/pokok", "/sprayer", "/kawasan", "/liter air"];
 var SYARAT_LIST = ["Tiada syarat", "Jika belum mula berbuah", "Jika masih ada simptom", "Jika masih ada rumput", "Jika hujan / cuaca tidak mengizinkan", "Lain-lain"];
-function dosPerLabel(p) { return p ? p : "Tiada"; }
+function dosPerLabel(p) { if (!p) return t("misc.tiada"); var v = t("per." + p); return v || p; }
 /* "Membersihkan" ialah nama lama untuk kerja ini — dipaparkan dan
    dinormalkan kepada "Potong Rumput" supaya rekod lama tidak hilang. */
 function jenisLabel(j) {
-  if (j === "Pruning") return "Pruning / Memangkas";
-  if (j === "Potong Rumput" || j === "Membersihkan") return "Potong Rumput / Grasscutter";
-  return j;
+  if (j === "Membersihkan") j = "Potong Rumput";
+  var v = t("jenis." + j);
+  return v || j;
+}
+/* ===== v3.8 — Bahasa (i18n) =====
+   Kamus dalam www/i18n.js (dimuat sebelum app.js). t(kunci) membaca
+   window.__bahasa ("ms" lalai, ditetapkan oleh terapkanBahasa()).
+   Data pengguna (nama kebun/blok/bahan, nota, nama paparan) TIDAK
+   diterjemahkan — hanya chrome aplikasi. Nilai kanonikal yang disimpan
+   (cth. status "Siap", jenis "Membaja") kekal Bahasa Malaysia; hanya
+   paparan diterjemahkan melalui *Label() di bawah. */
+function bahasaSemasa() { return (typeof data !== "undefined" && data && data.settings && (data.settings.bahasa === "ms" || data.settings.bahasa === "en")) ? data.settings.bahasa : "ms"; }
+function localeSemasa() { return bahasaSemasa() === "en" ? "en-GB" : "ms-MY"; }
+function statusLabel(s) { var v = t("status." + s); return v || s; }
+function zonLabel(z) { var v = t("zon." + z); return v || z; }
+function tanamanLabel(x) { var v = t("tanaman." + x); return v || x; }
+function peringkatLabel(p) { var v = t("peringkat." + p); return v || p; }
+function syaratLabel(s) { var v = t("syarat." + s); return v || s; }
+function bulanNama(i) { var v = t("bulan." + i); return v || ""; }
+function hariPendek(i) { var v = t("hari." + i); return v || ""; }
+function terapkanBahasa() {
+  var lang = bahasaSemasa();
+  window.__bahasa = lang;
+  try { document.documentElement.lang = lang; } catch (e) {}
+  try { document.title = t("app.title"); } catch (e) {}
+  document.querySelectorAll("[data-i18n]").forEach(function (el) { var v = t(el.getAttribute("data-i18n")); if (v) el.textContent = v; });
+  document.querySelectorAll("[data-i18n-ph]").forEach(function (el) { var v = t(el.getAttribute("data-i18n-ph")); if (v) el.setAttribute("placeholder", v); });
+  /* Butang Rekod Pantas dicipta sekali semasa muat — labelnya perlu
+     dikemaskini di sini (renderAll tidak menciptanya semula). */
+  var tb = document.querySelectorAll("#templateButtons button");
+  tb.forEach(function (b, i) { var j = JENIS_KERJA[i]; if (j) b.innerHTML = "<img class=\"ticon\" src=\"assets/icons/" + iconKerja(j) + "\" alt=\"\">" + jenisLabel(j); });
+  var fs = $("footerUtama"); if (fs) fs.textContent = t("footer.utama");
+  var sel = $("bahasaSelect"); if (sel) sel.value = lang;
+  renderAll();
 }
 
 function $(id) { return document.getElementById(id); }
@@ -87,7 +118,7 @@ function composeDos(k) {
 }
 function dosPaparan(k) { var c = composeDos(k); return c || "-"; }
 
-function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung", mod: "", namaPaparan: "", namaDitanya: false }; }
+function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung", mod: "", namaPaparan: "", namaDitanya: false, bahasa: "ms" }; }
 /* mod: "" (belum pilih) | "tetamu" (guest, tempatan sahaja) | "akaun" (daftar masuk).
    namaPaparan: nama yang dipaparkan pada dashboard; namaDitanya: true bila
    prompt nama sudah ditunjuk / dilangkau / disimpan, supaya tidak mengganggu
@@ -139,6 +170,7 @@ function normalData(d) {
     if (typeof d.settings.mod === "string") r.settings.mod = d.settings.mod;
     if (typeof d.settings.namaPaparan === "string") r.settings.namaPaparan = d.settings.namaPaparan;
     if (typeof d.settings.namaDitanya === "boolean") r.settings.namaDitanya = d.settings.namaDitanya;
+    if (d.settings.bahasa === "ms" || d.settings.bahasa === "en") r.settings.bahasa = d.settings.bahasa;
   }
   return r;
 }
@@ -302,7 +334,7 @@ var SB = {
      config pemilik atau tetapan peranti yang disimpan sebelum ini. */
   bacaCfgDariBorang: function () { return this.cfg(); },
   sahkanCfg: function (cfg) {
-    if (!cfg.url || cfg.url.indexOf("https://") !== 0 || !cfg.anon) throw new Error("Aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi.");
+    if (!cfg.url || cfg.url.indexOf("https://") !== 0 || !cfg.anon) throw new Error(t("sb.tiadaConfig"));
     return cfg;
   },
   /* Panggilan Auth generik (REST, tanpa SDK): kaedah POST/PUT/GET, dengan
@@ -315,7 +347,7 @@ var SB = {
       body: badan ? JSON.stringify(badan) : undefined
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (j) {
-        if (!res.ok) throw new Error(SB.ralat(j, "Gagal daftar masuk / daftar (kod " + res.status + "). Semak email dan kata laluan, kemudian cuba lagi."));
+        if (!res.ok) throw new Error(SB.ralat(j, t("sb.gagalAuth", { kod: res.status })));
         return j;
       });
     });
@@ -327,7 +359,7 @@ var SB = {
      kaedah: "email" | "otp" | "google" (sesi lama tanpa medan ini = "email"). */
   simpanSesiDariToken: function (j, email, kaedah) {
     var ses = j.session || j;
-    if (!ses || !ses.access_token) throw new Error("Daftar masuk tidak mengembalikan sesi. Sila cuba lagi.");
+    if (!ses || !ses.access_token) throw new Error(t("sb.tiadaSesi"));
     var pengguna = j.user || ses.user || {};
     this.simpanSesi({ access_token: ses.access_token, refresh_token: ses.refresh_token || "",
       user_id: pengguna.id || "", email: email || pengguna.email || "",
@@ -342,12 +374,12 @@ var SB = {
      mulaCooldownOtp). Kod tidak pernah disimpan dalam localStorage. */
   hantarOtp: function (email, createUser) {
     var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
-    if (!email || email.indexOf("@") < 1) throw new Error("Isi email yang sah dahulu.");
+    if (!email || email.indexOf("@") < 1) throw new Error(t("sb.emailSah"));
     return this.authPanggil(cfg, "/auth/v1/otp", { email: email, create_user: !!createUser });
   },
   sahkanOtp: function (email, kod, jenis) {
     var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
-    if (!/^\d{6}$/.test(kod || "")) throw new Error("Kod pengesahan mesti 6 digit nombor.");
+    if (!/^\d{6}$/.test(kod || "")) throw new Error(t("sb.kod6"));
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/verify", { email: email, token: kod, type: jenis })
       .catch(function (e) { throw new Error(SB.ralatOtp(e)); })
@@ -362,13 +394,13 @@ var SB = {
   },
   ralatOtp: function (e) {
     var m = String((e && e.message) || e || "");
-    if (/expired|invalid/i.test(m) && /token|kod/i.test(m)) return "Kod salah atau sudah tamat tempoh. Tekan Hantar Semula Kod untuk kod baharu.";
-    if (/Token has expired|invalid/i.test(m)) return "Kod salah atau sudah tamat tempoh. Tekan Hantar Semula Kod untuk kod baharu.";
-    if (/rate limit|too many/i.test(m)) return "Terlalu banyak permintaan kod. Tunggu sebentar (lebih kurang 1 minit) kemudian cuba lagi.";
-    if (/already registered|already exists/i.test(m)) return "Email ini sudah berdaftar. Guna Daftar Masuk atau Daftar Masuk dengan Kod.";
-    if (/not found|user not found/i.test(m)) return "Email ini belum berdaftar. Daftar dahulu dengan kod pengesahan.";
-    if (/email.*not confirmed|not confirmed/i.test(m)) return "Email belum disahkan. Minta kod baharu dan sahkan dahulu.";
-    return m || "Kod tidak dapat disahkan. Semak kod dan cuba lagi.";
+    if (/expired|invalid/i.test(m) && /token|kod/i.test(m)) return t("sb.otpTamat");
+    if (/Token has expired|invalid/i.test(m)) return t("sb.otpTamat");
+    if (/rate limit|too many/i.test(m)) return t("sb.otpKerap");
+    if (/already registered|already exists/i.test(m)) return t("sb.otpAda");
+    if (/not found|user not found/i.test(m)) return t("sb.otpTiada");
+    if (/email.*not confirmed|not confirmed/i.test(m)) return t("sb.otpBelumSah");
+    return m || t("sb.otpGagal");
   },
   /* Cooldown hantar-semula: butang dikunci 60 saat dengan kira detik,
      untuk mengelakkan spam permintaan OTP. */
@@ -379,14 +411,14 @@ var SB = {
     if (this._otpTimer) { try { clearInterval(this._otpTimer); } catch (e) {} }
     var baki = 60;
     btn.disabled = true;
-    btn.textContent = "Hantar semula (" + baki + "s)";
+    btn.textContent = t("sb.hantarSemulaSaat", { n: baki });
     this._otpTimer = setInterval(function () {
       baki--;
       if (baki <= 0) {
         clearInterval(self._otpTimer); self._otpTimer = null;
-        btn.disabled = false; btn.textContent = "Hantar Semula Kod";
+        btn.disabled = false; btn.textContent = t("akaun.hantarSemula");
       } else {
-        btn.textContent = "Hantar semula (" + baki + "s)";
+        btn.textContent = t("sb.hantarSemulaSaat", { n: baki });
       }
     }, 1000);
   },
@@ -405,11 +437,11 @@ var SB = {
       refresh = h.get("refresh_token") || q.get("refresh_token") || "";
       tamat = Number(h.get("expires_in") || q.get("expires_in")) || 3600;
       var ralat = h.get("error") || q.get("error");
-      if (ralat) return Promise.resolve({ ralat: /access_denied/i.test(ralat) ? "Daftar masuk Google dibatalkan." : "Daftar masuk Google gagal: " + ralat });
-    } catch (e) { return Promise.resolve({ ralat: "Pautan daftar masuk tidak sah." }); }
+      if (ralat) return Promise.resolve({ ralat: /access_denied/i.test(ralat) ? t("sb.googleBatal") : t("sb.googleGagal", { e: ralat }) });
+    } catch (e) { return Promise.resolve({ ralat: t("sb.googlePautan") }); }
     if (!token) return Promise.resolve(null);
     var cfg;
-    try { cfg = this.sahkanCfg(this.cfg()); } catch (e2) { return Promise.resolve({ ralat: "Sesi Google diterima, tetapi aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi." }); }
+    try { cfg = this.sahkanCfg(this.cfg()); } catch (e2) { return Promise.resolve({ ralat: t("sb.googleTiadaConfig") }); }
     return this.panggilAuth(cfg, "GET", "/auth/v1/user", null, token).then(function (pengguna) {
       var email = (pengguna && pengguna.email) || "";
       var uid = (pengguna && pengguna.id) || "";
@@ -417,7 +449,7 @@ var SB = {
         expires_at: Date.now() + (tamat * 1000), kaedah: "google" });
       return { ok: true, email: email, metadata: (pengguna && pengguna.user_metadata) || {} };
     }).catch(function (e) {
-      return { ralat: "Sesi Google diterima tetapi tidak dapat disahkan: " + (e.message || e) };
+      return { ralat: t("sb.googleTidakSah", { e: (e.message || e) }) };
     });
   },
   /* ===== Google login (OAuth) — web + APK Android =====
@@ -487,9 +519,9 @@ var SB = {
     var ralatDes = h.get("error_description") || carian.get("error_description") || "";
     if (ralat) {
       try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
-      var msg = /access_denied/i.test(ralat) ? "Daftar masuk Google dibatalkan."
-        : (/provider (is )?not enabled|provider_disabled/i.test(ralat + " " + ralatDes) ? "Daftar masuk Google belum dihidupkan untuk aplikasi ini. Sila hubungi pemilik aplikasi."
-        : "Daftar masuk Google gagal: " + (decodeURIComponent(ralatDes.replace(/\+/g, " ")) || ralat));
+      var msg = /access_denied/i.test(ralat) ? t("sb.googleBatal")
+        : (/provider (is )?not enabled|provider_disabled/i.test(ralat + " " + ralatDes) ? t("sb.googleTiada")
+        : t("sb.googleGagal", { e: (decodeURIComponent(ralatDes.replace(/\+/g, " ")) || ralat) }));
       return Promise.resolve({ ralat: msg });
     }
     var token = h.get("access_token");
@@ -504,7 +536,7 @@ var SB = {
     var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
     var email = $("sbEmail") ? $("sbEmail").value.trim() : "";
     var kata = $("sbPassword") ? $("sbPassword").value : "";
-    if (!email || !kata) throw new Error("Isi email dan kata laluan dahulu.");
+    if (!email || !kata) throw new Error(t("sb.isiEmailKata"));
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/signup", { email: email, password: kata }).then(function (j) {
       if (j.session && j.session.access_token) {
@@ -521,10 +553,10 @@ var SB = {
     var cfg = this.sahkanCfg(this.bacaCfgDariBorang());
     var email = $("sbEmail") ? $("sbEmail").value.trim() : "";
     var kata = $("sbPassword") ? $("sbPassword").value : "";
-    if (!email || !kata) throw new Error("Isi email dan kata laluan dahulu.");
+    if (!email || !kata) throw new Error(t("sb.isiEmailKata"));
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/token?grant_type=password", { email: email, password: kata }).then(function (j) {
-      if (!j.access_token) throw new Error("Daftar masuk gagal. Semak email dan kata laluan, dan pastikan email sudah disahkan jika pengesahan email diperlukan.");
+      if (!j.access_token) throw new Error(t("sb.loginGagal2"));
       self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || "",
         user_id: (j.user && j.user.id) || "", email: email,
         expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000),
@@ -534,10 +566,10 @@ var SB = {
   },
   segarToken: function () {
     var cfg = this.cfg(); var s = this.sesi();
-    if (!cfg.url || !cfg.anon || !s || !s.refresh_token) return Promise.reject(new Error("Sesi tamat. Sila daftar masuk semula."));
+    if (!cfg.url || !cfg.anon || !s || !s.refresh_token) return Promise.reject(new Error(t("sb.sesiTamat")));
     var self = this;
     return this.authPanggil(cfg, "/auth/v1/token?grant_type=refresh_token", { refresh_token: s.refresh_token }).then(function (j) {
-      if (!j.access_token) throw new Error("Sesi tamat. Sila daftar masuk semula.");
+      if (!j.access_token) throw new Error(t("sb.sesiTamat"));
       self.simpanSesi({ access_token: j.access_token, refresh_token: j.refresh_token || s.refresh_token,
         user_id: (j.user && j.user.id) || s.user_id, email: s.email,
         expires_at: Date.now() + ((Number(j.expires_in) || 3600) * 1000),
@@ -547,7 +579,7 @@ var SB = {
   },
   tokenSah: function () {
     var s = this.sesi();
-    if (!s || !s.access_token) return Promise.reject(new Error("Anda belum daftar masuk. Sila daftar masuk dahulu."));
+    if (!s || !s.access_token) return Promise.reject(new Error(t("sb.belumMasuk")));
     if (s.expires_at && s.expires_at > Date.now() + 60000) return Promise.resolve(s.access_token);
     return this.segarToken();
   },
@@ -573,7 +605,7 @@ var SB = {
     }).then(function (res) {
       return res.text().then(function (teks) {
         var j = null; try { j = teks ? JSON.parse(teks) : null; } catch (e) { j = null; }
-        if (!res.ok) throw new Error(SB.ralat(j, "Sync gagal (kod " + res.status + "). Sila daftar masuk semula dan cuba lagi. Jika masalah berterusan, hubungi pemilik aplikasi."));
+        if (!res.ok) throw new Error(SB.ralat(j, t("sb.syncGagalKod", { kod: res.status })));
         return j;
       });
     });
@@ -596,7 +628,7 @@ var SB = {
     if (this._autoTimer) clearTimeout(this._autoTimer);
     this._autoTimer = setTimeout(function () {
       self.syncPenuh(true).catch(function (e) {
-        try { var el = $("sbStatus"); if (el) el.textContent = "Sync automatik gagal: " + (e.message || e) + " — cuba Sync Sekarang bila ada internet."; } catch (e2) {}
+        try { var el = $("sbStatus"); if (el) el.textContent = t("sb.syncAutoGagal", { e: (e.message || e) }); } catch (e2) {}
       });
     }, 1500);
   },
@@ -605,14 +637,14 @@ var SB = {
     var cfg;
     try { cfg = this.sahkanCfg(this.cfg()); } catch (e) { return Promise.reject(e); }
     /* v3.5 Mod Tetamu: tolak sync terus — data tetamu kekal tempatan sahaja. */
-    try { if (typeof data !== "undefined" && data && data.settings && data.settings.mod === "tetamu") return Promise.reject(new Error("Mod Tetamu — data hanya dalam peranti ini. Daftar masuk untuk backup data anda ke cloud.")); } catch (e2) {}
-    if (this.syncSedangBerjalan) return Promise.reject(new Error("Sync sedang berjalan. Sila tunggu."));
+    try { if (typeof data !== "undefined" && data && data.settings && data.settings.mod === "tetamu") return Promise.reject(new Error(t("sb.modTetamu"))); } catch (e2) {}
+    if (this.syncSedangBerjalan) return Promise.reject(new Error(t("sb.syncBerjalan")));
     this.syncSedangBerjalan = true;
     var state = this.syncState();
     var sesi = this.sesi();
-    if (!sesi) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Anda belum daftar masuk.")); }
+    if (!sesi) { this.syncSedangBerjalan = false; return Promise.reject(new Error(t("sb.belumMasuk2"))); }
     var uid = sesi.user_id;
-    if (!uid) { this.syncSedangBerjalan = false; return Promise.reject(new Error("Sesi daftar masuk tidak lengkap (tiada user_id). Sila keluar dan daftar masuk semula.")); }
+    if (!uid) { this.syncSedangBerjalan = false; return Promise.reject(new Error(t("sb.sesiTidakLengkap"))); }
     return this.tokenSah().then(function (token) {
       /* Langkah 1 — tarik keadaan awan dahulu (aktif + dipadam), supaya
          keputusan last-updated-wins boleh dibuat sebelum apa-apa dihantar. */
@@ -710,7 +742,7 @@ var SB = {
   },
   kaedahLabel: function (kaedah) {
     if (kaedah === "google") return "Google";
-    if (kaedah === "otp") return "Kod Pengesahan";
+    if (kaedah === "otp") return t("sb.kaedahOtp");
     return "Email";
   },
   renderStatus: function () {
@@ -718,16 +750,15 @@ var SB = {
     var cfg = this.cfg(); var s = this.sesi(); var st = this.syncState();
     if ($("sbAutoToggle")) $("sbAutoToggle").checked = !!st.autoSync;
     if ($("sbEmail") && s && s.email) $("sbEmail").value = s.email;
-    var akhir = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleString("ms-MY") : "belum pernah";
+    var akhir = st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleString(localeSemasa()) : t("sb.belumPernah");
     if (s && s.email) {
-      el.textContent = "Daftar masuk sebagai " + s.email + " (" + this.kaedahLabel(s.kaedah) + ") • Terakhir sync: " + akhir +
-        " • Sync automatik: " + (st.autoSync ? "HIDUP" : "MATI") + ".";
+      el.textContent = t("sb.statusMasuk", { e: s.email, kaedah: this.kaedahLabel(s.kaedah), s: akhir, a: (st.autoSync ? t("sb.hidup") : t("sb.mati")) });
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah("logmasuk");
     } else if (cfg.url && cfg.anon) {
-      el.textContent = "Belum daftar masuk. Daftar masuk dengan Google, email + kata laluan, atau kod pengesahan, kemudian Sync Sekarang.";
+      el.textContent = t("sb.statusBelum");
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah((sbLangkahSemasa === "logmasuk" || !sbLangkahSemasa) ? "utama" : sbLangkahSemasa);
     } else {
-      el.textContent = "Aplikasi ini belum dikonfigurasi oleh pemilik. Sila hubungi pemilik aplikasi.";
+      el.textContent = t("sb.tiadaConfig");
       if (typeof sbTunjukLangkah === "function") sbTunjukLangkah((sbLangkahSemasa === "logmasuk" || !sbLangkahSemasa) ? "utama" : sbLangkahSemasa);
     }
   }
@@ -769,9 +800,10 @@ function save() {
 function toast(msg) { var el = $("toast"); el.textContent = msg; el.hidden = false; setTimeout(function () { el.hidden = true; }, 3500); }
 function kebunNama(id) { var k = data.kebuns.find(function (x) { return x.id === id; }); return k ? k.nama : "-"; }
 function blokById(id) { return data.bloks.find(function (x) { return x.id === id; }); }
-function blokNama(id) { if (!id) return "Semua Blok"; var b = blokById(id); return b ? b.nama : "-"; }
-function blokLabel(b) { if (!b) return "-"; var tn = b.tanaman === "Lain-lain" && b.tanamanLain ? b.tanamanLain : b.tanaman; return b.nama + " — " + tn + " (" + (b.peringkat || "Semua Peringkat") + ")"; }
+function blokNama(id) { if (!id) return t("misc.semuaBlok"); var b = blokById(id); return b ? b.nama : "-"; }
+function blokLabel(b) { if (!b) return "-"; var tn = b.tanaman === "Lain-lain" && b.tanamanLain ? b.tanamanLain : tanamanLabel(b.tanaman); return b.nama + " — " + tn + " (" + peringkatLabel(b.peringkat || "Semua Peringkat") + ")"; }
 function tanamanBlok(id) { var b = blokById(id); if (!b) return "-"; return b.tanaman === "Lain-lain" && b.tanamanLain ? b.tanamanLain : b.tanaman; }
+function tanamanPaparan(id) { var b = blokById(id); if (!b) return "-"; if (b.tanaman === "Lain-lain" && b.tanamanLain) return b.tanamanLain; return tanamanLabel(b.tanaman); }
 function jenisPaparan(k) { if (k.jenis === "Lain-lain" && k.jenisLain) return k.jenisLain; return jenisLabel(k.jenis); }
 function iconKerja(j) { var m = {"Membaja":"membaja.svg","Meracun Rumput":"meracun-rumput.svg","Racun Kulat":"racun-kulat.svg","Racun Serangga":"racun-serangga.svg","Menuai":"menuai.svg","Pruning":"pruning.svg","Potong Rumput":"potong-rumput.svg","Membersihkan":"membersihkan.svg","Menanam":"menanam.svg","Menyiram":"menyiram.svg"}; return m[j] || "lain-kerja.svg"; }
 function iconTanaman(tn) { var m = {"Koko":"koko.svg","Sawit":"sawit.svg","Durian":"durian.svg"}; return m[tn] || "lain.svg"; }
@@ -786,7 +818,7 @@ function refreshSelects() {
   var kebunOpts = data.kebuns.map(function (k) { return { value: k.id, label: k.nama }; });
   fillSelect($("kerjaKebun"), kebunOpts);
   fillSelect($("blokKebun"), kebunOpts);
-  fillSelect($("fKebun"), kebunOpts, "Semua Kebun");
+  fillSelect($("fKebun"), kebunOpts, t("semua.kebun"));
   // Blok: kerja form ikut kebun terpilih, selebihnya semua blok
   refreshBlokSelects();
 }
@@ -794,13 +826,13 @@ function refreshBlokSelects() {
   var kebunId = $("kerjaKebun").value;
   var untukKerja = data.bloks.filter(function (b) { return !kebunId || b.kebunId === kebunId; });
   var curBlok = $("kerjaBlok").value;
-  var optsKerja = [{ value: "", label: "Semua Blok (seluruh kebun)" }].concat(untukKerja.map(function (b) { return { value: b.id, label: blokLabel(b) }; }));
+  var optsKerja = [{ value: "", label: t("f.semuaBlok") }].concat(untukKerja.map(function (b) { return { value: b.id, label: blokLabel(b) }; }));
   fillSelect($("kerjaBlok"), optsKerja);
   if (curBlok !== undefined && curBlok !== null) $("kerjaBlok").value = curBlok;
   var fKebun = $("fKebun").value;
   var untukTapisan = data.bloks.filter(function (b) { return !fKebun || b.kebunId === fKebun; });
   var cur = $("fBlok").value;
-  fillSelect($("fBlok"), untukTapisan.map(function (b) { return { value: b.id, label: b.nama + " (" + kebunNama(b.kebunId) + ")" }; }), "Semua Blok");
+  fillSelect($("fBlok"), untukTapisan.map(function (b) { return { value: b.id, label: b.nama + " (" + kebunNama(b.kebunId) + ")" }; }), t("semua.blok"));
   if (cur) $("fBlok").value = cur;
   fillSelect($("qBlok"), data.bloks.map(function (b) { return { value: b.id, label: blokLabel(b) + " (" + kebunNama(b.kebunId) + ")" }; }));
   refreshBahanFilter();
@@ -811,7 +843,7 @@ function refreshBahanFilter() {
   var nama = [];
   data.bahans.forEach(function (b) { if (nama.indexOf(b.nama) < 0) nama.push(b.nama); });
   data.kerjas.forEach(function (k) { if (k.bahan && nama.indexOf(k.bahan) < 0) nama.push(k.bahan); });
-  fillSelect(el, nama.map(function (n) { return { value: n, label: n }; }), "Semua Bahan");
+  fillSelect(el, nama.map(function (n) { return { value: n, label: n }; }), t("semua.bahan"));
   if (cur) el.value = cur;
 }
 /* Borang kerja: Bahan ditapis ikut Jenis Kerja, daripada pustaka bahan. */
@@ -821,12 +853,12 @@ function refreshBahanSelect() {
   var cur = el.value;
   var senarai = data.bahans.filter(function (b) { return !jenis || b.jenisKerja === jenis || !b.jenisKerja; });
   /* v3.6: pustaka bermula kosong — tunjuk keadaan kosong dengan jelas. */
-  var labelKosong = senarai.length ? "Pilih bahan…" : "Tiada bahan — tambah baharu";
+  var labelKosong = senarai.length ? t("f.pilihBahan") : t("f.tiadaBahan");
   var opts = [{ value: "", label: labelKosong }].concat(senarai.map(function (b) {
     return { value: b.id, label: b.nama + (b.dosLalai ? " (" + b.dosLalai + ")" : "") };
   }));
-  opts.push({ value: "__TAMBAH__", label: "+ Tambah bahan baharu…" });
-  opts.push({ value: "__LAIN__", label: "Lain-lain (taip sendiri)" });
+  opts.push({ value: "__TAMBAH__", label: t("f.tambahBahan") });
+  opts.push({ value: "__LAIN__", label: t("f.bahanLainOpt") });
   fillSelect(el, opts);
   if (cur && senarai.some(function (b) { return b.id === cur; })) el.value = cur;
   else if (cur === "__TAMBAH__" || cur === "__LAIN__") el.value = cur;
@@ -867,7 +899,7 @@ function kemaskiniHintTerakhir(autofill) {
   if (!siap.length) { _hintTerakhir = null; el.textContent = ""; if (btn) btn.hidden = true; return; }
   var k = siap[0];
   _hintTerakhir = k;
-  el.textContent = "Terakhir: " + (k.bahan || "—") + (k.dos ? ", " + k.dos : "") + " pada " + fmtDate(k.tarikhSiap || k.tarikhRancang) + " — tekan Guna Semula untuk isi bahan & dos yang sama.";
+  el.textContent = t("job.terakhir", { bahan: (k.bahan || "—") + (k.dos ? ", " + k.dos : ""), tarikh: fmtDate(k.tarikhSiap || k.tarikhRancang) });
   if (btn) btn.hidden = false;
   if (autofill && !$("kerjaId").value) gunaSemulaTerakhir(true);
 }
@@ -882,99 +914,99 @@ function gunaSemulaTerakhir(senyap) {
   if (k.dosJumlah !== "" && k.dosJumlah !== null && k.dosJumlah !== undefined) {
     $("kerjaDosJumlah").value = k.dosJumlah; $("kerjaDosUnit").value = k.dosUnit || ""; $("kerjaDosPer").value = k.dosPer || "";
   } else if (k.dos) { var p = parseDos(k.dos); if (p.jumlah !== "") { $("kerjaDosJumlah").value = p.jumlah; $("kerjaDosUnit").value = p.unit; $("kerjaDosPer").value = p.per; } }
-  if (!senyap) toast("Bahan & dos terakhir diisi semula.");
+  if (!senyap) toast(t("msg.gunaSemula"));
 }
 
 function jobCard(k) {
-  var t = todayStr();
-  var overdue = k.tarikhRancang < t && k.status !== "Siap";
+  var hr = todayStr();
+  var overdue = k.tarikhRancang < hr && k.status !== "Siap";
   var div = document.createElement("div");
   div.className = "card job";
   div.innerHTML =
     "<div class=\"jobhead\"><img class=\"jobicon\" src=\"assets/icons/" + iconKerja(k.jenis) + "\" alt=\"\"><p class=\"title\">" + esc(jenisPaparan(k)) + " — " + esc(blokNama(k.blokId)) + "</p></div>" +
-    (k.image ? "<img class=\"jobimg\" src=\"" + esc(k.image) + "\" alt=\"Gambar kerja\">" : "") +
-    "<p class=\"meta\">" + esc(kebunNama(k.kebunId)) + " • " + esc(tanamanBlok(k.blokId)) + "<br>" +
-    "Dirancang: " + esc(fmtDate(k.tarikhRancang)) + (overdue ? " <span class=\"overdue\">• Tertunggak</span>" : "") +
-    (k.zon && k.zon !== "Semua Zon" ? "<br>Zon: " + esc(k.zon) : "") +
-    (k.nextTarikh ? "<br>Seterusnya: " + esc(fmtDate(k.nextTarikh)) +
-      (k.nextSyarat && k.nextSyarat !== "Tiada syarat" ? " • " + esc(k.nextSyarat === "Lain-lain" && k.nextSyaratLain ? k.nextSyaratLain : k.nextSyarat) : "") +
-      (k.nextTukarBahan ? " • Tukar bahan" + (k.nextBahan ? ": " + esc(k.nextBahan) : "") : "") : "") +
-    (k.tarikhSiap ? "<br>Siap: " + esc(fmtDate(k.tarikhSiap)) : "") +
-    (k.bahan ? "<br>Bahan: " + esc(k.bahan) : "") +
-    (k.dos ? " • Dos: " + esc(k.dos) : "") +
-    "<br>Kos: " + esc(fmtRM(k.kos)) +
-    (k.nota ? "<br>Nota: " + esc(k.nota) : "") + "</p>" +
-    "<span class=\"status " + esc(k.status) + "\">" + esc(k.status) + "</span>" +
+    (k.image ? "<img class=\"jobimg\" src=\"" + esc(k.image) + "\" alt=\"" + t("job.gambarAlt") + "\">" : "") +
+    "<p class=\"meta\">" + esc(kebunNama(k.kebunId)) + " • " + esc(tanamanPaparan(k.blokId)) + "<br>" +
+    t("job.dirancang") + esc(fmtDate(k.tarikhRancang)) + (overdue ? " <span class=\"overdue\">" + t("job.tertunggak") + "</span>" : "") +
+    (k.zon && k.zon !== "Semua Zon" ? "<br>" + t("job.zon") + esc(zonLabel(k.zon)) : "") +
+    (k.nextTarikh ? "<br>" + t("job.seterusnya") + esc(fmtDate(k.nextTarikh)) +
+      (k.nextSyarat && k.nextSyarat !== "Tiada syarat" ? " • " + esc(k.nextSyarat === "Lain-lain" && k.nextSyaratLain ? k.nextSyaratLain : syaratLabel(k.nextSyarat)) : "") +
+      (k.nextTukarBahan ? t("job.tukarBahan") + (k.nextBahan ? ": " + esc(k.nextBahan) : "") : "") : "") +
+    (k.tarikhSiap ? "<br>" + t("job.siap") + esc(fmtDate(k.tarikhSiap)) : "") +
+    (k.bahan ? "<br>" + t("job.bahan") + esc(k.bahan) : "") +
+    (k.dos ? t("job.dos") + esc(k.dos) : "") +
+    "<br>" + t("job.kos") + esc(fmtRM(k.kos)) +
+    (k.nota ? "<br>" + t("job.nota") + esc(k.nota) : "") + "</p>" +
+    "<span class=\"status " + esc(k.status) + "\">" + esc(statusLabel(k.status)) + "</span>" +
     "<div class=\"progress\"><div style=\"width:" + (Number(k.peratus) || 0) + "%\"></div></div>" +
-    "<p class=\"meta\">Siap: " + (Number(k.peratus) || 0) + "%</p>" +
-    "<div class=\"pctrow\"><label style=\"flex:0 0 auto\">Peratus:</label><select data-pct=\"" + k.id + "\"><option value=\"0\"" + ((Number(k.peratus) || 0) === 0 ? " selected" : "") + ">0%</option><option value=\"50\"" + ((Number(k.peratus) || 0) === 50 ? " selected" : "") + ">50%</option><option value=\"100\"" + ((Number(k.peratus) || 0) > 50 ? " selected" : "") + ">100%</option></select>" +
-    "<button type=\"button\" class=\"btn secondary small\" data-act=\"pct\" data-id=\"" + k.id + "\">Kemaskini %</button></div>" +
+    "<p class=\"meta\">" + t("job.siapPct") + (Number(k.peratus) || 0) + "%</p>" +
+    "<div class=\"pctrow\"><label style=\"flex:0 0 auto\">" + t("job.peratus") + "</label><select data-pct=\"" + k.id + "\"><option value=\"0\"" + ((Number(k.peratus) || 0) === 0 ? " selected" : "") + ">0%</option><option value=\"50\"" + ((Number(k.peratus) || 0) === 50 ? " selected" : "") + ">50%</option><option value=\"100\"" + ((Number(k.peratus) || 0) > 50 ? " selected" : "") + ">100%</option></select>" +
+    "<button type=\"button\" class=\"btn secondary small\" data-act=\"pct\" data-id=\"" + k.id + "\">" + t("job.kemaskiniPct") + "</button></div>" +
     "<div class=\"row\" style=\"margin-top:10px\">" +
-    "<button type=\"button\" class=\"btn primary small\" data-act=\"siap\" data-id=\"" + k.id + "\">✓ Tandakan Siap</button>" +
-    "<button type=\"button\" class=\"btn secondary small\" data-act=\"esok\" data-id=\"" + k.id + "\">➜ Bawa ke Esok</button>" +
-    "<button type=\"button\" class=\"btn secondary small\" data-act=\"lusa\" data-id=\"" + k.id + "\">➜ Bawa ke Lusa</button>" +
-    "<button type=\"button\" class=\"btn secondary small\" data-act=\"ubah\" data-id=\"" + k.id + "\">Ubah</button>" +
-    "<button type=\"button\" class=\"btn danger small\" data-act=\"padam\" data-id=\"" + k.id + "\">Padam</button></div>";
+    "<button type=\"button\" class=\"btn primary small\" data-act=\"siap\" data-id=\"" + k.id + "\">" + t("job.siapBtn") + "</button>" +
+    "<button type=\"button\" class=\"btn secondary small\" data-act=\"esok\" data-id=\"" + k.id + "\">" + t("job.esok") + "</button>" +
+    "<button type=\"button\" class=\"btn secondary small\" data-act=\"lusa\" data-id=\"" + k.id + "\">" + t("job.lusa") + "</button>" +
+    "<button type=\"button\" class=\"btn secondary small\" data-act=\"ubah\" data-id=\"" + k.id + "\">" + t("job.ubah") + "</button>" +
+    "<button type=\"button\" class=\"btn danger small\" data-act=\"padam\" data-id=\"" + k.id + "\">" + t("job.padam") + "</button></div>";
   return div;
 }
 
 function renderHariIni() {
-  var t = todayStr();
-  var list = data.kerjas.filter(function (k) { return k.status !== "Siap" && (k.tarikhRancang === t || k.tarikhRancang < t); });
+  var hr = todayStr();
+  var list = data.kerjas.filter(function (k) { return k.status !== "Siap" && (k.tarikhRancang === hr || k.tarikhRancang < hr); });
   list.sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? -1 : 1; });
   var el = $("hariIniList");
   el.innerHTML = "";
-  if (!list.length) { el.innerHTML = emptyHtml("Tiada kerja untuk hari ini. Tahniah — semua sudah siap atau belum dirancang."); return; }
+  if (!list.length) { el.innerHTML = emptyHtml(t("hariini.tiada")); return; }
   list.forEach(function (k) { el.appendChild(jobCard(k)); });
 }
 function renderPeringatan() {
   var el = $("peringatanList"); if (!el) return;
   var s = (data.settings && typeof data.settings.notifikasiHidup === "boolean") ? data.settings.notifikasiHidup : true;
   if (!s) { el.innerHTML = ""; el.hidden = true; return; }
-  var t = todayStr(); var esok = addDays(t, 1); var lusa = addDays(t, 2);
-  var list = data.kerjas.filter(function (k) { return k.status !== "Siap" && (k.tarikhRancang === t || k.tarikhRancang === esok || k.tarikhRancang === lusa); });
+  var hr = todayStr(); var esok = addDays(hr, 1); var lusa = addDays(hr, 2);
+  var list = data.kerjas.filter(function (k) { return k.status !== "Siap" && (k.tarikhRancang === hr || k.tarikhRancang === esok || k.tarikhRancang === lusa); });
   list.sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? -1 : 1; });
   el.hidden = false;
-  if (!list.length) { el.innerHTML = "<div class=\"card\"><h3>Akan Datang</h3><p class=\"hint\">Tiada kerja dalam 2 hari lagi.</p></div>"; return; }
+  if (!list.length) { el.innerHTML = "<div class=\"card\"><h3>" + t("hariini.akanDatangPendek") + "</h3><p class=\"hint\">" + t("hariini.tiadaAkanDatang") + "</p></div>"; return; }
   var rows = list.map(function (k) {
-    var bila = k.tarikhRancang === t ? "Hari ini" : (k.tarikhRancang === esok ? "Esok" : "2 hari lagi");
+    var bila = k.tarikhRancang === hr ? t("hariini.hariIni") : (k.tarikhRancang === esok ? t("hariini.esok") : t("hariini.lusa"));
     return "<p>" + esc(jenisPaparan(k)) + " — " + esc(blokNama(k.blokId)) + " (" + esc(kebunNama(k.kebunId)) + ") • " + bila + " (" + esc(fmtDate(k.tarikhRancang)) + ")</p>";
   }).join("");
-  el.innerHTML = "<div class=\"card\"><h3>Akan Datang (2 hari lagi)</h3><p class=\"hint\">Peringatan untuk kerja yang dijadualkan hari ini, esok dan 2 hari lagi. Notifikasi pelayar hanya dihantar bila aplikasi dibuka.</p>" + rows + "</div>";
+  el.innerHTML = "<div class=\"card\"><h3>" + t("hariini.akanDatang") + "</h3><p class=\"hint\">" + t("hariini.akanDatangHint") + "</p>" + rows + "</div>";
 }
 function renderNotifikasiStatus() {
   var st = $("notiStatus"); if (!st) return;
   var hidup = data.settings && data.settings.notifikasiHidup;
-  var izin = (typeof Notification !== "undefined") ? Notification.permission : "tidak disokong";
-  st.textContent = "Notifikasi: " + (hidup ? "HIDUP" : "MATI") + " • Izin pelayar: " + izin +
-    (hidup ? " • Notifikasi pelayar hanya dihantar bila aplikasi dibuka; ia tidak berfungsi bila aplikasi ditutup sepenuhnya di web." : " • Tiada notifikasi akan dihantar selagi suis ini MATI.");
+  var izin = (typeof Notification !== "undefined") ? Notification.permission : t("notif.tidakDisokong");
+  st.textContent = t("notif.status", { s: (hidup ? t("sb.hidup") : t("sb.mati")), izin: izin }) +
+    (hidup ? t("notif.statusHidup") : t("notif.statusMati"));
   var tog = $("notiToggle"); if (tog) tog.checked = !!hidup;
 }
 function renderAkaunStatus() {
   var el = $("akaunStatus"); if (!el) return;
   var inpNama = $("akaunNamaPaparan");
   if (inpNama && document.activeElement !== inpNama) inpNama.value = namaPaparan();
-  var sbSesi = null, sbCfgAda = false, sbAkhir = "belum pernah";
+  var sbSesi = null, sbCfgAda = false, sbAkhir = t("sb.belumPernah");
   try {
     if (typeof SB !== "undefined" && SB) {
       sbSesi = SB.sesi(); var c = SB.cfg(); sbCfgAda = !!(c.url && c.anon);
-      var st = SB.syncState(); if (st.lastSyncAt) sbAkhir = new Date(st.lastSyncAt).toLocaleString("ms-MY");
+      var st = SB.syncState(); if (st.lastSyncAt) sbAkhir = new Date(st.lastSyncAt).toLocaleString(localeSemasa());
     }
   } catch (e) {}
   if (sbSesi && sbSesi.email) {
-    el.innerHTML = "<p><b>Status sandaran:</b> Anda daftar masuk sebagai " + esc(sbSesi.email) +
-      (namaPaparan() ? " (Nama paparan: " + esc(namaPaparan()) + ")" : "") +
-      ". Terakhir sync: " + esc(sbAkhir) + ". Data tanpa gambar di-sync ke akaun ini.</p>" +
-      "<p><b>Jika tukar telefon:</b> daftar masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>" +
-      "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> dihantar dalam versi ini (untuk jimat storan).</p>";
+    el.innerHTML = "<p><b>" + t("akaun.stLabel") + "</b> " + t("akaun.stMasukA") + " " + esc(sbSesi.email) +
+      (namaPaparan() ? " (" + t("akaun.stNama") + " " + esc(namaPaparan()) + ")" : "") +
+      ". " + t("akaun.stSync") + " " + esc(sbAkhir) + ". " + t("akaun.stSyncData") + "</p>" +
+      "<p><b>" + t("akaun.stTukar1") + "</b> " + t("akaun.stTukar2") + "</p>" +
+      "<p>" + t("akaun.stGambar") + "</p>";
   } else if (sbCfgAda) {
-    el.innerHTML = "<p><b>Status sandaran:</b> Anda belum daftar masuk. Data anda sekarang hanya dalam peranti ini + fail eksport JSON anda.</p>" +
-      "<p><b>Untuk simpan data dalam akaun,</b> daftar masuk di bawah dengan Google atau email, kemudian tekan Sync Sekarang. Selepas sync pertama berjaya, data tanpa gambar akan tersimpan dalam akaun anda.</p>" +
-      "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan).</p>";
+    el.innerHTML = "<p><b>" + t("akaun.stLabel") + "</b> " + t("akaun.stBelum") + "</p>" +
+      "<p><b>" + t("akaun.stBantuan1") + "</b> " + t("akaun.stBantuan2") + "</p>" +
+      "<p>" + t("akaun.stGambar2") + "</p>";
   } else {
-    el.innerHTML = "<p><b>Status sandaran:</b> Aplikasi ini belum dikonfigurasi oleh pemilik, jadi data hanya dalam peranti ini buat masa ini. Sila hubungi pemilik aplikasi.</p>" +
-      "<p>Eksport JSON selalu sebagai sandaran — jika aplikasi dinyahpasang tanpa eksport, data akan hilang.</p>" +
-      "<p>Gambar disimpan tempatan sahaja dan <b>tidak</b> termasuk dalam eksport JSON biasa (untuk jimat storan).</p>";
+    el.innerHTML = "<p><b>" + t("akaun.stLabel") + "</b> " + t("akaun.stTiadaConfig") + "</p>" +
+      "<p>" + t("akaun.stEksport") + "</p>" +
+      "<p>" + t("akaun.stGambar2") + "</p>";
   }
 }
 function semakNotifikasi() {
@@ -987,13 +1019,13 @@ function semakNotifikasi() {
       if (LN && LN.schedule) {
         var lusa = addDays(todayStr(), 2);
         var due = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === lusa; }).slice(0, 5);
-        if (due.length) { LN.schedule({ notifications: due.map(function (k, i) { return { title: "KebunKu — Kerja 2 hari lagi", body: jenisPaparan(k) + " — " + blokNama(k.blokId), id: 1000 + i, schedule: { at: new Date(todayStr() + "T08:00:00") } }; }) }).catch(function () {}); }
+        if (due.length) { LN.schedule({ notifications: due.map(function (k, i) { return { title: t("notif.tajuk"), body: jenisPaparan(k) + " — " + blokNama(k.blokId), id: 1000 + i, schedule: { at: new Date(todayStr() + "T08:00:00") } }; }) }).catch(function () {}); }
       }
     } catch (eCap) { /* abaikan di web */ }
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
     var lusa2 = addDays(todayStr(), 2);
     data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === lusa2; }).slice(0, 5).forEach(function (k) {
-      try { new Notification("KebunKu — Kerja 2 hari lagi", { body: jenisPaparan(k) + " — " + blokNama(k.blokId) + " (" + fmtDate(k.tarikhRancang) + ")" }); } catch (eN) {}
+      try { new Notification(t("notif.tajuk"), { body: jenisPaparan(k) + " — " + blokNama(k.blokId) + " (" + fmtDate(k.tarikhRancang) + ")" }); } catch (eN) {}
     });
   } catch (e) {}
 }
@@ -1005,32 +1037,32 @@ function renderSemuaKerja() {
   el.innerHTML = "";
   var list = data.kerjas.filter(function (k) { return k.status !== "Siap"; })
     .sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? 1 : -1; });
-  if (!list.length) { el.innerHTML = emptyHtml("Belum ada kerja belum siap. Tambah kerja baharu di atas — kerja yang sudah siap ada dalam Sejarah."); return; }
+  if (!list.length) { el.innerHTML = emptyHtml(t("kerja.tiadaSiap")); return; }
   list.slice(0, kerjaHad).forEach(function (k) { el.appendChild(jobCard(k)); });
   if (list.length > kerjaHad) {
     var baki = list.length - kerjaHad;
     var btn = document.createElement("button");
-    btn.type = "button"; btn.className = "btn secondary"; btn.textContent = "Tunjuk Lagi (" + baki + " lagi)";
+    btn.type = "button"; btn.className = "btn secondary"; btn.textContent = t("job.tunjukLagi", { n: baki });
     btn.addEventListener("click", function () { kerjaHad += 10; renderSemuaKerja(); });
     el.appendChild(btn);
   }
 }
 function renderKebunBlok() {
   var kl = $("kebunList"); kl.innerHTML = "";
-  if (!data.kebuns.length) kl.innerHTML = emptyHtml("Belum ada kebun.");
+  if (!data.kebuns.length) kl.innerHTML = emptyHtml(t("kebun.tiada"));
   data.kebuns.forEach(function (k) {
     var d = document.createElement("div"); d.className = "card";
-    d.innerHTML = "<p class=\"title\" style=\"font-weight:800\">" + esc(k.nama) + (k.contoh ? " <span class=\"status\">Contoh</span>" : "") + "</p>" +
-      "<button type=\"button\" class=\"btn danger small\" data-del-kebun=\"" + k.id + "\">Padam Kebun</button>";
+    d.innerHTML = "<p class=\"title\" style=\"font-weight:800\">" + esc(k.nama) + (k.contoh ? " <span class=\"status\">" + t("misc.contoh") + "</span>" : "") + "</p>" +
+      "<button type=\"button\" class=\"btn danger small\" data-del-kebun=\"" + k.id + "\">" + t("kebun.padam") + "</button>";
     kl.appendChild(d);
   });
   var bl = $("blokList"); bl.innerHTML = "";
-  if (!data.bloks.length) bl.innerHTML = emptyHtml("Belum ada blok.");
+  if (!data.bloks.length) bl.innerHTML = emptyHtml(t("blok.tiada"));
   data.bloks.forEach(function (b) {
     var d = document.createElement("div"); d.className = "card";
-    d.innerHTML = "<img class=\"blokicon\" src=\"assets/icons/" + iconTanaman(b.tanaman) + "\" alt=\"\"><p class=\"title\" style=\"font-weight:800\">" + esc(b.nama) + " — " + esc(tanamanBlok(b.id)) + " (" + esc(b.peringkat || "Semua Peringkat") + ")" + (b.contoh ? " <span class=\"status\">Contoh</span>" : "") + "</p>" +
+    d.innerHTML = "<img class=\"blokicon\" src=\"assets/icons/" + iconTanaman(b.tanaman) + "\" alt=\"\"><p class=\"title\" style=\"font-weight:800\">" + esc(b.nama) + " — " + esc(tanamanPaparan(b.id)) + " (" + esc(peringkatLabel(b.peringkat || "Semua Peringkat")) + ")" + (b.contoh ? " <span class=\"status\">" + t("misc.contoh") + "</span>" : "") + "</p>" +
       "<p class=\"meta\">" + esc(kebunNama(b.kebunId)) + "</p>" +
-      "<button type=\"button\" class=\"btn danger small\" data-del-blok=\"" + b.id + "\">Padam Blok</button>";
+      "<button type=\"button\" class=\"btn danger small\" data-del-blok=\"" + b.id + "\">" + t("blok.padam") + "</button>";
     bl.appendChild(d);
   });
   renderBahans();
@@ -1042,12 +1074,12 @@ function renderBahans() {
     if (a.jenisKerja !== b.jenisKerja) return a.jenisKerja < b.jenisKerja ? -1 : 1;
     return a.nama < b.nama ? -1 : 1;
   });
-  if (!senarai.length) { el.innerHTML = emptyHtml("Belum ada bahan dalam pustaka. Tambah bahan di atas — bahan yang ditambah akan muncul sebagai pilihan dalam borang kerja."); return; }
+  if (!senarai.length) { el.innerHTML = emptyHtml(t("bahan.tiada")); return; }
   senarai.forEach(function (b) {
     var d = document.createElement("div"); d.className = "card";
     d.innerHTML = "<p class=\"title\" style=\"font-weight:800\">" + esc(b.nama) + "</p>" +
-      "<p class=\"meta\">" + esc(b.jenisKerja || "Semua kerja") + (b.dosLalai ? " • Dos lalai: " + esc(b.dosLalai) : "") + (b.nota ? " • " + esc(b.nota) : "") + "</p>" +
-      "<button type=\"button\" class=\"btn danger small\" data-del-bahan=\"" + b.id + "\">Padam Bahan</button>";
+      "<p class=\"meta\">" + esc(b.jenisKerja ? jenisLabel(b.jenisKerja) : t("misc.semuaKerja")) + (b.dosLalai ? t("bahan.dosLalai") + esc(b.dosLalai) : "") + (b.nota ? " • " + esc(b.nota) : "") + "</p>" +
+      "<button type=\"button\" class=\"btn danger small\" data-del-bahan=\"" + b.id + "\">" + t("bahan.padam") + "</button>";
     el.appendChild(d);
   });
 }
@@ -1056,7 +1088,6 @@ function renderBahans() {
    Tapisan (kebun/blok/tanaman/jenis/bahan/zon/cari/dari/hingga) menapis
    kedua-dua paparan: titik dalam kalendar DAN senarai hari/senarai penuh. */
 function tarikhPaparanKerja(k) { return k.tarikhSiap || k.tarikhRancang; }
-var NAMA_BULAN = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
 var sejarahMod = "kalendar";
 var sejarahBulan = todayStr().slice(0, 7);
 var sejarahHari = null;
@@ -1098,24 +1129,24 @@ function tukarBulan(bulan, n) {
 function renderKalendarSejarah(list) {
   var el = $("sejarahKalendar"); if (!el) return;
   var y = Number(sejarahBulan.slice(0, 4)), m = Number(sejarahBulan.slice(5, 7));
-  var label = NAMA_BULAN[m - 1] + " " + y;
+  var label = bulanNama(m - 1) + " " + y;
   var kira = {};
   list.forEach(function (k) { var d = tarikhPaparanKerja(k); if (!d) return; kira[d] = (kira[d] || 0) + 1; });
   if (!sejarahHari && sejarahBulan === todayStr().slice(0, 7)) sejarahHari = todayStr();
   var hariPertama = new Date(y, m - 1, 1).getDay();
   var hariDalamBulan = new Date(y, m, 0).getDate();
-  var t = todayStr();
-  var html = "<div class=\"kal-nav\"><button type=\"button\" class=\"btn secondary small\" id=\"kalPrevBtn\">‹ Bulan Lepas</button>" +
+  var hr = todayStr();
+  var html = "<div class=\"kal-nav\"><button type=\"button\" class=\"btn secondary small\" id=\"kalPrevBtn\">" + t("sejarah.bulanLepas") + "</button>" +
     "<p class=\"kal-label\">" + esc(label) + "</p>" +
-    "<button type=\"button\" class=\"btn secondary small\" id=\"kalNextBtn\">Bulan Depan ›</button></div>" +
-    "<p class=\"hint\">" + Object.keys(kira).length + " hari ada kerja dalam bulan ini • " + list.length + " rekod menepati tapisan. Tekan satu hari untuk lihat kerja hari itu.</p>" +
+    "<button type=\"button\" class=\"btn secondary small\" id=\"kalNextBtn\">" + t("sejarah.bulanDepan") + "</button></div>" +
+    "<p class=\"hint\">" + t("sejarah.hariAda", { n: Object.keys(kira).length, m: list.length }) + "</p>" +
     "<div class=\"kal-grid\">" +
-    ["Aha", "Isn", "Sel", "Rab", "Kha", "Jum", "Sab"].map(function (h) { return "<div class=\"kal-hari-nama\">" + h + "</div>"; }).join("");
+    [hariPendek(0), hariPendek(1), hariPendek(2), hariPendek(3), hariPendek(4), hariPendek(5), hariPendek(6)].map(function (h) { return "<div class=\"kal-hari-nama\">" + h + "</div>"; }).join("");
   for (var i = 0; i < hariPertama; i++) html += "<div class=\"kal-hari kosong\"></div>";
   for (var d = 1; d <= hariDalamBulan; d++) {
     var ds = y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
     var n = kira[ds] || 0;
-    var kelas = "kal-hari" + (n ? " ada" : "") + (ds === t ? " hari-ini" : "") + (ds === sejarahHari ? " pilih" : "");
+    var kelas = "kal-hari" + (n ? " ada" : "") + (ds === hr ? " hari-ini" : "") + (ds === sejarahHari ? " pilih" : "");
     html += "<button type=\"button\" class=\"" + kelas + "\" data-kal-hari=\"" + ds + "\"><span class=\"kal-nombor\">" + d + "</span>" +
       (n ? "<span class=\"kal-badge\">" + n + "</span>" : "") + "</button>";
   }
@@ -1129,19 +1160,19 @@ function renderKalendarSejarah(list) {
 function renderHariSejarah(list) {
   var el = $("sejarahHariList"); if (!el) return;
   el.innerHTML = "";
-  if (!sejarahHari) { el.innerHTML = "<p class=\"hint\">Pilih satu hari dalam kalendar di atas untuk lihat kerja hari itu.</p>"; return; }
+  if (!sejarahHari) { el.innerHTML = "<p class=\"hint\">" + t("sejarah.pilihHari") + "</p>"; return; }
   var hariList = list.filter(function (k) { return tarikhPaparanKerja(k) === sejarahHari; });
   var h = document.createElement("p"); h.className = "hint";
-  h.textContent = hariList.length + " rekod pada " + fmtDate(sejarahHari) + ".";
+  h.textContent = t("sejarah.rekodPada", { n: hariList.length, tarikh: fmtDate(sejarahHari) });
   el.appendChild(h);
-  if (!hariList.length) { el.innerHTML += emptyHtml("Tiada rekod pada hari ini."); return; }
+  if (!hariList.length) { el.innerHTML += emptyHtml(t("sejarah.tiadaHari")); return; }
   hariList.forEach(function (k) { el.appendChild(jobCard(k)); });
 }
 function renderSenaraiSejarah(list) {
   var el = $("sejarahList"); if (!el) return;
   el.innerHTML = "";
-  el.innerHTML = "<p class=\"hint\">" + list.length + " rekod dijumpai.</p>";
-  if (!list.length) { el.innerHTML += emptyHtml("Tiada rekod menepati tapisan."); return; }
+  el.innerHTML = "<p class=\"hint\">" + t("sejarah.rekodDijumpai", { n: list.length }) + "</p>";
+  if (!list.length) { el.innerHTML += emptyHtml(t("sejarah.tiadaRekod")); return; }
   var tunjuk = list.slice(0, sejarahHad);
   var bulanSkrg = "";
   tunjuk.forEach(function (k) {
@@ -1149,7 +1180,7 @@ function renderSenaraiSejarah(list) {
     if (b !== bulanSkrg) {
       bulanSkrg = b;
       var hh = document.createElement("h3"); hh.className = "sejarah-bulan";
-      hh.textContent = b ? (NAMA_BULAN[Number(b.slice(5, 7)) - 1] + " " + b.slice(0, 4)) : "Tiada tarikh";
+      hh.textContent = b ? (bulanNama(Number(b.slice(5, 7)) - 1) + " " + b.slice(0, 4)) : t("sejarah.tiadaTarikh");
       el.appendChild(hh);
     }
     el.appendChild(jobCard(k));
@@ -1157,7 +1188,7 @@ function renderSenaraiSejarah(list) {
   if (list.length > sejarahHad) {
     var baki = list.length - sejarahHad;
     var btn = document.createElement("button");
-    btn.type = "button"; btn.className = "btn secondary"; btn.textContent = "Tunjuk Lagi (" + baki + " lagi)";
+    btn.type = "button"; btn.className = "btn secondary"; btn.textContent = t("job.tunjukLagi", { n: baki });
     btn.addEventListener("click", function () { sejarahHad += 20; renderSejarah(); });
     el.appendChild(btn);
   }
@@ -1166,9 +1197,9 @@ function renderSenaraiSejarah(list) {
    kebun dan bar bahan. Tiada carta luar / CDN: SVG + CSS sahaja, supaya
    kekal offline dalam WebView. */
 function renderRingkasan() {
-  var t = todayStr();
-  var bulan = t.slice(0, 7);
-  var mingguMula = addDays(t, -6);
+  var hr = todayStr();
+  var bulan = hr.slice(0, 7);
+  var mingguMula = addDays(hr, -6);
   function kira(dari, hingga) {
     var subset = data.kerjas.filter(function (k) { return k.tarikhRancang >= dari && k.tarikhRancang <= hingga; });
     var siap = subset.filter(function (k) { return k.status === "Siap"; });
@@ -1176,37 +1207,37 @@ function renderRingkasan() {
     var kos = siap.reduce(function (s, k) { return s + (Number(k.kos) || 0); }, 0);
     return { siap: siap.length, belum: belum.length, kos: kos, jumlah: subset.length };
   }
-  var mg = kira(mingguMula, t), bl = kira(bulan + "-01", bulan + "-31");
-  var tertunggak = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang < t; }).length;
+  var mg = kira(mingguMula, hr), bl = kira(bulan + "-01", bulan + "-31");
+  var tertunggak = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang < hr; }).length;
   /* Kad stat — 4 nombor besar sepintas lalu. */
   var statEl = $("ringkasanStat");
   if (statEl) {
     statEl.innerHTML = "<div class=\"statgrid\">" +
-      "<div class=\"stat\"><p class=\"num\">" + bl.siap + "</p><p class=\"lbl\">Siap — Bulan Ini</p><p class=\"sub\">daripada " + bl.jumlah + " kerja</p></div>" +
-      "<div class=\"stat gold\"><p class=\"num\">" + bl.belum + "</p><p class=\"lbl\">Belum Siap — Bulan Ini</p><p class=\"sub\">perlu disiapkan</p></div>" +
-      "<div class=\"stat danger\"><p class=\"num\">" + tertunggak + "</p><p class=\"lbl\">Tertunggak</p><p class=\"sub\">melepasi tarikh dirancang</p></div>" +
-      "<div class=\"stat\"><p class=\"num\">" + fmtRM(bl.kos) + "</p><p class=\"lbl\">Kos Kerja Siap</p><p class=\"sub\">bulan ini</p></div>" +
+      "<div class=\"stat\"><p class=\"num\">" + bl.siap + "</p><p class=\"lbl\">" + t("stat.siap") + "</p><p class=\"sub\">" + t("stat.siapSub", { n: bl.jumlah }) + "</p></div>" +
+      "<div class=\"stat gold\"><p class=\"num\">" + bl.belum + "</p><p class=\"lbl\">" + t("stat.belum") + "</p><p class=\"sub\">" + t("stat.belumSub") + "</p></div>" +
+      "<div class=\"stat danger\"><p class=\"num\">" + tertunggak + "</p><p class=\"lbl\">" + t("stat.tertunggak") + "</p><p class=\"sub\">" + t("stat.tertunggakSub") + "</p></div>" +
+      "<div class=\"stat\"><p class=\"num\">" + fmtRM(bl.kos) + "</p><p class=\"lbl\">" + t("stat.kos") + "</p><p class=\"sub\">" + t("stat.kosSub") + "</p></div>" +
       "</div>";
   }
   /* Carta donut — bulan ini. */
   var peratusSiap = bl.jumlah ? Math.round(bl.siap / bl.jumlah * 100) : 0;
   var C = 2 * Math.PI * 54;
   var siapLen = (C * peratusSiap / 100).toFixed(1);
-  $("ringkasanBulan").innerHTML = "<h3>Bulan Ini (" + bulan + ")</h3>" +
+  $("ringkasanBulan").innerHTML = "<h3>" + t("ring.bulanIni") + " (" + bulan + ")</h3>" +
     "<div class=\"donutwrap\">" +
-    "<svg class=\"donut\" viewBox=\"0 0 132 132\" role=\"img\" aria-label=\"" + peratusSiap + "% kerja siap bulan ini\">" +
+    "<svg class=\"donut\" viewBox=\"0 0 132 132\" role=\"img\" aria-label=\"" + t("ring.siapPct", { n: peratusSiap }) + "\">" +
     "<circle cx=\"66\" cy=\"66\" r=\"54\" fill=\"none\" stroke=\"#EAE6D8\" stroke-width=\"16\"/>" +
     "<circle cx=\"66\" cy=\"66\" r=\"54\" fill=\"none\" stroke=\"#1E4D2B\" stroke-width=\"16\" stroke-linecap=\"round\" stroke-dasharray=\"" + siapLen + " " + C.toFixed(1) + "\" transform=\"rotate(-90 66 66)\"/>" +
     "<text x=\"66\" y=\"62\" text-anchor=\"middle\" class=\"donut-pct\">" + peratusSiap + "%</text>" +
-    "<text x=\"66\" y=\"82\" text-anchor=\"middle\" class=\"donut-lbl\">siap</text></svg>" +
+    "<text x=\"66\" y=\"82\" text-anchor=\"middle\" class=\"donut-lbl\">" + t("ring.siap") + "</text></svg>" +
     "<div class=\"legend\">" +
-    "<p><span class=\"dot\" style=\"background:#1E4D2B\"></span> Siap — <b>" + bl.siap + "</b></p>" +
-    "<p><span class=\"dot\" style=\"background:#C08A1A\"></span> Belum siap — <b>" + bl.belum + "</b></p>" +
-    "<p><span class=\"dot\" style=\"background:#EAE6D8\"></span> Jumlah — <b>" + bl.jumlah + "</b></p>" +
-    "<p>Kos kerja siap: <b>" + fmtRM(bl.kos) + "</b></p>" +
+    "<p><span class=\"dot\" style=\"background:#1E4D2B\"></span> " + t("ring.siapLbl") + " <b>" + bl.siap + "</b></p>" +
+    "<p><span class=\"dot\" style=\"background:#C08A1A\"></span> " + t("ring.belumLbl") + " <b>" + bl.belum + "</b></p>" +
+    "<p><span class=\"dot\" style=\"background:#EAE6D8\"></span> " + t("ring.jumlahLbl") + " <b>" + bl.jumlah + "</b></p>" +
+    "<p>" + t("ring.kosSiap") + " <b>" + fmtRM(bl.kos) + "</b></p>" +
     "</div></div>";
   /* Bar 7 hari — kerja siap setiap hari (ikut tarikh siap, jika tiada ikut tarikh dirancang). */
-  var namaHari = ["Aha", "Isn", "Sel", "Rab", "Kha", "Jum", "Sab"];
+  var namaHari = [hariPendek(0), hariPendek(1), hariPendek(2), hariPendek(3), hariPendek(4), hariPendek(5), hariPendek(6)];
   var barHari = [];
   var maksHari = 0;
   for (var i = 0; i < 7; i++) {
@@ -1219,8 +1250,8 @@ function renderRingkasan() {
     if (n > maksHari) maksHari = n;
     barHari.push({ hari: hari, n: n, label: namaHari[new Date(hari + "T00:00:00").getDay()] });
   }
-  $("ringkasanMinggu").innerHTML = "<h3>7 Hari Terakhir (" + fmtDate(mingguMula) + " – " + fmtDate(t) + ")</h3>" +
-    "<p class=\"hint\">Kerja siap setiap hari. Jumlah: <b>" + mg.siap + " siap</b> daripada " + mg.jumlah + " kerja • Kos: <b>" + fmtRM(mg.kos) + "</b></p>" +
+  $("ringkasanMinggu").innerHTML = "<h3>" + t("ring.minggu") + " (" + fmtDate(mingguMula) + " – " + fmtDate(hr) + ")</h3>" +
+    "<p class=\"hint\">" + t("ring.mingguHint", { s: mg.siap, j: mg.jumlah, k: fmtRM(mg.kos) }) + "</p>" +
     "<div class=\"weekbars\">" + barHari.map(function (b) {
       var tinggi = maksHari ? Math.max(6, Math.round(b.n / maksHari * 64)) : 4;
       return "<div class=\"weekbar\"><span class=\"cnt\">" + b.n + "</span><div class=\"col" + (b.n === 0 ? " zero" : "") + "\" style=\"height:" + tinggi + "px\"></div><span class=\"day\">" + b.label + "</span><span class=\"day\">" + b.hari.slice(8) + "</span></div>";
@@ -1231,10 +1262,10 @@ function renderRingkasan() {
     var siap = s.filter(function (k) { return k.status === "Siap"; });
     var kos = siap.reduce(function (a, k) { return a + (Number(k.kos) || 0); }, 0);
     var pct = s.length ? Math.round(siap.length / s.length * 100) : 0;
-    return "<div class=\"barrow\"><div class=\"barhead\"><span>" + esc(kb.nama) + "</span><span>" + siap.length + "/" + s.length + " siap • " + fmtRM(kos) + "</span></div>" +
+    return "<div class=\"barrow\"><div class=\"barhead\"><span>" + esc(kb.nama) + "</span><span>" + siap.length + "/" + s.length + " " + t("ring.siap") + " • " + fmtRM(kos) + "</span></div>" +
       "<div class=\"bartrack\"><div class=\"barfill\" style=\"width:" + pct + "%\"></div></div></div>";
   }).join("");
-  $("ringkasanKebun").innerHTML = "<h3>Ikut Kebun — Bulan Ini</h3>" + (perKebun || emptyHtml("Belum ada kebun."));
+  $("ringkasanKebun").innerHTML = "<h3>" + t("ring.kebun") + "</h3>" + (perKebun || emptyHtml(t("kebun.tiada")));
   /* Bar bahan — 5 paling kerap, bulan ini. */
   var elBahan = $("ringkasanBahan");
   if (elBahan) {
@@ -1244,12 +1275,12 @@ function renderRingkasan() {
     });
     var susun = Object.keys(kiraBahan).sort(function (a, b) { return kiraBahan[b] - kiraBahan[a]; }).slice(0, 5);
     var maksBahan = susun.length ? kiraBahan[susun[0]] : 0;
-    elBahan.innerHTML = "<h3>Bahan Paling Kerap Digunakan — Bulan Ini</h3>" +
+    elBahan.innerHTML = "<h3>" + t("ring.bahan") + "</h3>" +
       (susun.length ? susun.map(function (n) {
         var pctB = maksBahan ? Math.round(kiraBahan[n] / maksBahan * 100) : 0;
-        return "<div class=\"barrow\"><div class=\"barhead\"><span>" + esc(n) + "</span><span>" + kiraBahan[n] + " kali</span></div>" +
+        return "<div class=\"barrow\"><div class=\"barhead\"><span>" + esc(n) + "</span><span>" + kiraBahan[n] + " " + t("ring.kali") + "</span></div>" +
           "<div class=\"bartrack\"><div class=\"barfill gold\" style=\"width:" + pctB + "%\"></div></div></div>";
-      }).join("") : "<p class=\"hint\">Belum ada kerja siap bulan ini.</p>");
+      }).join("") : "<p class=\"hint\">" + t("ring.bahanTiada") + "</p>");
   }
 }
 function renderAll() { refreshSelects(); refreshBahanSelect(); renderDashboard(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} tunjukOnboarding(); kemaskiniUiTetamu(); kemaskiniButangContoh(); renderPengumuman(); }
@@ -1312,11 +1343,11 @@ function renderPengumuman() {
   belum.forEach(function (x) {
     var d = document.createElement("div");
     d.className = "card pengumuman";
-    d.innerHTML = "<p class=\"section-label\">Mesej Pembangun</p>" +
+    d.innerHTML = "<p class=\"section-label\">" + t("pengumuman.label") + "</p>" +
       "<p class=\"title\" style=\"font-weight:800\">" + esc(x.tajuk) + "</p>" +
       "<p class=\"meta\">" + esc(x.mesej) + "</p>" +
       (x.tarikh ? "<p class=\"hint\">" + esc(fmtDate((x.tarikh || "").slice(0, 10))) + "</p>" : "") +
-      "<button type=\"button\" class=\"btn secondary small\" data-dismiss-pengumuman=\"" + esc(x.id) + "\">Tanda Sudah Dibaca</button>";
+      "<button type=\"button\" class=\"btn secondary small\" data-dismiss-pengumuman=\"" + esc(x.id) + "\">" + t("pengumuman.baca") + "</button>";
     el.appendChild(d);
   });
 }
@@ -1424,7 +1455,7 @@ var Iklan = {
       ruang.innerHTML = "";
       var d = document.createElement("div");
       d.className = "iklan-pratonton";
-      d.textContent = "Ruang Iklan — pratonton sahaja. Tiada iklan sebenar dimuatkan.";
+      d.textContent = t("iklan.pratonton");
       ruang.appendChild(d);
       bekas.hidden = false;
     });
@@ -1539,21 +1570,21 @@ var Iklan = {
 };
 
 /* ===== v3.5 — Dashboard, onboarding (tetamu vs daftar masuk), nama paparan ===== */
-function salamWaktu() { var jam = new Date().getHours(); if (jam < 12) return "Selamat pagi"; if (jam < 15) return "Selamat tengah hari"; if (jam < 19) return "Selamat petang"; return "Selamat malam"; }
+function salamWaktu() { var jam = new Date().getHours(); if (jam < 12) return t("salam.pagi"); if (jam < 15) return t("salam.tengahHari"); if (jam < 19) return t("salam.petang"); return t("salam.malam"); }
 function namaPaparan() { return (data.settings && data.settings.namaPaparan) ? data.settings.namaPaparan.trim() : ""; }
 function renderDashboard() {
   var el = $("dashboardSalam"); if (!el) return;
-  var t = todayStr();
+  var hr = todayStr();
   var nama = namaPaparan();
-  var tarikh = new Date().toLocaleDateString("ms-MY", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  el.innerHTML = "<p class=\"salam-teks\">" + esc(salamWaktu()) + (nama ? ", " + esc(nama) : "") + "</p><p class=\"salam-tarikh\">" + esc(tarikh) + "</p>";
+  var tarikh = new Date().toLocaleDateString(localeSemasa(), { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  el.innerHTML = "<p class=\"eyebrow salam-eyebrow\">" + t("tabhead.hariini") + "</p><p class=\"salam-teks\">" + esc(salamWaktu()) + (nama ? ", " + esc(nama) : "") + "</p><p class=\"salam-tarikh\">" + esc(tarikh) + "</p>";
   var stat = $("dashboardStat"); if (!stat) return;
-  var hariIni = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === t; }).length;
-  var tertunggak = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang < t; }).length;
-  var siapHariIni = data.kerjas.filter(function (k) { return k.status === "Siap" && (k.tarikhSiap || k.tarikhRancang) === t; }).length;
-  stat.innerHTML = "<div class=\"stat mini\"><p class=\"num\">" + hariIni + "</p><p class=\"lbl\">Kerja Hari Ini</p></div>" +
-    "<div class=\"stat mini danger\"><p class=\"num\">" + tertunggak + "</p><p class=\"lbl\">Tertunggak</p></div>" +
-    "<div class=\"stat mini\"><p class=\"num\">" + siapHariIni + "</p><p class=\"lbl\">Siap Hari Ini</p></div>";
+  var hariIni = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === hr; }).length;
+  var tertunggak = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang < hr; }).length;
+  var siapHariIni = data.kerjas.filter(function (k) { return k.status === "Siap" && (k.tarikhSiap || k.tarikhRancang) === hr; }).length;
+  stat.innerHTML = "<div class=\"stat mini\"><p class=\"num\">" + hariIni + "</p><p class=\"lbl\">" + t("dash.kerjaHariIni") + "</p></div>" +
+    "<div class=\"stat mini danger\"><p class=\"num\">" + tertunggak + "</p><p class=\"lbl\">" + t("dash.tertunggak") + "</p></div>" +
+    "<div class=\"stat mini\"><p class=\"num\">" + siapHariIni + "</p><p class=\"lbl\">" + t("dash.siapHariIni") + "</p></div>";
 }
 /* Onboarding — hanya pada pemasangan baharu: tiada sesi DAN mod belum dipilih.
    Pengguna lama yang sudah daftar masuk tidak pernah nampaknya; pengguna dengan
@@ -1572,7 +1603,7 @@ function tunjukOnboarding() {
 function tutupOnboarding() { _onboardingDitutupSesi = true; var el = $("onboardingOverlay"); if (el) el.hidden = true; }
 function pilihTetamu() {
   data.settings = data.settings || tetapanLalai(); data.settings.mod = "tetamu"; save();
-  tutupOnboarding(); renderAll(); toast("Mod Tetamu — data hanya dalam telefon ini.");
+  tutupOnboarding(); renderAll(); toast(t("msg.tetamu"));
 }
 /* Mod Tetamu dalam UI: Sync Sekarang dilumpuhkan dengan hint, suis sync
    automatik dilumpuhkan, dan kad Akaun menunjukkan butang daftar masuk. */
@@ -1581,7 +1612,7 @@ function kemaskiniUiTetamu() {
   var syncBtn = $("sbSyncBtn");
   if (syncBtn) syncBtn.disabled = tetamu;
   var hint = $("sbSyncHint");
-  if (hint) { hint.hidden = !tetamu; if (tetamu) hint.textContent = "Daftar masuk untuk backup data anda ke cloud."; }
+  if (hint) { hint.hidden = !tetamu; if (tetamu) hint.textContent = t("akaun.tetamuLoginHint"); }
   var auto = $("sbAutoToggle");
   if (auto) auto.disabled = tetamu;
   var akaunTetamu = $("akaunTetamu");
@@ -1604,7 +1635,7 @@ function simpanNamaPaparan(nama, senyap) {
     /* Best effort — kegagalan tidak menghalang simpanan tempatan. */
     SB.simpanNamaKeAkaun(nama).catch(function () {});
   }
-  if (!senyap) toast(nama ? "Nama paparan disimpan." : "Nama paparan dikosongkan.");
+  if (!senyap) toast(nama ? t("msg.namaSimpan") : t("msg.namaKosong"));
 }
 /* Selepas daftar masuk: jika tiada nama paparan, cuba ambil daripada akaun
    (user_metadata.nama_paparan, atau full_name untuk Google); jika masih
@@ -1637,8 +1668,8 @@ function selepasGoogleBerjaya(hasil) {
   var nama = (md.nama_paparan || md.full_name || "").trim();
   if (nama && !namaPaparan()) { data.settings.namaPaparan = nama; save(); renderAll(); }
   else { try { semakNamaPaparan(); } catch (e) {} }
-  sbSetStatus("Daftar masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ". Tekan Sync Sekarang untuk muat turun / hantar data.");
-  toast("Daftar masuk Google berjaya sebagai " + ((hasil && hasil.email) || "") + ".");
+  sbSetStatus(t("msg.googleBerjaya", { e: ((hasil && hasil.email) || "") }));
+  toast(t("msg.googleBerjayaPendek", { e: ((hasil && hasil.email) || "") }));
   try { muatPengumuman(); } catch (e) {}
 }
 /* Dipanggil oleh listener AppUrlOpen (plugin App) dalam APK selepas Google
@@ -1668,7 +1699,7 @@ JENIS_KERJA.forEach(function (j) {
     $("kerjaPeratus").value = "100"; syncPeratusStatus();
     $("kerjaId").value = "";
     setTab("kerja");
-    toast("Borang pra-isi: " + jenisLabel(j) + ". Pilih kebun & blok, kemudian Simpan.");
+    toast(t("msg.praisi", { jenis: jenisLabel(j) }));
   });
   $("templateButtons").appendChild(btn);
 });
@@ -1676,7 +1707,7 @@ JENIS_KERJA.forEach(function (j) {
 $("copyYesterdayBtn").addEventListener("click", function () {
   var semalam = addDays(todayStr(), -1);
   var semalamJobs = data.kerjas.filter(function (k) { return k.tarikhRancang === semalam; });
-  if (!semalamJobs.length) { toast("Tiada kerja semalam untuk disalin."); return; }
+  if (!semalamJobs.length) { toast(t("msg.salinTiada")); return; }
   var disalin = 0;
   semalamJobs.forEach(function (k) {
     /* v3.6: jangan salin dua kali — langkau kerja yang sudah disalin hari ini. */
@@ -1690,7 +1721,7 @@ $("copyYesterdayBtn").addEventListener("click", function () {
     disalin++;
   });
   save(); renderAll();
-  toast(disalin ? disalin + " kerja semalam disalin ke hari ini." : "Kerja semalam sudah disalin ke hari ini.");
+  toast(disalin ? t("msg.salinSiap", { n: disalin }) : t("msg.salinSudah"));
 });
 
 // Borang kebun / blok
@@ -1699,25 +1730,25 @@ $("kebunForm").addEventListener("submit", function (e) {
   var nama = $("kebunNama").value.trim();
   if (!nama) return;
   data.kebuns.push({ id: uid(), nama: nama, contoh: false, updatedAt: Date.now() });
-  $("kebunNama").value = ""; save(); renderAll(); toast("Kebun ditambah.");
+  $("kebunNama").value = ""; save(); renderAll(); toast(t("msg.kebunTambah"));
 });
 $("blokForm").addEventListener("submit", function (e) {
   e.preventDefault();
   var kebunId = $("blokKebun").value, nama = $("blokNama").value.trim(), tan = $("blokTanaman").value;
-  if (!kebunId || !nama) { toast("Pilih kebun dan isi nama blok."); return; }
+  if (!kebunId || !nama) { toast(t("msg.blokKosong")); return; }
   data.bloks.push({ id: uid(), kebunId: kebunId, nama: nama, tanaman: tan, tanamanLain: $("blokTanamanLain").value.trim(), peringkat: $("blokPeringkat") ? $("blokPeringkat").value : "Semua Peringkat", contoh: false, updatedAt: Date.now() });
-  $("blokNama").value = ""; $("blokTanamanLain").value = ""; save(); renderAll(); toast("Blok ditambah.");
+  $("blokNama").value = ""; $("blokTanamanLain").value = ""; save(); renderAll(); toast(t("msg.blokTambah"));
 });
 
 /* Borang pustaka bahan (Kebun tab) */
 $("bahanForm").addEventListener("submit", function (e) {
   e.preventDefault();
   var nama = $("bahanNama").value.trim(), jenis = $("bahanJenis").value;
-  if (!nama || !jenis) { toast("Isi nama bahan dan pilih jenis kerja."); return; }
+  if (!nama || !jenis) { toast(t("msg.bahanKosong")); return; }
   var ada = data.bahans.find(function (x) { return x.nama.toLowerCase() === nama.toLowerCase() && x.jenisKerja === jenis; });
-  if (ada) { toast("Bahan ini sudah ada dalam pustaka untuk " + jenis + "."); return; }
+  if (ada) { toast(t("msg.bahanAda", { jenis: jenisLabel(jenis) })); return; }
   data.bahans.push({ id: uid(), nama: nama, jenisKerja: jenis, unitLalai: $("bahanUnit").value, dosLalai: ($("bahanDosLalai").value || "").trim(), nota: "", contoh: false, updatedAt: Date.now() });
-  $("bahanNama").value = ""; $("bahanDosLalai").value = ""; save(); renderAll(); toast("Bahan ditambah ke pustaka.");
+  $("bahanNama").value = ""; $("bahanDosLalai").value = ""; save(); renderAll(); toast(t("msg.bahanTambah"));
 });
 
 // Gambar kerja: maksimum 1, dimampatkan, tempatan sahaja
@@ -1728,14 +1759,14 @@ function paparGambarSemasa() {
   if (gambarSemasa) { img.src = gambarSemasa; img.hidden = false; } else { img.removeAttribute("src"); img.hidden = true; }
 }
 function buangGambar() {
-  gambarSemasa = null; var inp = $("kerjaGambar"); if (inp) inp.value = ""; paparGambarSemasa(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
+  gambarSemasa = null; var inp = $("kerjaGambar"); if (inp) inp.value = ""; paparGambarSemasa(); setGambarInfo(t("f.gambarTiada"));
 }
 var _gInput = null;
 function daftarGambarInput() {
   var inp = $("kerjaGambar"); if (!inp || inp === _gInput) return; _gInput = inp;
   inp.addEventListener("change", function () {
     var file = inp.files && inp.files[0]; if (!file) return;
-    if (!file.type || file.type.indexOf("image/") !== 0) { setGambarInfo("Fail yang dipilih bukan gambar."); return; }
+    if (!file.type || file.type.indexOf("image/") !== 0) { setGambarInfo(t("msg.gambarBukan")); return; }
     var asalKB = Math.round(file.size / 1024);
     var url = URL.createObjectURL(file); var img = new Image();
     img.onload = function () {
@@ -1745,15 +1776,15 @@ function daftarGambarInput() {
         var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
         cv.getContext("2d").drawImage(img, 0, 0, cw, ch);
         cv.toBlob(function (blob) {
-          if (!blob) { setGambarInfo("Gagal memampatkan gambar."); return; }
+          if (!blob) { setGambarInfo(t("msg.gambarGagal")); return; }
           var r = new FileReader();
-          r.onload = function () { gambarSemasa = r.result; paparGambarSemasa(); setGambarInfo("Asal: " + asalKB + " KB → Mampat: " + Math.round(blob.size / 1024) + " KB (JPEG, maks 1280px, kualiti 0.82). Memilih gambar baharu akan menggantikan gambar lama."); };
+          r.onload = function () { gambarSemasa = r.result; paparGambarSemasa(); setGambarInfo(t("msg.gambarInfo", { a: asalKB, b: Math.round(blob.size / 1024) })); };
           r.readAsDataURL(blob);
         }, "image/jpeg", 0.82);
-      } catch (e) { setGambarInfo("Gagal memampatkan gambar."); }
+      } catch (e) { setGambarInfo(t("msg.gambarGagal")); }
       URL.revokeObjectURL(url);
     };
-    img.onerror = function () { setGambarInfo("Gambar tidak dapat dibaca."); URL.revokeObjectURL(url); };
+    img.onerror = function () { setGambarInfo(t("msg.gambarBaca")); URL.revokeObjectURL(url); };
     img.src = url;
   });
 }
@@ -1851,7 +1882,7 @@ $("kerjaForm").addEventListener("submit", function (e) {
     if (adaB) bahanId = adaB.id;
     else {
       bahanId = uid();
-      data.bahans.push({ id: bahanId, nama: bahanNama, jenisKerja: jenisKerja, unitLalai: dosUnit, dosLalai: dosStr, nota: "Ditambah semasa rekod kerja", contoh: false, updatedAt: Date.now() });
+      data.bahans.push({ id: bahanId, nama: bahanNama, jenisKerja: jenisKerja, unitLalai: dosUnit, dosLalai: dosStr, nota: t("bahan.ditambahSemasa"), contoh: false, updatedAt: Date.now() });
     }
   }
   var rec = {
@@ -1867,9 +1898,9 @@ $("kerjaForm").addEventListener("submit", function (e) {
     nextTukarBahan: nextTukar, nextBahan: nextBahan,
     image: gambarSemasa, updatedAt: Date.now()
   };
-  if (!rec.kebunId || !rec.tarikhRancang) { toast("Lengkapkan kebun dan tarikh. Blok boleh dibiarkan 'Semua Blok'."); selesaiSimpan(); return; }
-  if (pilihanNext === "Tarikh Custom" && !nextTarikh) { toast("Pilih tarikh custom untuk kerja seterusnya."); selesaiSimpan(); return; }
-  if (nextTukar && !nextBahan) { toast("Anda tandakan 'Tukar bahan lain kali' — isi bahan yang akan digunakan lain kali."); selesaiSimpan(); return; }
+  if (!rec.kebunId || !rec.tarikhRancang) { toast(t("msg.formLengkap")); selesaiSimpan(); return; }
+  if (pilihanNext === "Tarikh Custom" && !nextTarikh) { toast(t("msg.tarikhCustom")); selesaiSimpan(); return; }
+  if (nextTukar && !nextBahan) { toast(t("msg.tukarBahanIsi")); selesaiSimpan(); return; }
   /* v3.6 idempotensi: kerja baharu yang sama (kebun, blok, jenis, bahan,
      dos, tarikh) dalam 60 saat terakhir disekat — elak spam bila butang
      Simpan ditekan berkali-kali. Ubah kerja sedia ada tidak disekat. */
@@ -1881,12 +1912,12 @@ $("kerjaForm").addEventListener("submit", function (e) {
         (x.dos || "") === (rec.dos || "") && x.tarikhRancang === rec.tarikhRancang &&
         (Number(x.updatedAt) || 0) > kiniMs - 60000;
     });
-    if (duplikat) { toast("Kerja ini sudah disimpan."); selesaiSimpan(); return; }
+    if (duplikat) { toast(t("msg.duplikat")); selesaiSimpan(); return; }
   }
   if (id) {
     var lama = data.kerjas.find(function (k) { return k.id === id; });
     if (lama) { Object.assign(lama, rec); if (lama.status === "Siap" && !lama.tarikhSiap) lama.tarikhSiap = todayStr(); }
-    toast("Kerja dikemaskini.");
+    toast(t("msg.dikemaskini"));
   } else {
     rec.id = uid(); data.kerjas.push(rec);
     if (nextTarikh) {
@@ -1895,25 +1926,25 @@ $("kerjaForm").addEventListener("submit", function (e) {
         tarikhRancang: nextTarikh, tarikhSiap: "", status: "Dirancang", peratus: 0,
         bahan: rec.bahan, bahanId: rec.bahanId, dos: rec.dos,
         dosJumlah: rec.dosJumlah, dosUnit: rec.dosUnit, dosPer: rec.dosPer, kos: 0,
-        nota: "Susulan automatik daripada kerja pada " + fmtDate(rec.tarikhRancang) + ".", contoh: false,
+        nota: t("job.susulan", { tarikh: fmtDate(rec.tarikhRancang) }), contoh: false,
         nextTarikh: "", nextPilihan: "", nextSyarat: "Tiada syarat", nextSyaratLain: "",
         nextTukarBahan: false, nextBahan: "", image: null, updatedAt: Date.now() };
-      if (nextSyarat && nextSyarat !== "Tiada syarat") susulan.nota += " Syarat: " + (nextSyarat === "Lain-lain" && nextSyaratLain ? nextSyaratLain : nextSyarat) + ".";
+      if (nextSyarat && nextSyarat !== "Tiada syarat") susulan.nota += " " + t("job.syarat") + (nextSyarat === "Lain-lain" && nextSyaratLain ? nextSyaratLain : syaratLabel(nextSyarat)) + ".";
       if (nextTukar) {
         susulan.bahan = ""; susulan.bahanId = ""; susulan.dos = "";
         susulan.dosJumlah = ""; susulan.dosUnit = ""; susulan.dosPer = "";
-        susulan.nota = "Tukar bahan: guna " + nextBahan + " — bukan " + (rec.bahan || "bahan lama") + ". Susulan daripada kerja pada " + fmtDate(rec.tarikhRancang) + ".";
+        susulan.nota = t("job.susulanTukar", { baru: nextBahan, lama: (rec.bahan || t("job.bahanLama")), tarikh: fmtDate(rec.tarikhRancang) });
       }
       /* v3.6: jangan cipta susulan berganda untuk tarikh/jenis yang sama. */
       var susulanAda = data.kerjas.some(function (x) {
         return x.kebunId === susulan.kebunId && (x.blokId || "") === (susulan.blokId || "") &&
           x.jenis === susulan.jenis && x.tarikhRancang === susulan.tarikhRancang &&
           x.status === "Dirancang" &&
-          ((x.nota || "").indexOf("Susulan automatik") >= 0 || (x.nota || "").indexOf("Tukar bahan:") === 0);
+          ((x.nota || "").indexOf("Susulan automatik") >= 0 || (x.nota || "").indexOf("Automatic follow-up") >= 0 || (x.nota || "").indexOf("Tukar bahan:") === 0 || (x.nota || "").indexOf("Change material:") === 0);
       });
       if (!susulanAda) data.kerjas.push(susulan);
-      toast("Kerja disimpan. Kerja susulan dijadualkan pada " + fmtDate(nextTarikh) + ".");
-    } else { toast("Kerja disimpan."); }
+      toast(t("msg.susulan", { tarikh: fmtDate(nextTarikh) }));
+    } else { toast(t("msg.disimpan")); }
   }
   $("kerjaId").value = ""; e.target.reset(); buangGambar(); $("kerjaTarikh").value = todayStr(); syncPeratusStatus(); toggleNextCustom();
   kerjaHad = 10;
@@ -1941,9 +1972,9 @@ document.addEventListener("click", function (e) {
     var k = data.kerjas.find(function (x) { return x.id === btn.dataset.id; });
     if (!k) return;
     var act = btn.dataset.act;
-    if (act === "siap") { k.status = "Siap"; k.peratus = 100; k.tarikhSiap = todayStr(); k.updatedAt = Date.now(); toast("Kerja ditandakan siap."); }
-    if (act === "esok") { k.tarikhRancang = addDays(todayStr(), 1); k.updatedAt = Date.now(); if (k.status === "Siap") k.status = "Siap Sebahagian"; if (k.status !== "Siap Sebahagian" && k.peratus > 0) k.status = "Siap Sebahagian"; toast("Baki kerja dibawa ke esok."); }
-    if (act === "lusa") { k.tarikhRancang = addDays(todayStr(), 2); k.updatedAt = Date.now(); if (k.peratus > 0 && k.status !== "Siap") k.status = "Siap Sebahagian"; toast("Baki kerja dibawa ke lusa."); }
+    if (act === "siap") { k.status = "Siap"; k.peratus = 100; k.tarikhSiap = todayStr(); k.updatedAt = Date.now(); toast(t("msg.siapDitanda")); }
+    if (act === "esok") { k.tarikhRancang = addDays(todayStr(), 1); k.updatedAt = Date.now(); if (k.status === "Siap") k.status = "Siap Sebahagian"; if (k.status !== "Siap Sebahagian" && k.peratus > 0) k.status = "Siap Sebahagian"; toast(t("msg.esok")); }
+    if (act === "lusa") { k.tarikhRancang = addDays(todayStr(), 2); k.updatedAt = Date.now(); if (k.peratus > 0 && k.status !== "Siap") k.status = "Siap Sebahagian"; toast(t("msg.lusa")); }
     if (act === "pct") {
       var inp = document.querySelector('[data-pct="' + k.id + '"]');
       var p = inp ? (Number(inp.value) || 0) : 0;
@@ -1952,7 +1983,7 @@ document.addEventListener("click", function (e) {
       if (p === 100) { k.status = "Siap"; k.tarikhSiap = todayStr(); }
       else if (p === 50) k.status = "Siap Sebahagian";
       else if (k.status === "Siap") { k.status = "Siap Sebahagian"; k.tarikhSiap = ""; }
-      toast("Peratus dikemaskini: " + p + "%.");
+      toast(t("msg.pctKemaskini", { n: p }));
     }
     if (act === "ubah") {
       $("kerjaId").value = k.id; $("kerjaKebun").value = k.kebunId; refreshBlokSelects();
@@ -1977,19 +2008,19 @@ document.addEventListener("click", function (e) {
       $("kerjaNextTukar").checked = !!k.nextTukarBahan;
       $("kerjaNextBahan").value = k.nextBahan || "";
       toggleNextCustom(); gambarSemasa = k.image || null; paparGambarSemasa();
-      setGambarInfo(k.image ? "Gambar sedia ada (tempatan sahaja, maksimum 1). Pilih gambar baharu untuk menggantikannya." : "Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
+      setGambarInfo(k.image ? t("f.gambarAda") : t("f.gambarTiada"));
       setTab("kerja"); window.scrollTo(0, 0); return;
     }
     if (act === "padam") {
-      if (!confirm("Padam kerja ini?")) return;
+      if (!confirm(t("confirm.padamKerja"))) return;
       try { if (typeof SB !== "undefined" && SB) SB.catatPadam("kerjas", [k.id]); } catch (e) {}
-      data.kerjas = data.kerjas.filter(function (x) { return x.id !== k.id; }); toast("Kerja dipadam.");
+      data.kerjas = data.kerjas.filter(function (x) { return x.id !== k.id; }); toast(t("msg.dipadamKerja"));
     }
     save(); renderAll(); return;
   }
   var delK = e.target.closest("[data-del-kebun]");
   if (delK) {
-    if (!confirm("Padam kebun ini? Blok dan kerja di bawahnya juga akan dipadam.")) return;
+    if (!confirm(t("confirm.padamKebun"))) return;
     var kid = delK.dataset.delKebun;
     try { if (typeof SB !== "undefined" && SB) {
       SB.catatPadam("kebuns", [kid]);
@@ -1999,11 +2030,11 @@ document.addEventListener("click", function (e) {
     data.kebuns = data.kebuns.filter(function (x) { return x.id !== kid; });
     data.bloks = data.bloks.filter(function (x) { return x.kebunId !== kid; });
     data.kerjas = data.kerjas.filter(function (x) { return x.kebunId !== kid; });
-    save(); renderAll(); toast("Kebun dipadam.");
+    save(); renderAll(); toast(t("msg.dipadamKebun"));
   }
   var delB = e.target.closest("[data-del-blok]");
   if (delB) {
-    if (!confirm("Padam blok ini? Kerja di blok ini juga akan dipadam.")) return;
+    if (!confirm(t("confirm.padamBlok"))) return;
     var bid = delB.dataset.delBlok;
     try { if (typeof SB !== "undefined" && SB) {
       SB.catatPadam("bloks", [bid]);
@@ -2011,16 +2042,16 @@ document.addEventListener("click", function (e) {
     } } catch (e) {}
     data.bloks = data.bloks.filter(function (x) { return x.id !== bid; });
     data.kerjas = data.kerjas.filter(function (x) { return x.blokId !== bid; });
-    save(); renderAll(); toast("Blok dipadam.");
+    save(); renderAll(); toast(t("msg.dipadamBlok"));
   }
   var delBh = e.target.closest("[data-del-bahan]");
   if (delBh) {
-    if (!confirm("Padam bahan ini dari pustaka? Kerja lama yang sudah guna bahan ini tidak akan berubah.")) return;
+    if (!confirm(t("confirm.padamBahan"))) return;
     var bhid = delBh.dataset.delBahan;
     try { if (typeof SB !== "undefined" && SB) SB.catatPadam("bahans", [bhid]); } catch (e) {}
     data.bahans = data.bahans.filter(function (x) { return x.id !== bhid; });
     data.kerjas.forEach(function (x) { if (x.bahanId === bhid) x.bahanId = ""; });
-    save(); renderAll(); toast("Bahan dipadam dari pustaka.");
+    save(); renderAll(); toast(t("msg.dipadamBahan"));
   }
 });
 
@@ -2037,12 +2068,12 @@ $("fResetBtn").addEventListener("click", function () {
 });
 $("qBtn").addEventListener("click", function () {
   var blokId = $("qBlok").value, jenis = $("qJenis").value;
-  if (!blokId) { $("qResult").textContent = "Sila tambah blok dahulu."; return; }
+  if (!blokId) { $("qResult").textContent = t("sejarah.tiadaBlok"); return; }
   var siap = data.kerjas.filter(function (k) { return k.blokId === blokId && k.jenis === jenis && (k.status === "Siap" || k.status === "Siap Sebahagian"); })
     .sort(function (a, b) { var da = a.tarikhSiap || a.tarikhRancang, db = b.tarikhSiap || b.tarikhRancang; return da < db ? 1 : -1; });
-  if (!siap.length) { $("qResult").textContent = "Belum ada rekod siap untuk " + jenis + " di " + blokNama(blokId) + "."; return; }
+  if (!siap.length) { $("qResult").textContent = t("sejarah.terakhirTiada", { jenis: jenisLabel(jenis), blok: blokNama(blokId) }); return; }
   var k = siap[0];
-  $("qResult").textContent = "Terakhir: " + jenis + " di " + blokNama(blokId) + " pada " + fmtDate(k.tarikhSiap || k.tarikhRancang) + (k.bahan ? " — bahan: " + k.bahan : "") + ".";
+  $("qResult").textContent = t("sejarah.terakhirAda", { jenis: jenisLabel(jenis), blok: blokNama(blokId), tarikh: fmtDate(k.tarikhSiap || k.tarikhRancang) }) + (k.bahan ? t("sejarah.terakhirBahan", { bahan: k.bahan }) : "") + ".";
 });
 
 // Eksport / Import / Padam
@@ -2053,13 +2084,13 @@ function muatTurunJSON(obj, nama) {
 }
 $("exportBtn").addEventListener("click", function () {
   muatTurunJSON(Sync.toCloudPayload(data), "kebunku-export-tanpa-gambar-" + todayStr() + ".json");
-  toast("Eksport tanpa gambar dimuat turun.");
+  toast(t("msg.eksport"));
 });
 var _expFull = $("exportFullBtn");
 if (_expFull) _expFull.addEventListener("click", function () {
-  if (!confirm("Eksport penuh termasuk gambar — fail boleh jadi besar. Teruskan?")) return;
+  if (!confirm(t("confirm.eksportPenuh"))) return;
   muatTurunJSON(data, "kebunku-export-penuh-" + todayStr() + ".json");
-  toast("Eksport penuh (termasuk gambar) dimuat turun.");
+  toast(t("msg.eksportPenuh"));
 });
 $("importFile").addEventListener("change", function (e) {
   var file = e.target.files[0]; if (!file) return;
@@ -2068,9 +2099,9 @@ $("importFile").addEventListener("change", function (e) {
     try {
       var d = JSON.parse(reader.result);
       if (!d || !Array.isArray(d.kebuns) || !Array.isArray(d.bloks) || !Array.isArray(d.kerjas)) throw new Error("format");
-      if (!confirm("Import akan menggantikan semua data sekarang. Teruskan?")) return;
-      data = normalData(d); save(); renderAll(); toast("Import berjaya.");
-    } catch (err) { toast("Fail import tidak sah. Pastikan ia fail JSON eksport KebunKu."); }
+      if (!confirm(t("confirm.import"))) return;
+      data = normalData(d); save(); renderAll(); toast(t("msg.importOk"));
+    } catch (err) { toast(t("msg.importGagal")); }
   };
   reader.readAsText(file); e.target.value = "";
 });
@@ -2078,17 +2109,17 @@ var _notiT = $("notiToggle");
 if (_notiT) _notiT.addEventListener("change", function () {
   data.settings = data.settings || tetapanLalai(); data.settings.notifikasiHidup = _notiT.checked; save(); renderAll();
   if (_notiT.checked) semakNotifikasi();
-  toast(_notiT.checked ? "Notifikasi dihidupkan." : "Notifikasi dimatikan.");
+  toast(_notiT.checked ? t("msg.notifHidup") : t("msg.notifMati"));
 });
 var _notiB = $("notiBenarkanBtn");
 if (_notiB) _notiB.addEventListener("click", function () {
-  if (typeof Notification === "undefined") { toast("Pelayar ini tidak menyokong notifikasi."); return; }
+  if (typeof Notification === "undefined") { toast(t("msg.notifTiada")); return; }
   Notification.requestPermission().then(function () { renderNotifikasiStatus(); semakNotifikasi(); });
 });
 $("deleteSampleBtn").addEventListener("click", function () {
   var ada = data.kebuns.some(function (k) { return k.contoh; }) || data.bloks.some(function (k) { return k.contoh; }) || data.kerjas.some(function (k) { return k.contoh; });
-  if (!ada) { toast("Tiada data contoh lagi."); return; }
-  if (!confirm("Padam semua data contoh sahaja? Data anda yang lain dikekalkan.")) return;
+  if (!ada) { toast(t("msg.tiadaContoh")); return; }
+  if (!confirm(t("confirm.padamContoh"))) return;
   try { if (typeof SB !== "undefined" && SB) {
     SB.catatPadam("kebuns", data.kebuns.filter(function (k) { return k.contoh; }).map(function (k) { return k.id; }));
     SB.catatPadam("bloks", data.bloks.filter(function (k) { return k.contoh; }).map(function (k) { return k.id; }));
@@ -2098,37 +2129,37 @@ $("deleteSampleBtn").addEventListener("click", function () {
   data.kebuns = data.kebuns.filter(function (k) { return !k.contoh; });
   data.bloks = data.bloks.filter(function (k) { return !k.contoh && kebunContoh.indexOf(k.kebunId) < 0; });
   data.kerjas = data.kerjas.filter(function (k) { return !k.contoh && kebunContoh.indexOf(k.kebunId) < 0; });
-  save(); renderAll(); toast("Data contoh dipadam. Anda boleh mula dengan data kosong.");
+  save(); renderAll(); toast(t("msg.contohPadam"));
 });
 $("deleteAllBtn").addEventListener("click", function () {
-  if (!confirm("Padam SEMUA data? Tindakan ini tidak boleh dibatalkan. Eksport dahulu jika perlu.")) return;
+  if (!confirm(t("confirm.padamSemua"))) return;
   try { if (typeof SB !== "undefined" && SB) {
     SB.catatPadam("kebuns", data.kebuns.map(function (k) { return k.id; }));
     SB.catatPadam("bloks", data.bloks.map(function (k) { return k.id; }));
     SB.catatPadam("kerjas", data.kerjas.map(function (k) { return k.id; }));
     SB.catatPadam("bahans", data.bahans.map(function (k) { return k.id; }));
   } } catch (e) {}
-  data = emptyData(); save(); renderAll(); toast("Semua data dipadam.");
+  data = emptyData(); save(); renderAll(); toast(t("msg.semuaPadam"));
 });
 
 /* ===== Supabase — butang dalam Ringkasan > Akaun & Sandaran ===== */
 function sbSetStatus(teks) { var el = $("sbStatus"); if (el) el.textContent = teks; }
 function sbJalankanSync(manual) {
-  sbSetStatus("Sync sedang berjalan…");
+  sbSetStatus(t("msg.syncBerjalan"));
   SB.syncPenuh(!manual).then(function (r) {
     data.settings = data.settings || tetapanLalai(); data.settings.backend = "Supabase"; save();
     renderAll();
     try { muatPengumuman(); } catch (e) {}
-    sbSetStatus("Sync siap: " + r.dihantar + " dihantar, " + r.diterima + " diterima. Terakhir sync: " + new Date(SB.syncState().lastSyncAt).toLocaleString("ms-MY") + ".");
-    toast("Sync siap: " + r.dihantar + " dihantar, " + r.diterima + " diterima.");
+    sbSetStatus(t("msg.syncSiapPenuh", { h: r.dihantar, t: r.diterima, s: new Date(SB.syncState().lastSyncAt).toLocaleString(localeSemasa()) }) + ".");
+    toast(t("msg.syncSiap", { h: r.dihantar, t: r.diterima }));
   }).catch(function (e) {
     var msg = (e && e.message) ? e.message : String(e);
-    sbSetStatus("Sync gagal: " + msg + " — semak daftar masuk dan sambungan internet.");
-    if (manual) toast("Sync gagal: " + msg);
+    sbSetStatus(t("msg.syncGagal", { e: msg }));
+    if (manual) toast(t("msg.syncGagalPendek", { e: msg }));
     try { SB.renderStatus(); } catch (e2) {}
     /* Kekalkan mesej gagal di atas: renderStatus menulis semula status
        umum, jadi tulis semula mesej gagal selepas itu. */
-    sbSetStatus("Sync gagal: " + msg + " — semak daftar masuk dan sambungan internet.");
+    sbSetStatus(t("msg.syncGagal", { e: msg }));
   });
 }
 /* ===== Daftar masuk — langkah yang ditunjukkan (satu pada satu masa) ===== */
@@ -2148,15 +2179,15 @@ function sbSelepasLogMasuk(kaedahLabel) {
      overlay pilihan tidak muncul lagi, dan tetamu lama yang daftar masuk akan
      sync data tempatannya ke cloud (last-updated-wins, seperti biasa). */
   data.settings.mod = "akaun"; save(); renderAll();
-  sbSetStatus("Daftar masuk berjaya (" + kaedahLabel + "). Tekan Sync Sekarang untuk muat turun / hantar data.");
-  toast("Daftar masuk berjaya.");
+  sbSetStatus(t("msg.masukBerjaya", { e: kaedahLabel }));
+  toast(t("msg.masukBerjaya2"));
   try { semakNamaPaparan(); } catch (e) {}
   try { muatPengumuman(); } catch (e2) {}
 }
 /* Google — butang di atas kad Supabase. */
 var _sbGoogle = $("sbGoogleBtn");
 if (_sbGoogle) _sbGoogle.addEventListener("click", function () {
-  try { SB.googleLogin(); } catch (e) { sbSetStatus("Daftar masuk Google gagal: " + (e.message || e)); }
+  try { SB.googleLogin(); } catch (e) { sbSetStatus(t("sb.googleGagal", { e: (e.message || e) })); }
 });
 /* Daftar baharu — laluan utama: OTP. Kod 6 digit dihantar ke email; hanya
    pemilik email yang ada kod itu boleh siapkan pendaftaran (anti-spam). */
@@ -2166,35 +2197,35 @@ if (_sbDaftar) _sbDaftar.addEventListener("click", function () {
   try {
     SB.hantarOtp(email, true).then(function () {
       sbOtpEmailDaftar = email;
-      var info = $("sbOtpDaftarInfo"); if (info) info.textContent = "Kod 6 digit dihantar ke " + email + ". Semak inbox / spam.";
+      var info = $("sbOtpDaftarInfo"); if (info) info.textContent = t("msg.kodHantar", { e: email });
       sbTunjukLangkah("otpdaftar");
       SB.mulaCooldownOtp($("sbOtpHantarSemulaBtn"));
-      sbSetStatus("Kod pengesahan dihantar ke " + email + ". Masukkan kod 6 digit dan cipta kata laluan.");
-    }).catch(function (e) { sbSetStatus("Gagal hantar kod: " + (e.message || e)); toast("Gagal hantar kod: " + (e.message || e)); });
-  } catch (e) { sbSetStatus("Gagal hantar kod: " + (e.message || e)); }
+      sbSetStatus(t("msg.kodHantarDaftar", { e: email }));
+    }).catch(function (e) { sbSetStatus(t("msg.gagalHantarKod", { e: (e.message || e) })); toast(t("msg.gagalHantarKod", { e: (e.message || e) })); });
+  } catch (e) { sbSetStatus(t("msg.gagalHantarKod", { e: (e.message || e) })); }
 });
 var _sbOtpSah = $("sbOtpSahkanBtn");
 if (_sbOtpSah) _sbOtpSah.addEventListener("click", function () {
   var kod = $("sbOtpKod") ? $("sbOtpKod").value.trim() : "";
   var kata = $("sbOtpKata") ? $("sbOtpKata").value : "";
-  if (!/^\d{6}$/.test(kod)) { sbSetStatus("Kod pengesahan mesti 6 digit nombor."); return; }
-  if (!kata || kata.length < 6) { sbSetStatus("Kata laluan baharu mesti sekurang-kurangnya 6 aksara."); return; }
+  if (!/^\d{6}$/.test(kod)) { sbSetStatus(t("sb.kod6")); return; }
+  if (!kata || kata.length < 6) { sbSetStatus(t("sb.kata6")); return; }
   SB.sahkanOtp(sbOtpEmailDaftar, kod, "signup").then(function (j) {
     var token = j.session ? j.session.access_token : "";
     /* Tetapkan kata laluan supaya akaun ini juga boleh daftar masuk dengan
        email + kata laluan kemudian. Jika langkah ini gagal, pendaftaran
        tetap sah — pengguna masih boleh daftar masuk dengan kod. */
     return SB.tetapKataLaluan(token, kata).catch(function (eKata) {
-      toast("Daftar berjaya, tetapi kata laluan tidak dapat ditetapkan — guna Daftar Masuk dengan Kod buat masa ini.");
+      toast(t("msg.daftarBerjayaKata"));
     }).then(function () { sbSelepasLogMasuk("Kod Pengesahan"); });
-  }).catch(function (e) { sbSetStatus("Pengesahan gagal: " + (e.message || e)); toast("Pengesahan gagal: " + (e.message || e)); });
+  }).catch(function (e) { sbSetStatus(t("msg.sahkanGagal", { e: (e.message || e) })); toast(t("msg.sahkanGagal", { e: (e.message || e) })); });
 });
 var _sbOtpSemula = $("sbOtpHantarSemulaBtn");
 if (_sbOtpSemula) _sbOtpSemula.addEventListener("click", function () {
   SB.hantarOtp(sbOtpEmailDaftar, true).then(function () {
     SB.mulaCooldownOtp(_sbOtpSemula);
-    sbSetStatus("Kod baharu dihantar ke " + sbOtpEmailDaftar + ".");
-  }).catch(function (e) { sbSetStatus("Gagal hantar kod baharu: " + (e.message || e)); });
+    sbSetStatus(t("msg.kodHantarSemula", { e: sbOtpEmailDaftar }));
+  }).catch(function (e) { sbSetStatus(t("msg.gagalHantarSemula", { e: (e.message || e) })); });
 });
 var _sbOtpTukar = $("sbOtpTukarEmailBtn");
 if (_sbOtpTukar) _sbOtpTukar.addEventListener("click", function () { sbTunjukLangkah("utama"); });
@@ -2205,13 +2236,13 @@ if (_sbDaftarLama) _sbDaftarLama.addEventListener("click", function () {
   try {
     SB.daftar().then(function (h) {
       if (h.perluSahkan) {
-        sbSetStatus("Daftar berjaya — sila sahkan email anda dahulu (semak inbox) jika pengesahan email diperlukan, kemudian Daftar Masuk.");
-        toast("Daftar berjaya. Sahkan email dahulu jika diminta, kemudian Daftar Masuk.");
+        sbSetStatus(t("msg.daftarBerjaya"));
+        toast(t("msg.daftarBerjaya2"));
       } else {
         sbSelepasLogMasuk("Email");
       }
-    }).catch(function (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); toast("Daftar gagal: " + (e.message || e)); });
-  } catch (e) { sbSetStatus("Daftar gagal: " + (e.message || e)); }
+    }).catch(function (e) { sbSetStatus(t("msg.daftarGagal", { e: (e.message || e) })); toast(t("msg.daftarGagal", { e: (e.message || e) })); });
+  } catch (e) { sbSetStatus(t("msg.daftarGagal", { e: (e.message || e) })); }
 });
 /* Daftar masuk email + kata laluan — kekal seperti sebelum ini. */
 var _sbLogin = $("sbLoginBtn");
@@ -2219,8 +2250,8 @@ if (_sbLogin) _sbLogin.addEventListener("click", function () {
   try {
     SB.logMasuk().then(function () {
       sbSelepasLogMasuk("Email");
-    }).catch(function (e) { sbSetStatus("Daftar masuk gagal: " + (e.message || e)); toast("Daftar masuk gagal: " + (e.message || e)); });
-  } catch (e) { sbSetStatus("Daftar masuk gagal: " + (e.message || e)); }
+    }).catch(function (e) { sbSetStatus(t("msg.loginGagal", { e: (e.message || e) })); toast(t("msg.loginGagal", { e: (e.message || e) })); });
+  } catch (e) { sbSetStatus(t("msg.loginGagal", { e: (e.message || e) })); }
 });
 /* Daftar masuk dengan kod — email sedia ada, tanpa kata laluan. */
 var _sbKodLogin = $("sbKodLoginBtn");
@@ -2229,27 +2260,27 @@ if (_sbKodLogin) _sbKodLogin.addEventListener("click", function () {
   try {
     SB.hantarOtp(email, false).then(function () {
       sbOtpEmailLogin = email;
-      var info = $("sbOtpLoginInfo"); if (info) info.textContent = "Kod 6 digit dihantar ke " + email + ". Semak inbox / spam.";
+      var info = $("sbOtpLoginInfo"); if (info) info.textContent = t("msg.kodHantar", { e: email });
       sbTunjukLangkah("otplogin");
       SB.mulaCooldownOtp($("sbOtpLoginHantarSemulaBtn"));
-      sbSetStatus("Kod daftar masuk dihantar ke " + email + ".");
-    }).catch(function (e) { sbSetStatus("Gagal hantar kod daftar masuk: " + (e.message || e) + " — cuba Daftar Masuk dengan kata laluan."); });
-  } catch (e) { sbSetStatus("Gagal hantar kod daftar masuk: " + (e.message || e)); }
+      sbSetStatus(t("msg.kodLoginHantar", { e: email }));
+    }).catch(function (e) { sbSetStatus(t("msg.gagalHantarLogin", { e: (e.message || e) })); });
+  } catch (e) { sbSetStatus(t("msg.gagalHantarLogin2", { e: (e.message || e) })); }
 });
 var _sbOtpLoginSah = $("sbOtpLoginSahkanBtn");
 if (_sbOtpLoginSah) _sbOtpLoginSah.addEventListener("click", function () {
   var kod = $("sbOtpLoginKod") ? $("sbOtpLoginKod").value.trim() : "";
-  if (!/^\d{6}$/.test(kod)) { sbSetStatus("Kod pengesahan mesti 6 digit nombor."); return; }
+  if (!/^\d{6}$/.test(kod)) { sbSetStatus(t("sb.kod6")); return; }
   SB.sahkanOtp(sbOtpEmailLogin, kod, "email").then(function () {
     sbSelepasLogMasuk("Kod Pengesahan");
-  }).catch(function (e) { sbSetStatus("Daftar masuk dengan kod gagal: " + (e.message || e) + " — cuba Daftar Masuk dengan kata laluan."); });
+  }).catch(function (e) { sbSetStatus(t("msg.kodLoginGagal", { e: (e.message || e) })); });
 });
 var _sbOtpLoginSemula = $("sbOtpLoginHantarSemulaBtn");
 if (_sbOtpLoginSemula) _sbOtpLoginSemula.addEventListener("click", function () {
   SB.hantarOtp(sbOtpEmailLogin, false).then(function () {
     SB.mulaCooldownOtp(_sbOtpLoginSemula);
-    sbSetStatus("Kod baharu dihantar ke " + sbOtpEmailLogin + ".");
-  }).catch(function (e) { sbSetStatus("Gagal hantar kod baharu: " + (e.message || e)); });
+    sbSetStatus(t("msg.kodHantarSemula", { e: sbOtpEmailLogin }));
+  }).catch(function (e) { sbSetStatus(t("msg.gagalHantarSemula", { e: (e.message || e) })); });
 });
 var _sbOtpLoginTukar = $("sbOtpLoginTukarEmailBtn");
 if (_sbOtpLoginTukar) _sbOtpLoginTukar.addEventListener("click", function () { sbTunjukLangkah("utama"); });
@@ -2260,7 +2291,7 @@ if (_sbLogout) _sbLogout.addEventListener("click", function () {
        (Daftar Masuk atau Teruskan sebagai Tetamu) pada paparan seterusnya. */
     data.settings = data.settings || tetapanLalai(); data.settings.mod = ""; save();
     _onboardingDitutupSesi = false;
-    renderAll(); toast("Keluar. Data tempatan dikekalkan; data awan tidak dipadam.");
+    renderAll(); toast(t("msg.keluar"));
   });
 });
 var _sbSync = $("sbSyncBtn");
@@ -2268,21 +2299,21 @@ if (_sbSync) _sbSync.addEventListener("click", function () { sbJalankanSync(true
 var _sbAuto = $("sbAutoToggle");
 if (_sbAuto) _sbAuto.addEventListener("change", function () {
   var st = SB.syncState(); st.autoSync = _sbAuto.checked; SB.simpanSyncState(st); renderAll();
-  toast(_sbAuto.checked ? "Sync automatik dihidupkan." : "Sync automatik dimatikan.");
+  toast(_sbAuto.checked ? t("msg.autoHidup") : t("msg.autoMati"));
 });
 /* Butang ini hanya memadam SESI daftar masuk dari peranti ini. Tetapan
    aplikasi (fail config pemilik / tetapan peranti) TIDAK disentuh, dan
    data dalam akaun TIDAK dipadam. */
 var _sbClear = $("sbClearBtn");
 if (_sbClear) _sbClear.addEventListener("click", function () {
-  if (!confirm("Keluar dan padam sesi dari peranti ini? Data dalam akaun anda TIDAK akan dipadam.")) return;
+  if (!confirm(t("confirm.padamSesi"))) return;
   SB.logKeluar().then(function () {
     var em = $("sbEmail"); if (em) em.value = ""; var pw = $("sbPassword"); if (pw) pw.value = "";
     data.settings = data.settings || tetapanLalai(); data.settings.mod = ""; save();
     _onboardingDitutupSesi = false;
     renderAll();
-    sbSetStatus("Sesi sudah dipadam dari peranti ini. Daftar masuk semula untuk sync.");
-    toast("Sesi dipadam dari peranti ini.");
+    sbSetStatus(t("msg.sesiSudahPadam"));
+    toast(t("msg.sesiPadam"));
   });
 });
 
@@ -2292,7 +2323,7 @@ $("kerjaTarikh").value = todayStr();
 daftarGambarInput();
 var _gb = $("gambarBuangBtn"); if (_gb) _gb.addEventListener("click", buangGambar);
 var _kn = $("kerjaNext"); if (_kn) _kn.addEventListener("change", toggleNextCustom);
-toggleNextCustom(); syncPeratusStatus(); setGambarInfo("Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.");
+toggleNextCustom(); syncPeratusStatus(); setGambarInfo(t("f.gambarTiada"));
 /* v3.5 — onboarding, nama paparan, mod tetamu. */
 var _onbLogin = $("onbLoginBtn");
 if (_onbLogin) _onbLogin.addEventListener("click", function () {
@@ -2321,11 +2352,20 @@ var _akaunNamaSimpan = $("akaunNamaSimpanBtn");
 if (_akaunNamaSimpan) _akaunNamaSimpan.addEventListener("click", function () {
   simpanNamaPaparan($("akaunNamaPaparan") ? $("akaunNamaPaparan").value : "");
 });
+/* v3.8 — penukar bahasa (Tetapan dalam Ringkasan). */
+var _bahasaSel = $("bahasaSelect");
+if (_bahasaSel) _bahasaSel.addEventListener("change", function () {
+  var lang = _bahasaSel.value === "en" ? "en" : "ms";
+  data.settings = data.settings || tetapanLalai();
+  data.settings.bahasa = lang; save();
+  terapkanBahasa();
+  toast(t("msg.bahasa"));
+});
 /* Mula: semak dahulu sama ada pelayar baru pulang daripada Google OAuth
    (token dalam hash URL). Jika ya, sesi Google disimpan dan hash dibersihkan
    sebelum paparan pertama; jika tidak, terus render seperti biasa. */
 SB.kendaliOAuthCallback().then(function (hasil) {
-  renderAll();
+  terapkanBahasa();
   try { Iklan.init(); } catch (e) {}
   try { muatPengumuman(); daftarPushNotifications(); } catch (e) {}
   if (hasil && hasil.ok) {
@@ -2336,9 +2376,9 @@ SB.kendaliOAuthCallback().then(function (hasil) {
   }
   semakNotifikasi();
 }).catch(function (e) {
-  renderAll();
+  terapkanBahasa();
   try { Iklan.init(); } catch (e2) {}
   try { daftarPushNotifications(); } catch (e2) {}
-  sbSetStatus("Daftar masuk Google gagal: " + (e.message || e));
+  sbSetStatus(t("sb.googleGagal", { e: (e.message || e) }));
   semakNotifikasi();
 });

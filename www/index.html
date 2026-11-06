@@ -14,23 +14,23 @@
 <div id="onboardingOverlay" class="overlay" hidden>
   <div class="overlay-card">
     <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="72" height="72">
-    <h2>Selamat Datang ke KebunKu</h2>
-    <p class="hint">Rekod kerja kebun anda — kebun, blok, bahan dan dos — semuanya dalam satu tempat, walaupun tanpa internet.</p>
-    <button type="button" class="btn primary besar" id="onbLoginBtn">Daftar Masuk</button>
-    <button type="button" class="btn secondary besar" id="onbGuestBtn">Teruskan sebagai Tetamu</button>
-    <p class="hint">Data tetamu hanya dalam telefon ini dan tidak di-backup ke cloud. Anda boleh daftar masuk kemudian.</p>
+    <h2 data-i18n="onb.title">Selamat Datang ke KebunKu</h2>
+    <p class="hint" data-i18n="onb.desc">Rekod kerja kebun anda — kebun, blok, bahan dan dos — semuanya dalam satu tempat, walaupun tanpa internet.</p>
+    <button type="button" class="btn primary besar" id="onbLoginBtn" data-i18n="onb.login">Daftar Masuk</button>
+    <button type="button" class="btn secondary besar" id="onbGuestBtn" data-i18n="onb.guest">Teruskan sebagai Tetamu</button>
+    <p class="hint" data-i18n="onb.guestNote">Data tetamu hanya dalam telefon ini dan tidak di-backup ke cloud. Anda boleh daftar masuk kemudian.</p>
   </div>
 </div>
 <!-- v3.5: Prompt nama paparan — ditunjuk sekali selepas daftar masuk jika tiada nama disimpan. -->
 <div id="namaModal" class="overlay" hidden>
   <div class="overlay-card">
-    <h2>Nama yang anda ingin gunakan?</h2>
-    <p class="hint">Nama ini dipaparkan pada dashboard anda. Anda boleh ubahnya kemudian dalam Ringkasan &gt; Akaun.</p>
-    <label>Nama Paparan
-      <input type="text" id="namaPaparanInput" placeholder="cth: Jean" autocomplete="name">
+    <h2 data-i18n="nama.title">Nama yang anda ingin gunakan?</h2>
+    <p class="hint" data-i18n="nama.desc">Nama ini dipaparkan pada dashboard anda. Anda boleh ubahnya kemudian dalam Ringkasan &gt; Akaun.</p>
+    <label><span data-i18n="nama.label">Nama Paparan</span>
+      <input type="text" id="namaPaparanInput" placeholder="cth: Jean" data-i18n-ph="nama.ph" autocomplete="name">
     </label>
-    <button type="button" class="btn primary besar" id="namaSimpanBtn">Simpan Nama</button>
-    <p><button type="button" class="linkbtn" id="namaLangkauBtn">Langkau</button></p>
+    <button type="button" class="btn primary besar" id="namaSimpanBtn" data-i18n="nama.save">Simpan Nama</button>
+    <p><button type="button" class="linkbtn" id="namaLangkauBtn" data-i18n="nama.skip">Langkau</button></p>
   </div>
 </div>
 <header class="top">
@@ -38,18 +38,18 @@
     <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="52" height="52">
     <div>
       <h1>KebunKu</h1>
-      <p class="subtitle">Semua Rekod Kebun, Dalam Satu Tempat.</p>
+      <p class="subtitle" data-i18n="header.tagline">Semua Rekod Kebun, Dalam Satu Tempat.</p>
     </div>
   </div>
   <span class="badge" id="todayLabel"></span>
 </header>
 
 <nav class="tabs" aria-label="Navigasi utama">
-  <button type="button" class="tab active" data-tab="hariini"><img src="assets/nav/hariini.svg" alt="" aria-hidden="true"><span>Hari Ini</span></button>
-  <button type="button" class="tab" data-tab="kerja"><img src="assets/nav/kerja.svg" alt="" aria-hidden="true"><span>Kerja</span></button>
-  <button type="button" class="tab" data-tab="kebun"><img src="assets/nav/kebun.svg" alt="" aria-hidden="true"><span>Kebun</span></button>
-  <button type="button" class="tab" data-tab="sejarah"><img src="assets/nav/sejarah.svg" alt="" aria-hidden="true"><span>Sejarah</span></button>
-  <button type="button" class="tab" data-tab="ringkasan"><img src="assets/nav/ringkasan.svg" alt="" aria-hidden="true"><span>Ringkasan</span></button>
+  <button type="button" class="tab active" data-tab="hariini"><img src="assets/nav/hariini.svg" alt="" aria-hidden="true"><span data-i18n="nav.hariini">Hari Ini</span></button>
+  <button type="button" class="tab" data-tab="kerja"><img src="assets/nav/kerja.svg" alt="" aria-hidden="true"><span data-i18n="nav.kerja">Kerja</span></button>
+  <button type="button" class="tab" data-tab="kebun"><img src="assets/nav/kebun.svg" alt="" aria-hidden="true"><span data-i18n="nav.kebun">Kebun</span></button>
+  <button type="button" class="tab" data-tab="sejarah"><img src="assets/nav/sejarah.svg" alt="" aria-hidden="true"><span data-i18n="nav.sejarah">Sejarah</span></button>
+  <button type="button" class="tab" data-tab="ringkasan"><img src="assets/nav/ringkasan.svg" alt="" aria-hidden="true"><span data-i18n="nav.ringkasan">Ringkasan</span></button>
 </nav>
 
 <main>
@@ -60,94 +60,94 @@
     <div id="pengumumanList"></div>
     <div id="dashboardSalam" class="salam"></div>
     <div id="dashboardStat" class="statgrid tiga"></div>
-    <h2>Hari Ini</h2>
-    <p class="section-label">Kerja hari ini &amp; tertunggak</p>
-    <p class="hint">Kerja yang dirancang hari ini, ditambah kerja tertunggak yang belum siap. Kerja tertunggak tidak akan hilang — ia dibawa ke hadapan sehingga siap.</p>
+    <p class="section-label" data-i18n="hariini.label">Kerja hari ini &amp; tertunggak</p>
+    <p class="hint" data-i18n="hariini.hint">Kerja yang dirancang hari ini, ditambah kerja tertunggak yang belum siap. Kerja tertunggak tidak akan hilang — ia dibawa ke hadapan sehingga siap.</p>
     <div id="peringatanList"></div>
     <div id="hariIniList"></div>
     <div class="card">
-      <h3>Rekod Pantas</h3>
-      <p class="hint">Tekan satu jenis kerja untuk pra-isi borang. Lepas itu pilih blok dan tekan Simpan — kurang 30 saat.</p>
+      <h3 data-i18n="hariini.rekodPantas">Rekod Pantas</h3>
+      <p class="hint" data-i18n="hariini.rekodPantasHint">Tekan satu jenis kerja untuk pra-isi borang. Lepas itu pilih blok dan tekan Simpan — kurang 30 saat.</p>
       <div class="quickgrid" id="templateButtons"></div>
-      <button type="button" class="btn secondary" id="copyYesterdayBtn">Salin kerja semalam ke hari ini</button>
+      <button type="button" class="btn secondary" id="copyYesterdayBtn" data-i18n="hariini.salinSemalam">Salin kerja semalam ke hari ini</button>
     </div>
   </section>
 
   <!-- KERJA -->
   <section id="view-kerja" class="view">
-    <h2>Tambah / Ubah Kerja</h2>
+    <p class="eyebrow" data-i18n="tabhead.kerja">Rekod kerja harian</p>
+    <h2 data-i18n="kerja.title">Tambah / Ubah Kerja</h2>
     <form id="kerjaForm" class="card form">
       <input type="hidden" id="kerjaId">
-      <label>Kebun
+      <label><span data-i18n="f.kebun">Kebun</span>
         <select id="kerjaKebun" required></select>
       </label>
-      <label>Blok
+      <label><span data-i18n="f.blok">Blok</span>
         <select id="kerjaBlok"></select>
       </label>
-      <label>Zon / Bahagian Kawasan
+      <label><span data-i18n="f.zon">Zon / Bahagian Kawasan</span>
         <select id="kerjaZon">
-          <option value="Semua Zon">Semua Zon</option>
-          <option value="Atas">Atas</option>
-          <option value="Bawah">Bawah</option>
-          <option value="Tengah">Tengah</option>
-          <option value="Atas &amp; Tengah">Atas &amp; Tengah</option>
-          <option value="Tengah &amp; Bawah">Tengah &amp; Bawah</option>
-          <option value="Atas &amp; Bawah">Atas &amp; Bawah</option>
+          <option value="Semua Zon" data-i18n="zon.Semua Zon">Semua Zon</option>
+          <option value="Atas" data-i18n="zon.Atas">Atas</option>
+          <option value="Bawah" data-i18n="zon.Bawah">Bawah</option>
+          <option value="Tengah" data-i18n="zon.Tengah">Tengah</option>
+          <option value="Atas &amp; Tengah" data-i18n="zon.Atas &amp; Tengah">Atas &amp; Tengah</option>
+          <option value="Tengah &amp; Bawah" data-i18n="zon.Tengah &amp; Bawah">Tengah &amp; Bawah</option>
+          <option value="Atas &amp; Bawah" data-i18n="zon.Atas &amp; Bawah">Atas &amp; Bawah</option>
         </select>
       </label>
-      <label>Jenis Kerja
+      <label><span data-i18n="f.jenis">Jenis Kerja</span>
         <select id="kerjaJenis" required>
-          <option value="Membaja">Membaja</option>
-          <option value="Meracun Rumput">Meracun Rumput</option>
-          <option value="Racun Kulat">Racun Kulat</option>
-          <option value="Racun Serangga">Racun Serangga</option>
-          <option value="Menuai">Menuai</option>
-          <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
-          <option value="Menanam">Menanam</option>
-          <option value="Menyiram">Menyiram</option>
-          <option value="Lain-lain">Lain-lain</option>
+          <option value="Membaja" data-i18n="jenis.Membaja">Membaja</option>
+          <option value="Meracun Rumput" data-i18n="jenis.Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat" data-i18n="jenis.Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga" data-i18n="jenis.Racun Serangga">Racun Serangga</option>
+          <option value="Menuai" data-i18n="jenis.Menuai">Menuai</option>
+          <option value="Pruning" data-i18n="jenis.Pruning">Pruning / Memangkas</option>
+          <option value="Potong Rumput" data-i18n="jenis.Potong Rumput">Potong Rumput / Grasscutter</option>
+          <option value="Menanam" data-i18n="jenis.Menanam">Menanam</option>
+          <option value="Menyiram" data-i18n="jenis.Menyiram">Menyiram</option>
+          <option value="Lain-lain" data-i18n="jenis.Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <label>Jenis kerja lain (jika Lain-lain)
-        <input type="text" id="kerjaJenisLain" placeholder="cth: Menebas, Memangkas">
+      <label><span data-i18n="f.jenisLain">Jenis kerja lain (jika Lain-lain)</span>
+        <input type="text" id="kerjaJenisLain" placeholder="cth: Menebas, Memangkas" data-i18n-ph="f.jenisLainPh">
       </label>
-      <label>Tarikh Dirancang
+      <label><span data-i18n="f.tarikh">Tarikh Dirancang</span>
         <input type="date" id="kerjaTarikh" required>
       </label>
-      <label>Status
+      <label><span data-i18n="f.status">Status</span>
         <select id="kerjaStatus">
-          <option value="Dirancang">Dirancang</option>
-          <option value="Dalam Proses">Dalam Proses</option>
-          <option value="Siap Sebahagian">Siap Sebahagian</option>
-          <option value="Siap">Siap</option>
-          <option value="Tertangguh">Tertangguh</option>
+          <option value="Dirancang" data-i18n="status.Dirancang">Dirancang</option>
+          <option value="Dalam Proses" data-i18n="status.Dalam Proses">Dalam Proses</option>
+          <option value="Siap Sebahagian" data-i18n="status.Siap Sebahagian">Siap Sebahagian</option>
+          <option value="Siap" data-i18n="status.Siap">Siap</option>
+          <option value="Tertangguh" data-i18n="status.Tertangguh">Tertangguh</option>
         </select>
       </label>
-      <label>Peratus Siap
+      <label><span data-i18n="f.peratus">Peratus Siap</span>
         <select id="kerjaPeratus">
-          <option value="0" hidden>0% — Belum Mula</option>
-          <option value="50">50% — Separuh Siap</option>
-          <option value="100" selected>100% — Siap Sepenuhnya</option>
+          <option value="0" hidden data-i18n="peratus.0">0% — Belum Mula</option>
+          <option value="50" data-i18n="peratus.50">50% — Separuh Siap</option>
+          <option value="100" selected data-i18n="peratus.100">100% — Siap Sepenuhnya</option>
         </select>
       </label>
-      <p class="hint">Pilih 50% kalau kerja baru separuh siap, 100% kalau dah siap sepenuhnya. Kerja yang dirancang untuk masa depan disimpan 0% sehingga anda kemaskini.</p>
-      <label>Bahan Digunakan
+      <p class="hint" data-i18n="f.peratusHint">Pilih 50% kalau kerja baru separuh siap, 100% kalau dah siap sepenuhnya. Kerja yang dirancang untuk masa depan disimpan 0% sehingga anda kemaskini.</p>
+      <label><span data-i18n="f.bahan">Bahan Digunakan</span>
         <select id="kerjaBahan"></select>
       </label>
       <p class="hint" id="kerjaHint"></p>
-      <button type="button" class="btn secondary small" id="kerjaGunaSemulaBtn" hidden>Guna Semula Bahan &amp; Dos Terakhir</button>
-      <label id="kerjaBahanBaruRow" hidden>Nama Bahan Baharu (akan disimpan ke pustaka)
-        <input type="text" id="kerjaBahanBaru" placeholder="cth: Baja NPK 12-12-17">
+      <button type="button" class="btn secondary small" id="kerjaGunaSemulaBtn" hidden data-i18n="f.gunaSemula">Guna Semula Bahan &amp; Dos Terakhir</button>
+      <label id="kerjaBahanBaruRow" hidden><span data-i18n="f.bahanBaru">Nama Bahan Baharu (akan disimpan ke pustaka)</span>
+        <input type="text" id="kerjaBahanBaru" placeholder="cth: Baja NPK 12-12-17" data-i18n-ph="f.bahanBaruPh">
       </label>
-      <label id="kerjaBahanLainRow" hidden>Bahan Lain (taip sendiri, tidak disimpan ke pustaka)
-        <input type="text" id="kerjaBahanLain" placeholder="cth: Racun jenama lain">
+      <label id="kerjaBahanLainRow" hidden><span data-i18n="f.bahanLain">Bahan Lain (taip sendiri, tidak disimpan ke pustaka)</span>
+        <input type="text" id="kerjaBahanLain" placeholder="cth: Racun jenama lain" data-i18n-ph="f.bahanLainPh">
       </label>
       <div class="dosrow">
-        <label>Dos — Jumlah
-          <input type="number" id="kerjaDosJumlah" min="0" step="any" placeholder="cth: 200">
+        <label><span data-i18n="f.dosJumlah">Dos — Jumlah</span>
+          <input type="number" id="kerjaDosJumlah" min="0" step="any" placeholder="cth: 200" data-i18n-ph="f.dosJumlahPh">
         </label>
-        <label>Unit
+        <label><span data-i18n="f.dosUnit">Unit</span>
           <select id="kerjaDosUnit">
             <option value="">—</option>
             <option value="g">g</option>
@@ -160,141 +160,142 @@
             <option value="botol">botol</option>
           </select>
         </label>
-        <label>Per
+        <label><span data-i18n="f.dosPer">Per</span>
           <select id="kerjaDosPer">
-            <option value="">Tiada</option>
-            <option value="/pokok">/pokok</option>
-            <option value="/sprayer">/sprayer</option>
-            <option value="/kawasan">/kawasan</option>
-            <option value="/liter air">/liter air</option>
+            <option value="" data-i18n="per.Tiada">Tiada</option>
+            <option value="/pokok" data-i18n="per./pokok">/pokok</option>
+            <option value="/sprayer" data-i18n="per./sprayer">/sprayer</option>
+            <option value="/kawasan" data-i18n="per./kawasan">/kawasan</option>
+            <option value="/liter air" data-i18n="per./liter air">/liter air</option>
           </select>
         </label>
       </div>
-      <p class="hint">Contoh dos: 200 + g + /pokok = “200g/pokok”. 1 + karung + /kawasan = “1 karung/kawasan”.</p>
-      <label>Kos (RM)
-        <input type="number" id="kerjaKos" min="0" step="0.01" placeholder="0.00">
+      <p class="hint" data-i18n="f.dosHint">Contoh dos: 200 + g + /pokok = “200g/pokok”. 1 + karung + /kawasan = “1 karung/kawasan”.</p>
+      <label><span data-i18n="f.kos">Kos (RM)</span>
+        <input type="number" id="kerjaKos" min="0" step="0.01" placeholder="0.00" data-i18n-ph="f.kosPh">
       </label>
-      <label>Kerja Seterusnya
+      <label><span data-i18n="f.next">Kerja Seterusnya</span>
         <select id="kerjaNext">
-          <option value="">Tiada</option>
-          <option value="1 Minggu">1 Minggu</option>
-          <option value="2 Minggu">2 Minggu</option>
-          <option value="3 Minggu">3 Minggu</option>
-          <option value="1 Bulan">1 Bulan</option>
-          <option value="2 Bulan">2 Bulan</option>
-          <option value="3 Bulan">3 Bulan</option>
-          <option value="6 Bulan">6 Bulan</option>
-          <option value="1 Tahun">1 Tahun</option>
-          <option value="Tarikh Custom">Tarikh Custom</option>
+          <option value="" data-i18n="next.Tiada">Tiada</option>
+          <option value="1 Minggu" data-i18n="next.1 Minggu">1 Minggu</option>
+          <option value="2 Minggu" data-i18n="next.2 Minggu">2 Minggu</option>
+          <option value="3 Minggu" data-i18n="next.3 Minggu">3 Minggu</option>
+          <option value="1 Bulan" data-i18n="next.1 Bulan">1 Bulan</option>
+          <option value="2 Bulan" data-i18n="next.2 Bulan">2 Bulan</option>
+          <option value="3 Bulan" data-i18n="next.3 Bulan">3 Bulan</option>
+          <option value="6 Bulan" data-i18n="next.6 Bulan">6 Bulan</option>
+          <option value="1 Tahun" data-i18n="next.1 Tahun">1 Tahun</option>
+          <option value="Tarikh Custom" data-i18n="next.Tarikh Custom">Tarikh Custom</option>
         </select>
       </label>
-      <label id="kerjaNextCustomRow" hidden>Tarikh Custom Kerja Seterusnya
+      <label id="kerjaNextCustomRow" hidden><span data-i18n="f.nextCustom">Tarikh Custom Kerja Seterusnya</span>
         <input type="date" id="kerjaNextCustom">
       </label>
-      <label>Syarat Kerja Seterusnya
+      <label><span data-i18n="f.nextSyarat">Syarat Kerja Seterusnya</span>
         <select id="kerjaNextSyarat">
-          <option value="Tiada syarat">Tiada syarat</option>
-          <option value="Jika belum mula berbuah">Jika belum mula berbuah</option>
-          <option value="Jika masih ada simptom">Jika masih ada simptom</option>
-          <option value="Jika masih ada rumput">Jika masih ada rumput</option>
-          <option value="Jika hujan / cuaca tidak mengizinkan">Jika hujan / cuaca tidak mengizinkan</option>
-          <option value="Lain-lain">Lain-lain</option>
+          <option value="Tiada syarat" data-i18n="syarat.Tiada syarat">Tiada syarat</option>
+          <option value="Jika belum mula berbuah" data-i18n="syarat.Jika belum mula berbuah">Jika belum mula berbuah</option>
+          <option value="Jika masih ada simptom" data-i18n="syarat.Jika masih ada simptom">Jika masih ada simptom</option>
+          <option value="Jika masih ada rumput" data-i18n="syarat.Jika masih ada rumput">Jika masih ada rumput</option>
+          <option value="Jika hujan / cuaca tidak mengizinkan" data-i18n="syarat.Jika hujan / cuaca tidak mengizinkan">Jika hujan / cuaca tidak mengizinkan</option>
+          <option value="Lain-lain" data-i18n="jenis.Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <label id="kerjaNextSyaratLainRow" hidden>Syarat Lain (taip sendiri)
-        <input type="text" id="kerjaNextSyaratLain" placeholder="cth: Jika daun sudah pulih">
+      <label id="kerjaNextSyaratLainRow" hidden><span data-i18n="f.nextSyaratLain">Syarat Lain (taip sendiri)</span>
+        <input type="text" id="kerjaNextSyaratLain" placeholder="cth: Jika daun sudah pulih" data-i18n-ph="f.nextSyaratLainPh">
       </label>
-      <label class="toggle-row"><input type="checkbox" id="kerjaNextTukar"> Tukar bahan lain kali</label>
-      <label id="kerjaNextBahanRow" hidden>Bahan Lain Kali (akan digunakan, bukan bahan lama)
-        <input type="text" id="kerjaNextBahan" placeholder="cth: Racun kulat lain">
+      <label class="toggle-row"><input type="checkbox" id="kerjaNextTukar"> <span data-i18n="f.tukarBahan">Tukar bahan lain kali</span></label>
+      <label id="kerjaNextBahanRow" hidden><span data-i18n="f.nextBahan">Bahan Lain Kali (akan digunakan, bukan bahan lama)</span>
+        <input type="text" id="kerjaNextBahan" placeholder="cth: Racun kulat lain" data-i18n-ph="f.nextBahanPh">
       </label>
-      <p class="hint">Jika kerja baharu disimpan dengan kerja seterusnya, satu kerja susulan yang dirancang akan dicipta automatik pada tarikh itu — bahan dan dos disalin ke susulan, kecuali anda tandakan “Tukar bahan lain kali”, maka susulan akan kosongkan bahan dan ingatkan anda untuk guna bahan baharu. Jika anda mengubah kerja sedia ada, tiada susulan berganda akan dicipta.</p>
-      <label>Nota Ringkas
-        <textarea id="kerjaNota" rows="3" placeholder="cth: Hujan petang, Blok 2 sambung esok"></textarea>
+      <p class="hint" data-i18n="f.nextHint">Jika kerja baharu disimpan dengan kerja seterusnya, satu kerja susulan yang dirancang akan dicipta automatik pada tarikh itu — bahan dan dos disalin ke susulan, kecuali anda tandakan “Tukar bahan lain kali”, maka susulan akan kosongkan bahan dan ingatkan anda untuk guna bahan baharu. Jika anda mengubah kerja sedia ada, tiada susulan berganda akan dicipta.</p>
+      <label><span data-i18n="f.nota">Nota Ringkas</span>
+        <textarea id="kerjaNota" rows="3" placeholder="cth: Hujan petang, Blok 2 sambung esok" data-i18n-ph="f.notaPh"></textarea>
       </label>
-      <label>Gambar Kerja (Pilihan — maksimum 1)
+      <label><span data-i18n="f.gambar">Gambar Kerja (Pilihan — maksimum 1)</span>
         <input type="file" id="kerjaGambar" accept="image/*" capture="environment">
       </label>
       <img id="gambarPreview" class="gambar-preview" alt="" hidden>
-      <p class="hint" id="gambarInfo">Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.</p>
-      <button type="button" class="btn secondary small" id="gambarBuangBtn">Buang Gambar</button>
-      <p class="hint">Gambar akan dimampatkan dahulu (JPEG, maks 1280px, kualiti 0.82) supaya jimat storan dengan kualiti tidak hilang banyak. Gambar disimpan tempatan sahaja dan tidak termasuk dalam eksport JSON biasa.</p>
+      <p class="hint" id="gambarInfo" data-i18n="f.gambarTiada">Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.</p>
+      <button type="button" class="btn secondary small" id="gambarBuangBtn" data-i18n="f.gambarBuang">Buang Gambar</button>
+      <p class="hint" data-i18n="f.gambarMampat">Gambar akan dimampatkan dahulu (JPEG, maks 1280px, kualiti 0.82) supaya jimat storan dengan kualiti tidak hilang banyak. Gambar disimpan tempatan sahaja dan tidak termasuk dalam eksport JSON biasa.</p>
       <div class="row">
-        <button type="submit" class="btn primary" id="kerjaSimpanBtn">Simpan Kerja</button>
-        <button type="button" class="btn secondary" id="kerjaResetBtn">Borang Kosong</button>
+        <button type="submit" class="btn primary" id="kerjaSimpanBtn" data-i18n="f.simpan">Simpan Kerja</button>
+        <button type="button" class="btn secondary" id="kerjaResetBtn" data-i18n="f.reset">Borang Kosong</button>
       </div>
     </form>
-    <h2>Semua Kerja</h2>
+    <h2 data-i18n="kerja.semua">Semua Kerja</h2>
     <div id="semuaKerjaList"></div>
   </section>
 
   <!-- KEBUN & BLOK -->
   <section id="view-kebun" class="view">
-    <h2>Kebun</h2>
+    <p class="eyebrow" data-i18n="tabhead.kebun">Ladang &amp; kawasan</p>
+    <h2 data-i18n="kebun.title">Kebun</h2>
     <form id="kebunForm" class="card form">
-      <label>Nama Kebun
-        <input type="text" id="kebunNama" required placeholder="cth: Kebun A — Sungai">
+      <label><span data-i18n="kebun.nama">Nama Kebun</span>
+        <input type="text" id="kebunNama" required placeholder="cth: Kebun A — Sungai" data-i18n-ph="kebun.namaPh">
       </label>
-      <button type="submit" class="btn primary">Tambah Kebun</button>
+      <button type="submit" class="btn primary" data-i18n="kebun.tambah">Tambah Kebun</button>
     </form>
     <div id="kebunList"></div>
 
-    <h2>Blok</h2>
-    <p class="hint">Setiap blok ada satu jenis tanaman utama. Kerja dipecahkan ikut blok, jadi anda boleh buat Blok 1 hari ini dan Blok 2 esok.</p>
+    <h2 data-i18n="blok.title">Blok</h2>
+    <p class="hint" data-i18n="blok.hint">Setiap blok ada satu jenis tanaman utama. Kerja dipecahkan ikut blok, jadi anda boleh buat Blok 1 hari ini dan Blok 2 esok.</p>
     <form id="blokForm" class="card form">
-      <label>Kebun
+      <label><span data-i18n="f.kebun">Kebun</span>
         <select id="blokKebun" required></select>
       </label>
-      <label>Nama Blok
-        <input type="text" id="blokNama" required placeholder="cth: Blok 1">
+      <label><span data-i18n="blok.nama">Nama Blok</span>
+        <input type="text" id="blokNama" required placeholder="cth: Blok 1" data-i18n-ph="blok.namaPh">
       </label>
-      <label>Tanaman
+      <label><span data-i18n="blok.tanaman">Tanaman</span>
         <select id="blokTanaman" required>
-          <option value="Koko">Koko</option>
-          <option value="Sawit">Sawit</option>
-          <option value="Durian">Durian</option>
-          <option value="Lada">Lada</option>
-          <option value="Sayur">Sayur</option>
-          <option value="Lada &amp; Sayur">Lada &amp; Sayur</option>
-          <option value="Lain-lain">Lain-lain</option>
+          <option value="Koko" data-i18n="tanaman.Koko">Koko</option>
+          <option value="Sawit" data-i18n="tanaman.Sawit">Sawit</option>
+          <option value="Durian" data-i18n="tanaman.Durian">Durian</option>
+          <option value="Lada" data-i18n="tanaman.Lada">Lada</option>
+          <option value="Sayur" data-i18n="tanaman.Sayur">Sayur</option>
+          <option value="Lada &amp; Sayur" data-i18n="tanaman.Lada &amp; Sayur">Lada &amp; Sayur</option>
+          <option value="Lain-lain" data-i18n="jenis.Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <label>Tanaman lain (jika Lain-lain)
-        <input type="text" id="blokTanamanLain" placeholder="cth: Pisang, Getah">
+      <label><span data-i18n="blok.tanamanLain">Tanaman lain (jika Lain-lain)</span>
+        <input type="text" id="blokTanamanLain" placeholder="cth: Pisang, Getah" data-i18n-ph="blok.tanamanLainPh">
       </label>
-      <label>Peringkat Tanaman
+      <label><span data-i18n="blok.peringkat">Peringkat Tanaman</span>
         <select id="blokPeringkat" required>
-          <option value="Bibit / Anak">Bibit / Anak</option>
-          <option value="Matang">Matang</option>
-          <option value="Berbuah">Berbuah</option>
-          <option value="Semua Peringkat">Semua Peringkat</option>
+          <option value="Bibit / Anak" data-i18n="peringkat.Bibit / Anak">Bibit / Anak</option>
+          <option value="Matang" data-i18n="peringkat.Matang">Matang</option>
+          <option value="Berbuah" data-i18n="peringkat.Berbuah">Berbuah</option>
+          <option value="Semua Peringkat" data-i18n="peringkat.Semua Peringkat">Semua Peringkat</option>
         </select>
       </label>
-      <button type="submit" class="btn primary">Tambah Blok</button>
+      <button type="submit" class="btn primary" data-i18n="blok.tambah">Tambah Blok</button>
     </form>
     <div id="blokList"></div>
 
-    <h2>Pustaka Bahan</h2>
-    <p class="hint">Bahan dalam pustaka ini muncul sebagai pilihan dalam borang kerja, ditapis ikut jenis kerja. Tambah bahan yang selalu anda guna di sini — atau pilih “Tambah bahan baharu…” terus dalam borang kerja.</p>
+    <h2 data-i18n="bahan.title">Pustaka Bahan</h2>
+    <p class="hint" data-i18n="bahan.hint">Bahan dalam pustaka ini muncul sebagai pilihan dalam borang kerja, ditapis ikut jenis kerja. Tambah bahan yang selalu anda guna di sini — atau pilih “Tambah bahan baharu…” terus dalam borang kerja.</p>
     <form id="bahanForm" class="card form">
-      <label>Nama Bahan
-        <input type="text" id="bahanNama" required placeholder="cth: NPK 16-16-16, Imidacloprid">
+      <label><span data-i18n="bahan.nama">Nama Bahan</span>
+        <input type="text" id="bahanNama" required placeholder="cth: NPK 16-16-16, Imidacloprid" data-i18n-ph="bahan.namaPh">
       </label>
-      <label>Jenis Kerja
+      <label><span data-i18n="bahan.jenis">Jenis Kerja</span>
         <select id="bahanJenis" required>
-          <option value="Membaja">Membaja</option>
-          <option value="Meracun Rumput">Meracun Rumput</option>
-          <option value="Racun Kulat">Racun Kulat</option>
-          <option value="Racun Serangga">Racun Serangga</option>
-          <option value="Menuai">Menuai</option>
-          <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
-          <option value="Menanam">Menanam</option>
-          <option value="Menyiram">Menyiram</option>
-          <option value="Lain-lain">Lain-lain</option>
+          <option value="Membaja" data-i18n="jenis.Membaja">Membaja</option>
+          <option value="Meracun Rumput" data-i18n="jenis.Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat" data-i18n="jenis.Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga" data-i18n="jenis.Racun Serangga">Racun Serangga</option>
+          <option value="Menuai" data-i18n="jenis.Menuai">Menuai</option>
+          <option value="Pruning" data-i18n="jenis.Pruning">Pruning / Memangkas</option>
+          <option value="Potong Rumput" data-i18n="jenis.Potong Rumput">Potong Rumput / Grasscutter</option>
+          <option value="Menanam" data-i18n="jenis.Menanam">Menanam</option>
+          <option value="Menyiram" data-i18n="jenis.Menyiram">Menyiram</option>
+          <option value="Lain-lain" data-i18n="jenis.Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <label>Unit Lalai
+      <label><span data-i18n="bahan.unit">Unit Lalai</span>
         <select id="bahanUnit">
           <option value="g">g</option>
           <option value="kg">kg</option>
@@ -306,103 +307,104 @@
           <option value="botol">botol</option>
         </select>
       </label>
-      <label>Dos Lalai (pilihan)
-        <input type="text" id="bahanDosLalai" placeholder="cth: 100g, 2kg/pokok, 5ml/sprayer">
+      <label><span data-i18n="bahan.dos">Dos Lalai (pilihan)</span>
+        <input type="text" id="bahanDosLalai" placeholder="cth: 100g, 2kg/pokok, 5ml/sprayer" data-i18n-ph="bahan.dosPh">
       </label>
-      <button type="submit" class="btn primary">Tambah Bahan</button>
+      <button type="submit" class="btn primary" data-i18n="bahan.tambah">Tambah Bahan</button>
     </form>
     <div id="bahanList"></div>
   </section>
 
   <!-- SEJARAH -->
   <section id="view-sejarah" class="view">
-    <h2>Sejarah &amp; Carian</h2>
+    <p class="eyebrow" data-i18n="tabhead.sejarah">Rekod lepas</p>
+    <h2 data-i18n="sejarah.title">Sejarah &amp; Carian</h2>
     <div class="card form">
-      <label>Kebun
-        <select id="fKebun"><option value="">Semua Kebun</option></select>
+      <label><span data-i18n="sejarah.kebun">Kebun</span>
+        <select id="fKebun"><option value="" data-i18n="semua.kebun">Semua Kebun</option></select>
       </label>
-      <label>Blok
-        <select id="fBlok"><option value="">Semua Blok</option></select>
+      <label><span data-i18n="sejarah.blok">Blok</span>
+        <select id="fBlok"><option value="" data-i18n="semua.blok">Semua Blok</option></select>
       </label>
-      <label>Tanaman
+      <label><span data-i18n="sejarah.tanaman">Tanaman</span>
         <select id="fTanaman">
-          <option value="">Semua Tanaman</option>
-          <option value="Koko">Koko</option>
-          <option value="Sawit">Sawit</option>
-          <option value="Durian">Durian</option>
-          <option value="Lada">Lada</option>
-          <option value="Sayur">Sayur</option>
-          <option value="Lada &amp; Sayur">Lada &amp; Sayur</option>
-          <option value="Lain-lain">Lain-lain</option>
+          <option value="" data-i18n="semua.tanaman">Semua Tanaman</option>
+          <option value="Koko" data-i18n="tanaman.Koko">Koko</option>
+          <option value="Sawit" data-i18n="tanaman.Sawit">Sawit</option>
+          <option value="Durian" data-i18n="tanaman.Durian">Durian</option>
+          <option value="Lada" data-i18n="tanaman.Lada">Lada</option>
+          <option value="Sayur" data-i18n="tanaman.Sayur">Sayur</option>
+          <option value="Lada &amp; Sayur" data-i18n="tanaman.Lada &amp; Sayur">Lada &amp; Sayur</option>
+          <option value="Lain-lain" data-i18n="jenis.Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <label>Bahan
-        <select id="fBahan"><option value="">Semua Bahan</option></select>
+      <label><span data-i18n="sejarah.bahan">Bahan</span>
+        <select id="fBahan"><option value="" data-i18n="semua.bahan">Semua Bahan</option></select>
       </label>
-      <label>Zon
+      <label><span data-i18n="sejarah.zon">Zon</span>
         <select id="fZon">
-          <option value="">Semua Zon</option>
-          <option value="Semua Zon">Semua Zon</option>
-          <option value="Atas">Atas</option>
-          <option value="Bawah">Bawah</option>
-          <option value="Tengah">Tengah</option>
-          <option value="Atas &amp; Tengah">Atas &amp; Tengah</option>
-          <option value="Tengah &amp; Bawah">Tengah &amp; Bawah</option>
-          <option value="Atas &amp; Bawah">Atas &amp; Bawah</option>
+          <option value="" data-i18n="semua.zon">Semua Zon</option>
+          <option value="Semua Zon" data-i18n="zon.Semua Zon">Semua Zon</option>
+          <option value="Atas" data-i18n="zon.Atas">Atas</option>
+          <option value="Bawah" data-i18n="zon.Bawah">Bawah</option>
+          <option value="Tengah" data-i18n="zon.Tengah">Tengah</option>
+          <option value="Atas &amp; Tengah" data-i18n="zon.Atas &amp; Tengah">Atas &amp; Tengah</option>
+          <option value="Tengah &amp; Bawah" data-i18n="zon.Tengah &amp; Bawah">Tengah &amp; Bawah</option>
+          <option value="Atas &amp; Bawah" data-i18n="zon.Atas &amp; Bawah">Atas &amp; Bawah</option>
         </select>
       </label>
-      <label>Jenis Kerja
+      <label><span data-i18n="sejarah.jenis">Jenis Kerja</span>
         <select id="fJenis">
-          <option value="">Semua Kerja</option>
-          <option value="Membaja">Membaja</option>
-          <option value="Meracun Rumput">Meracun Rumput</option>
-          <option value="Racun Kulat">Racun Kulat</option>
-          <option value="Racun Serangga">Racun Serangga</option>
-          <option value="Menuai">Menuai</option>
-          <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
-          <option value="Menanam">Menanam</option>
-          <option value="Menyiram">Menyiram</option>
-          <option value="Lain-lain">Lain-lain</option>
+          <option value="" data-i18n="semua.kerja">Semua Kerja</option>
+          <option value="Membaja" data-i18n="jenis.Membaja">Membaja</option>
+          <option value="Meracun Rumput" data-i18n="jenis.Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat" data-i18n="jenis.Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga" data-i18n="jenis.Racun Serangga">Racun Serangga</option>
+          <option value="Menuai" data-i18n="jenis.Menuai">Menuai</option>
+          <option value="Pruning" data-i18n="jenis.Pruning">Pruning / Memangkas</option>
+          <option value="Potong Rumput" data-i18n="jenis.Potong Rumput">Potong Rumput / Grasscutter</option>
+          <option value="Menanam" data-i18n="jenis.Menanam">Menanam</option>
+          <option value="Menyiram" data-i18n="jenis.Menyiram">Menyiram</option>
+          <option value="Lain-lain" data-i18n="jenis.Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <label>Cari Bahan / Nota
-        <input type="text" id="fCari" placeholder="cth: NPK, glyphosate">
+      <label><span data-i18n="sejarah.cari">Cari Bahan / Nota</span>
+        <input type="text" id="fCari" placeholder="cth: NPK, glyphosate" data-i18n-ph="sejarah.cariPh">
       </label>
       <div class="row">
-        <label>Dari Tarikh <input type="date" id="fDari"></label>
-        <label>Hingga Tarikh <input type="date" id="fHingga"></label>
+        <label><span data-i18n="sejarah.dari">Dari Tarikh</span> <input type="date" id="fDari"></label>
+        <label><span data-i18n="sejarah.hingga">Hingga Tarikh</span> <input type="date" id="fHingga"></label>
       </div>
-      <button type="button" class="btn secondary" id="fResetBtn">Kosongkan Tapisan</button>
+      <button type="button" class="btn secondary" id="fResetBtn" data-i18n="sejarah.reset">Kosongkan Tapisan</button>
     </div>
 
     <div class="card">
-      <h3>Bila kali terakhir kerja ini dibuat?</h3>
-      <p class="hint">Contoh: pilih Blok 1 dan Membaja untuk jawab “bila Blok 1 terakhir dibaja?”</p>
-      <label>Blok
+      <h3 data-i18n="sejarah.terakhirTitle">Bila kali terakhir kerja ini dibuat?</h3>
+      <p class="hint" data-i18n="sejarah.terakhirHint">Contoh: pilih Blok 1 dan Membaja untuk jawab “bila Blok 1 terakhir dibaja?”</p>
+      <label><span data-i18n="sejarah.blok">Blok</span>
         <select id="qBlok"></select>
       </label>
-      <label>Jenis Kerja
+      <label><span data-i18n="sejarah.jenis">Jenis Kerja</span>
         <select id="qJenis">
-          <option value="Membaja">Membaja</option>
-          <option value="Meracun Rumput">Meracun Rumput</option>
-          <option value="Racun Kulat">Racun Kulat</option>
-          <option value="Racun Serangga">Racun Serangga</option>
-          <option value="Menuai">Menuai</option>
-          <option value="Pruning">Pruning / Memangkas</option>
-          <option value="Potong Rumput">Potong Rumput / Grasscutter</option>
-          <option value="Menanam">Menanam</option>
-          <option value="Menyiram">Menyiram</option>
-          <option value="Lain-lain">Lain-lain</option>
+          <option value="Membaja" data-i18n="jenis.Membaja">Membaja</option>
+          <option value="Meracun Rumput" data-i18n="jenis.Meracun Rumput">Meracun Rumput</option>
+          <option value="Racun Kulat" data-i18n="jenis.Racun Kulat">Racun Kulat</option>
+          <option value="Racun Serangga" data-i18n="jenis.Racun Serangga">Racun Serangga</option>
+          <option value="Menuai" data-i18n="jenis.Menuai">Menuai</option>
+          <option value="Pruning" data-i18n="jenis.Pruning">Pruning / Memangkas</option>
+          <option value="Potong Rumput" data-i18n="jenis.Potong Rumput">Potong Rumput / Grasscutter</option>
+          <option value="Menanam" data-i18n="jenis.Menanam">Menanam</option>
+          <option value="Menyiram" data-i18n="jenis.Menyiram">Menyiram</option>
+          <option value="Lain-lain" data-i18n="jenis.Lain-lain">Lain-lain</option>
         </select>
       </label>
-      <button type="button" class="btn primary" id="qBtn">Semak Terakhir</button>
+      <button type="button" class="btn primary" id="qBtn" data-i18n="sejarah.semak">Semak Terakhir</button>
       <p id="qResult" class="result"></p>
     </div>
     <!-- v3.6: Sejarah — Kalendar bulan atau Senarai berkumpulan ikut bulan. -->
     <div class="row sejarah-toggle" role="group" aria-label="Paparan sejarah">
-      <button type="button" class="btn secondary small" id="sejarahKalendarBtn">Kalendar</button>
-      <button type="button" class="btn secondary small" id="sejarahSenaraiBtn">Senarai</button>
+      <button type="button" class="btn secondary small" id="sejarahKalendarBtn" data-i18n="sejarah.kalendar">Kalendar</button>
+      <button type="button" class="btn secondary small" id="sejarahSenaraiBtn" data-i18n="sejarah.senarai">Senarai</button>
     </div>
     <div id="sejarahKalendar"></div>
     <div id="sejarahHariList"></div>
@@ -411,23 +413,34 @@
          Disembunyikan sepenuhnya bila iklan dimatikan / tiada ID, supaya
          tiada ruang kosong. Iklan sebenar hanya dimuat bila tab ini aktif. -->
     <div class="slot-iklan" id="slotIklanSejarah" hidden>
-      <p class="iklan-label">Iklan</p>
+      <p class="iklan-label" data-i18n="iklan.label">Iklan</p>
       <div class="iklan-ruang" id="ruangIklanSejarah"></div>
     </div>
   </section>
 
   <!-- RINGKASAN -->
   <section id="view-ringkasan" class="view">
-    <h2>Ringkasan</h2>
+    <p class="eyebrow" data-i18n="tabhead.ringkasan">Gambaran keseluruhan</p>
+    <h2 data-i18n="ringkasan.title">Ringkasan</h2>
     <div class="card panduan">
-      <h3>Cara Guna KebunKu</h3>
+      <h3 data-i18n="panduan.title">Cara Guna KebunKu</h3>
       <ol class="langkah">
-        <li><span class="nombor">1</span><div><b>Daftar masuk</b><p>Guna Google atau email. Data anda hanya anda yang nampak.</p></div></li>
-        <li><span class="nombor">2</span><div><b>Tambah Kebun &amp; Blok</b><p>Sekali sahaja, di tab Kebun — contoh: Kebun A, Blok 1 Koko.</p></div></li>
-        <li><span class="nombor">3</span><div><b>Rekod kerja</b><p>Lepas siap kerja, di tab Kerja: pilih kebun, blok, jenis kerja, bahan dan dos, kemudian pilih 50% (separuh siap) atau 100% (siap).</p></div></li>
-        <li><span class="nombor">4</span><div><b>Semak Hari Ini</b><p>Kerja hari ini dan yang tertunggak ada di tab Hari Ini; kerja tertunggak dibawa ke hadapan sehingga siap.</p></div></li>
-        <li><span class="nombor">5</span><div><b>Data tersimpan automatik</b><p>Selagi daftar masuk, kerja anda di-sync dan boleh didapatkan semula bila tukar telefon — daftar masuk dengan akaun yang sama.</p></div></li>
+        <li><span class="nombor">1</span><div><b data-i18n="panduan.1t">Daftar masuk</b><p data-i18n="panduan.1p">Guna Google atau email. Data anda hanya anda yang nampak.</p></div></li>
+        <li><span class="nombor">2</span><div><b data-i18n="panduan.2t">Tambah Kebun &amp; Blok</b><p data-i18n="panduan.2p">Sekali sahaja, di tab Kebun — contoh: Kebun A, Blok 1 Koko.</p></div></li>
+        <li><span class="nombor">3</span><div><b data-i18n="panduan.3t">Rekod kerja</b><p data-i18n="panduan.3p">Lepas siap kerja, di tab Kerja: pilih kebun, blok, jenis kerja, bahan dan dos, kemudian pilih 50% (separuh siap) atau 100% (siap).</p></div></li>
+        <li><span class="nombor">4</span><div><b data-i18n="panduan.4t">Semak Hari Ini</b><p data-i18n="panduan.4p">Kerja hari ini dan yang tertunggak ada di tab Hari Ini; kerja tertunggak dibawa ke hadapan sehingga siap.</p></div></li>
+        <li><span class="nombor">5</span><div><b data-i18n="panduan.5t">Data tersimpan automatik</b><p data-i18n="panduan.5p">Selagi daftar masuk, kerja anda di-sync dan boleh didapatkan semula bila tukar telefon — daftar masuk dengan akaun yang sama.</p></div></li>
       </ol>
+    </div>
+    <div class="card" id="tetapanCard">
+      <h3 data-i18n="tetapan.title">Tetapan</h3>
+      <label><span data-i18n="tetapan.bahasa">Bahasa / Language</span>
+        <select id="bahasaSelect">
+          <option value="ms">Bahasa Malaysia</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <p class="hint" data-i18n="tetapan.bahasaHint">Bahasa aplikasi ditukar serta-merta. Data anda (nama kebun, blok, bahan dan nota) tidak diterjemahkan.</p>
     </div>
     <div id="ringkasanStat"></div>
     <div class="card" id="ringkasanBulan"></div>
@@ -436,103 +449,103 @@
     <div class="card" id="ringkasanBahan"></div>
 
     <div class="card">
-      <h3>Notifikasi</h3>
-      <p class="hint">Hantar peringatan 2 hari sebelum tarikh kerja. Di web, notifikasi pelayar hanya dihantar bila aplikasi dibuka — ia tidak berfungsi bila aplikasi ditutup sepenuhnya. Di Android, notifikasi tempatan akan berfungsi selepas build dengan plugin LocalNotifications.</p>
-      <label class="toggle-row"><input type="checkbox" id="notiToggle" checked> Hidupkan notifikasi</label>
+      <h3 data-i18n="notif.title">Notifikasi</h3>
+      <p class="hint" data-i18n="notif.hint">Hantar peringatan 2 hari sebelum tarikh kerja. Di web, notifikasi pelayar hanya dihantar bila aplikasi dibuka — ia tidak berfungsi bila aplikasi ditutup sepenuhnya. Di Android, notifikasi tempatan akan berfungsi selepas build dengan plugin LocalNotifications.</p>
+      <label class="toggle-row"><input type="checkbox" id="notiToggle" checked> <span data-i18n="notif.hidup">Hidupkan notifikasi</span></label>
       <p class="hint" id="notiStatus"></p>
-      <button type="button" class="btn secondary" id="notiBenarkanBtn">Benarkan Notifikasi</button>
-      <p class="hint">Butang ini hanya meminta izin pelayar bila anda tekan. Aplikasi tidak akan meminta izin automatik semasa dibuka.</p>
+      <button type="button" class="btn secondary" id="notiBenarkanBtn" data-i18n="notif.benarkan">Benarkan Notifikasi</button>
+      <p class="hint" data-i18n="notif.benarkanHint">Butang ini hanya meminta izin pelayar bila anda tekan. Aplikasi tidak akan meminta izin automatik semasa dibuka.</p>
     </div>
 
     <div class="card">
-      <h3>Akaun</h3>
+      <h3 data-i18n="akaun.title">Akaun</h3>
       <div id="akaunStatus"></div>
 
       <div id="akaunTetamu" hidden>
-        <p><b>Mod Tetamu</b> — data hanya dalam peranti ini dan tidak di-backup ke cloud.</p>
-        <button type="button" class="btn primary" id="akaunGuestLoginBtn">Daftar Masuk untuk Backup</button>
+        <p><b data-i18n="akaun.tetamu">Mod Tetamu</b> <span data-i18n="akaun.tetamuDesc">— data hanya dalam peranti ini dan tidak di-backup ke cloud.</span></p>
+        <button type="button" class="btn primary" id="akaunGuestLoginBtn" data-i18n="akaun.tetamuLogin">Daftar Masuk untuk Backup</button>
       </div>
 
-      <label>Nama Paparan
-        <input type="text" id="akaunNamaPaparan" placeholder="cth: Jean" autocomplete="name">
+      <label><span data-i18n="akaun.nama">Nama Paparan</span>
+        <input type="text" id="akaunNamaPaparan" placeholder="cth: Jean" data-i18n-ph="akaun.namaPh" autocomplete="name">
       </label>
-      <div class="row"><button type="button" class="btn secondary" id="akaunNamaSimpanBtn">Simpan Nama</button></div>
-      <p class="hint">Nama ini dipaparkan pada dashboard (Hari Ini) dan disimpan dalam akaun anda bila daftar masuk.</p>
+      <div class="row"><button type="button" class="btn secondary" id="akaunNamaSimpanBtn" data-i18n="akaun.simpanNama">Simpan Nama</button></div>
+      <p class="hint" data-i18n="akaun.namaHint">Nama ini dipaparkan pada dashboard (Hari Ini) dan disimpan dalam akaun anda bila daftar masuk.</p>
 
-      <button type="button" class="btn google" id="sbGoogleBtn"><span class="gbadge">G</span> Daftar Masuk dengan Google</button>
-      <p class="hint">Paling senang — tiada kata laluan baharu. Anda akan dibawa ke Google, kemudian kembali ke KebunKu.</p>
+      <button type="button" class="btn google" id="sbGoogleBtn"><span class="gbadge">G</span> <span data-i18n="akaun.google">Daftar Masuk dengan Google</span></button>
+      <p class="hint" data-i18n="akaun.googleHint">Paling senang — tiada kata laluan baharu. Anda akan dibawa ke Google, kemudian kembali ke KebunKu.</p>
       <p class="result" id="sbStatus">Belum daftar masuk.</p>
 
       <div id="sbStepUtama">
-        <label>Email
-          <input type="email" id="sbEmail" placeholder="cth: anda@email.com" autocomplete="email">
+        <label><span data-i18n="akaun.email">Email</span>
+          <input type="email" id="sbEmail" placeholder="cth: anda@email.com" data-i18n-ph="akaun.emailPh" autocomplete="email">
         </label>
-        <label>Kata Laluan
-          <input type="password" id="sbPassword" placeholder="Kata laluan akaun anda" autocomplete="current-password">
+        <label><span data-i18n="akaun.kata">Kata Laluan</span>
+          <input type="password" id="sbPassword" placeholder="Kata laluan akaun anda" data-i18n-ph="akaun.kataPh" autocomplete="current-password">
         </label>
         <div class="row">
-          <button type="button" class="btn primary" id="sbDaftarBtn">Daftar (Kod Pengesahan)</button>
-          <button type="button" class="btn primary" id="sbLoginBtn">Daftar Masuk</button>
+          <button type="button" class="btn primary" id="sbDaftarBtn" data-i18n="akaun.daftar">Daftar (Kod Pengesahan)</button>
+          <button type="button" class="btn primary" id="sbLoginBtn" data-i18n="akaun.login">Daftar Masuk</button>
         </div>
         <div class="row">
-          <button type="button" class="btn secondary" id="sbKodLoginBtn">Daftar Masuk dengan Kod</button>
+          <button type="button" class="btn secondary" id="sbKodLoginBtn" data-i18n="akaun.kodLogin">Daftar Masuk dengan Kod</button>
         </div>
-        <p class="hint">Daftar: kami hantar kod 6 digit ke email anda — hanya pemilik email yang ada kod itu boleh siapkan pendaftaran. Ini mengelakkan pendaftaran spam.</p>
+        <p class="hint" data-i18n="akaun.otpHint">Daftar: kami hantar kod 6 digit ke email anda — hanya pemilik email yang ada kod itu boleh siapkan pendaftaran. Ini mengelakkan pendaftaran spam.</p>
       </div>
 
       <div id="sbStepOtpDaftar" hidden>
-        <h3>Daftar — Sahkan Email Anda</h3>
-        <p class="hint" id="sbOtpDaftarInfo">Kod 6 digit dihantar ke email anda.</p>
-        <label>Kod Pengesahan (6 digit)
-          <input type="text" id="sbOtpKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456">
+        <h3 data-i18n="akaun.otpDaftarTitle">Daftar — Sahkan Email Anda</h3>
+        <p class="hint" id="sbOtpDaftarInfo" data-i18n="akaun.otpInfo">Kod 6 digit dihantar ke email anda.</p>
+        <label><span data-i18n="akaun.kod">Kod Pengesahan (6 digit)</span>
+          <input type="text" id="sbOtpKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456" data-i18n-ph="akaun.kodPh">
         </label>
-        <label>Kata Laluan Baharu (min. 6 aksara)
-          <input type="password" id="sbOtpKata" placeholder="Cipta kata laluan untuk daftar masuk kemudian" autocomplete="new-password">
+        <label><span data-i18n="akaun.kataBaru">Kata Laluan Baharu (min. 6 aksara)</span>
+          <input type="password" id="sbOtpKata" placeholder="Cipta kata laluan untuk daftar masuk kemudian" data-i18n-ph="akaun.kataBaruPh" autocomplete="new-password">
         </label>
         <div class="row">
-          <button type="button" class="btn primary" id="sbOtpSahkanBtn">Sahkan &amp; Daftar</button>
-          <button type="button" class="btn secondary" id="sbOtpHantarSemulaBtn">Hantar Semula Kod</button>
+          <button type="button" class="btn primary" id="sbOtpSahkanBtn" data-i18n="akaun.sahkan">Sahkan &amp; Daftar</button>
+          <button type="button" class="btn secondary" id="sbOtpHantarSemulaBtn" data-i18n="akaun.hantarSemula">Hantar Semula Kod</button>
         </div>
-        <p><button type="button" class="linkbtn" id="sbOtpTukarEmailBtn">← Tukar Email</button></p>
-        <p><button type="button" class="linkbtn" id="sbDaftarLamaBtn">Daftar cara lama (pautan email)</button></p>
+        <p><button type="button" class="linkbtn" id="sbOtpTukarEmailBtn" data-i18n="akaun.tukarEmail">← Tukar Email</button></p>
+        <p><button type="button" class="linkbtn" id="sbDaftarLamaBtn" data-i18n="akaun.daftarLama">Daftar cara lama (pautan email)</button></p>
       </div>
 
       <div id="sbStepOtpLogin" hidden>
-        <h3>Daftar Masuk dengan Kod</h3>
-        <p class="hint" id="sbOtpLoginInfo">Kod 6 digit dihantar ke email anda.</p>
-        <label>Kod Pengesahan (6 digit)
-          <input type="text" id="sbOtpLoginKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456">
+        <h3 data-i18n="akaun.otpLoginTitle">Daftar Masuk dengan Kod</h3>
+        <p class="hint" id="sbOtpLoginInfo" data-i18n="akaun.otpInfo">Kod 6 digit dihantar ke email anda.</p>
+        <label><span data-i18n="akaun.kod">Kod Pengesahan (6 digit)</span>
+          <input type="text" id="sbOtpLoginKod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="cth: 123456" data-i18n-ph="akaun.kodPh">
         </label>
         <div class="row">
-          <button type="button" class="btn primary" id="sbOtpLoginSahkanBtn">Sahkan &amp; Daftar Masuk</button>
-          <button type="button" class="btn secondary" id="sbOtpLoginHantarSemulaBtn">Hantar Semula Kod</button>
+          <button type="button" class="btn primary" id="sbOtpLoginSahkanBtn" data-i18n="akaun.sahkanLogin">Sahkan &amp; Daftar Masuk</button>
+          <button type="button" class="btn secondary" id="sbOtpLoginHantarSemulaBtn" data-i18n="akaun.hantarSemula">Hantar Semula Kod</button>
         </div>
-        <p><button type="button" class="linkbtn" id="sbOtpLoginTukarEmailBtn">← Tukar Email</button></p>
+        <p><button type="button" class="linkbtn" id="sbOtpLoginTukarEmailBtn" data-i18n="akaun.tukarEmail">← Tukar Email</button></p>
       </div>
-      <label class="toggle-row"><input type="checkbox" id="sbAutoToggle" checked> Sync Automatik Bila Online</label>
-      <p class="hint">Bila suis ini HIDUP dan anda sudah daftar masuk, setiap kali data tempatan disimpan dan ada internet, aplikasi akan cuba sync automatik (dengan sedikit kelewatan, tanpa menghalang simpanan tempatan).</p>
+      <label class="toggle-row"><input type="checkbox" id="sbAutoToggle" checked> <span data-i18n="akaun.autoSync">Sync Automatik Bila Online</span></label>
+      <p class="hint" data-i18n="akaun.autoSyncHint">Bila suis ini HIDUP dan anda sudah daftar masuk, setiap kali data tempatan disimpan dan ada internet, aplikasi akan cuba sync automatik (dengan sedikit kelewatan, tanpa menghalang simpanan tempatan).</p>
       <div class="row">
-        <button type="button" class="btn primary" id="sbSyncBtn">Sync Sekarang</button>
-        <button type="button" class="btn secondary" id="sbLogoutBtn">Keluar</button>
-        <button type="button" class="btn danger" id="sbClearBtn">Keluar &amp; Padam Sesi Dari Peranti Ini</button>
+        <button type="button" class="btn primary" id="sbSyncBtn" data-i18n="akaun.sync">Sync Sekarang</button>
+        <button type="button" class="btn secondary" id="sbLogoutBtn" data-i18n="akaun.keluar">Keluar</button>
+        <button type="button" class="btn danger" id="sbClearBtn" data-i18n="akaun.padamSesi">Keluar &amp; Padam Sesi Dari Peranti Ini</button>
       </div>
       <p class="hint" id="sbSyncHint" hidden></p>
-      <p class="hint">Butang ini hanya memadam sesi daftar masuk dari peranti ini sahaja. Tetapan aplikasi kekal, dan data anda dalam akaun <b>tidak</b> dipadam. Untuk dapatkan data semula pada peranti baharu, daftar masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
+      <p class="hint" data-i18n="akaun.padamSesiHint">Butang ini hanya memadam sesi daftar masuk dari peranti ini sahaja. Tetapan aplikasi kekal, dan data anda dalam akaun <b>tidak</b> dipadam. Untuk dapatkan data semula pada peranti baharu, daftar masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
     </div>
 
     <div class="card">
-      <h3>Data Saya</h3>
-      <p class="hint">Data disimpan dalam telefon / pelayar ini dahulu (offline-first). Jika anda sudah daftar masuk di atas, data tanpa gambar akan di-sync ke akaun anda. Eksport selalu sebagai sandaran.</p>
+      <h3 data-i18n="data.title">Data Saya</h3>
+      <p class="hint" data-i18n="data.hint">Data disimpan dalam telefon / pelayar ini dahulu (offline-first). Jika anda sudah daftar masuk di atas, data tanpa gambar akan di-sync ke akaun anda. Eksport selalu sebagai sandaran.</p>
       <div class="row">
-        <button type="button" class="btn primary" id="exportBtn">Eksport JSON (Tanpa Gambar)</button>
-        <button type="button" class="btn secondary" id="exportFullBtn">Eksport Penuh (Termasuk Gambar)</button>
-        <label class="btn secondary filebtn">Import JSON
+        <button type="button" class="btn primary" id="exportBtn" data-i18n="data.eksport">Eksport JSON (Tanpa Gambar)</button>
+        <button type="button" class="btn secondary" id="exportFullBtn" data-i18n="data.eksportPenuh">Eksport Penuh (Termasuk Gambar)</button>
+        <label class="btn secondary filebtn"><span data-i18n="data.import">Import JSON</span>
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </label>
       </div>
       <div class="row">
-        <button type="button" class="btn secondary" id="deleteSampleBtn">Padam Data Contoh Sahaja</button>
-        <button type="button" class="btn danger" id="deleteAllBtn">Padam Semua Data</button>
+        <button type="button" class="btn secondary" id="deleteSampleBtn" data-i18n="data.padamContoh">Padam Data Contoh Sahaja</button>
+        <button type="button" class="btn danger" id="deleteAllBtn" data-i18n="data.padamSemua">Padam Semua Data</button>
       </div>
     </div>
 
@@ -540,19 +553,20 @@
          betul-betul sebelum footer. Disembunyikan sepenuhnya bila iklan
          dimatikan / tiada ID, supaya tiada ruang kosong. -->
     <div class="slot-iklan" id="slotIklanRingkasan" hidden>
-      <p class="iklan-label">Iklan</p>
+      <p class="iklan-label" data-i18n="iklan.label">Iklan</p>
       <div class="iklan-ruang" id="ruangIklanRingkasan"></div>
     </div>
   </section>
 </main>
 
 <footer>
-  <p>KebunKu v3.7 — offline-first. Daftar masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
-  <p>© 2026 RJ TECH SOLUTIONS — Hak cipta terpelihara. &nbsp;<a href="privacy.html">Privasi</a></p>
+  <p id="footerUtama">KebunKu v3.8 — offline-first. Daftar masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
+  <p><span data-i18n="footer.hak">© 2026 RJ TECH SOLUTIONS — Hak cipta terpelihara.</span> &nbsp;<a href="privacy.html" data-i18n="footer.privasi">Privasi</a></p>
 </footer>
 
 <script src="supabase-config.js"></script>
 <script src="ads-config.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

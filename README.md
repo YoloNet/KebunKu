@@ -57,6 +57,27 @@ Pengumuman dalam aplikasi (di atas) berfungsi SEKARANG selepas 003 dijalankan �
 
 `android/app/build.gradle`: `versionCode 3`, `versionName "3.6.0"`. `package.json` versi `3.6.0`.
 
+## KebunKu v3.8 — Bahasa (BM / English) + header diperkemas
+
+v3.8 menambah penukar bahasa dalam aplikasi dan memperkemas bahagian atas (header + tajuk tab), tanpa mengubah warna atau susunan sedia ada.
+
+### Bahasa / Language
+
+- **Dua bahasa:** Bahasa Malaysia (lalai) dan English. Tukar dalam **Ringkasan > Tetapan > Bahasa / Language** — bahasa ditukar serta-merta, disimpan dalam peranti, dan kekal selepas aplikasi dibuka semula.
+- **Semua teks antara muka diterjemah:** label navigasi bawah, header, tajuk tab, borang Kerja (label, placeholder, pilihan status/peratus/jenis kerja/zon/tanaman/peringkat/syarat), salam dashboard, kalendar Sejarah (nama bulan + hari), kad Ringkasan, panduan Cara Guna, kad Notifikasi/Akaun/Data Saya, onboarding, dan mesej/toast.
+- **Data pengguna TIDAK diterjemah:** nama kebun, blok, bahan, nota dan nama paparan kekal seperti yang anda taip — hanya teks antara muka bertukar bahasa.
+- **Halaman privasi** (`www/privacy.html`) kekal dalam Bahasa Malaysia buat masa ini.
+- **Menambah bahasa ketiga (untuk developer):** tambah satu objek bahasa baharu dalam `www/i18n.js` (salin semua kunci dari `ms`/`en` — setiap kunci mesti wujud dalam semua bahasa), tambah satu `<option>` dalam dropdown `#bahasaSelect` di `www/index.html`, dan benarkan kod bahasa itu dalam `normalData()` (`www/app.js`). Semak dengan skrip kelengkapan kamus — tiada kunci boleh hilang.
+
+### Header + tajuk tab diperkemas
+
+- Header kini **sticky** (kekal di atas semasa skrol), dengan jubin logo berbayang lembut, tajuk lebih besar/tebal, tagline lebih kecil dalam hijau pudar, dan garis emas nipis di bawah header.
+- Setiap tab kini ada **eyebrow emas** (label kecil huruf besar) di atas tajuk tab yang lebih besar — Hari Ini (dalam blok salam), Kebun, Kerja, Sejarah, Ringkasan. Warna, navigasi bawah dan semua fungsi kekal sama.
+
+### Versi Android (v3.8)
+
+`android/app/build.gradle`: `versionCode 5`, `versionName "3.8.0"`. `package.json` versi `3.8.0`.
+
 ## KebunKu v3.7 — Iklan (infrastruktur, belum dihidupkan)
 
 v3.7 menyediakan infrastruktur iklan Google untuk masa depan. Iklan **DIMATIKAN secara lalai** (`diaktifkan: false` dalam `www/ads-config.js`) — selagi suis itu false, aplikasi tidak memuat sebarang skrip iklan dan tiada ruang iklan yang muncul. Semua ID dihantar sebagai placeholder kosong; tiada ID penerbit/unit sebenar dalam repo.

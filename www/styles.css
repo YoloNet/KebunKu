@@ -210,3 +210,17 @@ footer a { color: var(--green); font-weight: 700; }
 .iklan-ruang { min-height: 100px; display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .iklan-ruang .adsbygoogle { width: 100%; }
 .iklan-pratonton { color: var(--muted); font-size: 13.5px; font-weight: 700; text-align: center; padding: 16px 12px; border: 1.5px dashed var(--line-strong); border-radius: 10px; margin: 10px; line-height: 1.5; }
+
+/* v3.8: Header diperkemas (sticky, jubin logo + bayang lembut, hierarki
+   tajuk/tagline lebih jelas, garis emas di bawah) + eyebrow tajuk tab.
+   Warna sama, tiada gradient, tiada glassmorphism. */
+.top { position: sticky; top: 0; z-index: 30; border-bottom: 3px solid #C08A1A; padding: 12px 16px 14px; }
+.logo { background: #F7F4EC; box-shadow: 0 2px 8px rgba(0,0,0,.28); }
+.top h1 { font-size: 30px; font-weight: 700; }
+.subtitle { font-size: 12.5px; color: #C4D2BC; }
+.eyebrow { margin: 2px 0 0; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.eyebrow + h2 { margin-top: 2px; }
+.salam .eyebrow { color: #E5C878; margin: 0 0 4px; }
+@media (max-width: 420px) {
+  .top h1 { font-size: 28px; }
+}
