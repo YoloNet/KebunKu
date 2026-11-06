@@ -1635,7 +1635,10 @@ var Iklan = {
     var self = this;
     try {
       var p = AM.initialize ? AM.initialize() : null;
-      if (p && p.then) p.then(function () { self._admobSedia = true; }).catch(function () {});
+      /* v3.11: simpan janji initialize supaya tunjukAdmob() boleh menunggu
+         ia selesai — sebelum ini tab pertama selepas iklan dihidupkan
+         sentiasa terlepas kerana _admobSedia masih false ketika itu. */
+      if (p && p.then) { this._admobJanji = p; p.then(function () { self._admobSedia = true; }).catch(function () {}); }
       else this._admobSedia = true;
     } catch (e) {}
   },
@@ -1643,7 +1646,17 @@ var Iklan = {
     var unit = this.slotAdmob(slot);
     if (!unit) { this.sembunyiAdmob(); return; }
     var AM = this._admob();
-    if (!AM || !this._admobSedia) return;
+    if (!AM) return;
+    if (!this._admobSedia) {
+      /* initialize() masih berjalan — tunjuk sebaik sahaja ia selesai,
+         bukan senyap. Janji yang sama digunakan mulaAdmob(); tiada
+         panggilan initialize() kedua. */
+      var self = this;
+      try {
+        if (this._admobJanji && this._admobJanji.then) this._admobJanji.then(function () { self.tunjukAdmob(slot); }).catch(function () {});
+      } catch (e) {}
+      return;
+    }
     if (this._admobUnitAktif === unit && !this._admobDisembunyikan) return;
     var kini = Date.now();
     var self = this;

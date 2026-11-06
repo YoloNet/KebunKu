@@ -110,7 +110,7 @@ lalai Capacitor.
 1. Buka Android Studio.
 2. Pilih **Open** dan pilih folder **`android/`** di dalam repo ini
    (BUKAN folder repo utama — buka folder `android` sebagai projek).
-3. Tunggu **Gradle sync** selesai. Sync pertama memuat turun Gradle 8.14.3
+3. Tunggu **Gradle sync** selesai. Sync pertama memuat turun Gradle 9.8.2
    dan dependencies — perlukan internet dan mengambil masa beberapa minit.
    Ini normal.
 4. Pastikan Gradle menggunakan JDK 21:
@@ -203,6 +203,8 @@ android/app/build/outputs/bundle/release/app-release.aab
 
 | Masalah | Penyelesaian |
 |---|---|
+| Gradle sync gagal: AGP 9.5.0 memerlukan Gradle 9.6.0+ | Pastikan wrapper 9.8.2 — semak `android/gradle/wrapper/gradle-wrapper.properties` mengandungi `gradle-9.8.2-all.zip`. Jangan turunkan Gradle ke 8.x (projek ini kini AGP 9.5.0). |
+| Ralat `ClassCastException` (BaseExtension) / kotlin-android tidak serasi | Jalan keluar sementara yang didokumenkan Google: tambah `android.newDsl=false` dalam `android/gradle.properties`, sync semula, dan laporkan teks ralat penuh kepada Muse. |
 | Gradle sync gagal / ralat JDK | Gradle JDK mesti 21 (langkah 6, nombor 4). Jangan guna JDK 8 atau 17. |
 | "SDK location not found" | Buka SDK Manager dan pasang API 36; atau pastikan `local.properties` mengandungi `sdk.dir` (Android Studio menciptanya automatik). |
 | `npx cap sync` gagal | Jalankan `npm install` semula, kemudian `npx cap sync android` semula. |
@@ -216,7 +218,7 @@ android/app/build/outputs/bundle/release/app-release.aab
 ## 10. Maklumat versi semasa
 
 - `applicationId`: `com.kebunku.app`
-- `versionName`: `3.10.0` — `versionCode`: `8`
+- `versionName`: `3.11.0` — `versionCode`: `9`
 - `compileSdk` / `targetSdk`: `36` — `minSdk`: `24` (Android 7.0 ke atas)
-- Gradle: `8.14.3` — Capacitor: `8` — AGP: `8.13.0`
+- Gradle: `9.8.2` — Capacitor: `8.6.0` — AGP: `9.5.0` — Kotlin: `2.4.10` — google-services: `4.5.0`
 - Pemilik apps: **© 2026 RJ TECH SOLUTIONS**
