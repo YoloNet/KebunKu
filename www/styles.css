@@ -73,6 +73,8 @@ h3 { margin: 0 0 10px; font-size: 17px; }
 .progress { height: 8px; background: #EAE6D8; border-radius: 999px; overflow: hidden; margin: 12px 0 6px; }
 .progress > div { height: 100%; background: var(--green); }
 .overdue { color: var(--danger); font-weight: 800; }
+/* v3.9: mesej ralat inline (nama wajib) */
+.ralat { color: var(--danger); font-weight: 700; font-size: 13px; margin: 8px 0 0; text-align: left; }
 .toast { background: var(--green-dark); color: #fff; padding: 13px 14px; border-radius: 12px; font-weight: 700; }
 .result { font-weight: 700; background: var(--green-soft); padding: 13px; border-radius: 12px; }
 .empty { color: var(--muted); line-height: 1.55; }

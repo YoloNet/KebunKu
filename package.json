@@ -18,6 +18,6 @@
     "cap:sync": "npx cap sync",
     "serve": "python3 -m http.server 8000 --directory www"
   },
-  "version": "3.8.0",
+  "version": "3.9.0",
   "author": "RJ TECH SOLUTIONS"
 }

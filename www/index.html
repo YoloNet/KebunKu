@@ -9,28 +9,41 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<!-- v3.5: Onboarding — pilihan pertama untuk pemasangan baharu (Daftar Masuk / Tetamu).
+<!-- v3.9: Onboarding 2 langkah — LANGKAH 1 wajib isi nama dahulu
+     (tiada langkau), LANGKAH 2 pilihan Daftar Masuk / Tetamu.
      Hanya ditunjukkan bila tiada sesi dan mod belum dipilih; lihat app.js (tunjukOnboarding). -->
 <div id="onboardingOverlay" class="overlay" hidden>
   <div class="overlay-card">
     <img class="logo" src="assets/logo.svg" alt="Logo KebunKu" width="72" height="72">
     <h2 data-i18n="onb.title">Selamat Datang ke KebunKu</h2>
-    <p class="hint" data-i18n="onb.desc">Rekod kerja kebun anda — kebun, blok, bahan dan dos — semuanya dalam satu tempat, walaupun tanpa internet.</p>
-    <button type="button" class="btn primary besar" id="onbLoginBtn" data-i18n="onb.login">Daftar Masuk</button>
-    <button type="button" class="btn secondary besar" id="onbGuestBtn" data-i18n="onb.guest">Teruskan sebagai Tetamu</button>
-    <p class="hint" data-i18n="onb.guestNote">Data tetamu hanya dalam telefon ini dan tidak di-backup ke cloud. Anda boleh daftar masuk kemudian.</p>
+    <div id="onbStepNama">
+      <p class="hint" data-i18n="nama.desc">Nama ini dipaparkan pada dashboard anda. Anda boleh ubahnya kemudian dalam Tetapan &gt; Akaun.</p>
+      <label><span data-i18n="nama.label">Nama Paparan</span>
+        <input type="text" id="onbNamaInput" placeholder="cth: Jean" data-i18n-ph="nama.ph" autocomplete="name">
+      </label>
+      <p class="ralat" id="onbNamaRalat" data-i18n="onb.namaRalat" hidden>Sila isi nama anda dahulu — nama wajib diisi.</p>
+      <button type="button" class="btn primary besar" id="onbNamaTeruskanBtn" data-i18n="onb.teruskan">Teruskan</button>
+    </div>
+    <div id="onbStepPilih" hidden>
+      <p class="hint" data-i18n="onb.desc">Rekod kerja kebun anda — kebun, blok, bahan dan dos — semuanya dalam satu tempat, walaupun tanpa internet.</p>
+      <button type="button" class="btn primary besar" id="onbLoginBtn" data-i18n="onb.login">Daftar Masuk</button>
+      <button type="button" class="btn secondary besar" id="onbGuestBtn" data-i18n="onb.guest">Teruskan sebagai Tetamu</button>
+      <p class="hint" data-i18n="onb.guestNote">Data tetamu hanya dalam telefon ini dan tidak di-backup ke cloud. Anda boleh daftar masuk kemudian.</p>
+    </div>
   </div>
 </div>
-<!-- v3.5: Prompt nama paparan — ditunjuk sekali selepas daftar masuk jika tiada nama disimpan. -->
+<!-- v3.9: Prompt nama paparan — WAJIB dan tidak boleh dilangkau.
+     Ditunjuk bila pengguna sedia ada (tetamu lama / pernah langkau)
+     tiada nama disimpan, dan selepas daftar masuk jika masih tiada nama. -->
 <div id="namaModal" class="overlay" hidden>
   <div class="overlay-card">
     <h2 data-i18n="nama.title">Nama yang anda ingin gunakan?</h2>
-    <p class="hint" data-i18n="nama.desc">Nama ini dipaparkan pada dashboard anda. Anda boleh ubahnya kemudian dalam Ringkasan &gt; Akaun.</p>
+    <p class="hint" data-i18n="nama.desc">Nama ini dipaparkan pada dashboard anda. Anda boleh ubahnya kemudian dalam Tetapan &gt; Akaun.</p>
     <label><span data-i18n="nama.label">Nama Paparan</span>
       <input type="text" id="namaPaparanInput" placeholder="cth: Jean" data-i18n-ph="nama.ph" autocomplete="name">
     </label>
+    <p class="ralat" id="namaRalat" data-i18n="nama.ralat" hidden>Sila isi nama anda dahulu — nama wajib diisi.</p>
     <button type="button" class="btn primary besar" id="namaSimpanBtn" data-i18n="nama.save">Simpan Nama</button>
-    <p><button type="button" class="linkbtn" id="namaLangkauBtn" data-i18n="nama.skip">Langkau</button></p>
   </div>
 </div>
 <header class="top">
@@ -50,6 +63,7 @@
   <button type="button" class="tab" data-tab="kebun"><img src="assets/nav/kebun.svg" alt="" aria-hidden="true"><span data-i18n="nav.kebun">Kebun</span></button>
   <button type="button" class="tab" data-tab="sejarah"><img src="assets/nav/sejarah.svg" alt="" aria-hidden="true"><span data-i18n="nav.sejarah">Sejarah</span></button>
   <button type="button" class="tab" data-tab="ringkasan"><img src="assets/nav/ringkasan.svg" alt="" aria-hidden="true"><span data-i18n="nav.ringkasan">Ringkasan</span></button>
+  <button type="button" class="tab" data-tab="tetapan"><img src="assets/nav/tetapan.svg" alt="" aria-hidden="true"><span data-i18n="nav.tetapan">Tetapan</span></button>
 </nav>
 
 <main>
@@ -212,13 +226,17 @@
       <label><span data-i18n="f.nota">Nota Ringkas</span>
         <textarea id="kerjaNota" rows="3" placeholder="cth: Hujan petang, Blok 2 sambung esok" data-i18n-ph="f.notaPh"></textarea>
       </label>
-      <label><span data-i18n="f.gambar">Gambar Kerja (Pilihan — maksimum 1)</span>
+      <!-- v3.9: Gambar kerja DIMATIKAN buat sementara sehingga hosting
+           gambar sendiri disediakan (GAMBAR_DIMATIKAN dalam app.js).
+           Semua elemen di bawah disembunyikan; data gambar lama yang
+           tersimpan (medan `image`) TIDAK dipadam. -->
+      <label hidden><span data-i18n="f.gambar">Gambar Kerja (Pilihan — maksimum 1)</span>
         <input type="file" id="kerjaGambar" accept="image/*" capture="environment">
       </label>
       <img id="gambarPreview" class="gambar-preview" alt="" hidden>
-      <p class="hint" id="gambarInfo" data-i18n="f.gambarTiada">Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.</p>
-      <button type="button" class="btn secondary small" id="gambarBuangBtn" data-i18n="f.gambarBuang">Buang Gambar</button>
-      <p class="hint" data-i18n="f.gambarMampat">Gambar akan dimampatkan dahulu (JPEG, maks 1280px, kualiti 0.82) supaya jimat storan dengan kualiti tidak hilang banyak. Gambar disimpan tempatan sahaja dan tidak termasuk dalam eksport JSON biasa.</p>
+      <p class="hint" id="gambarInfo" data-i18n="f.gambarTiada" hidden>Tiada gambar. Gambar adalah pilihan — maksimum 1 gambar setiap kerja.</p>
+      <button type="button" class="btn secondary small" id="gambarBuangBtn" data-i18n="f.gambarBuang" hidden>Buang Gambar</button>
+      <p class="hint" data-i18n="f.gambarMampat" hidden>Gambar akan dimampatkan dahulu (JPEG, maks 1280px, kualiti 0.82) supaya jimat storan dengan kualiti tidak hilang banyak. Gambar disimpan tempatan sahaja dan tidak termasuk dalam eksport JSON biasa.</p>
       <div class="row">
         <button type="submit" class="btn primary" id="kerjaSimpanBtn" data-i18n="f.simpan">Simpan Kerja</button>
         <button type="button" class="btn secondary" id="kerjaResetBtn" data-i18n="f.reset">Borang Kosong</button>
@@ -432,29 +450,56 @@
         <li><span class="nombor">5</span><div><b data-i18n="panduan.5t">Data tersimpan automatik</b><p data-i18n="panduan.5p">Selagi daftar masuk, kerja anda di-sync dan boleh didapatkan semula bila tukar telefon — daftar masuk dengan akaun yang sama.</p></div></li>
       </ol>
     </div>
-    <div class="card" id="tetapanCard">
-      <h3 data-i18n="tetapan.title">Tetapan</h3>
-      <label><span data-i18n="tetapan.bahasa">Bahasa / Language</span>
-        <select id="bahasaSelect">
-          <option value="ms">Bahasa Malaysia</option>
-          <option value="en">English</option>
-        </select>
-      </label>
-      <p class="hint" data-i18n="tetapan.bahasaHint">Bahasa aplikasi ditukar serta-merta. Data anda (nama kebun, blok, bahan dan nota) tidak diterjemahkan.</p>
-    </div>
     <div id="ringkasanStat"></div>
     <div class="card" id="ringkasanBulan"></div>
     <div class="card" id="ringkasanMinggu"></div>
     <div class="card" id="ringkasanKebun"></div>
     <div class="card" id="ringkasanBahan"></div>
 
+    <!-- v3.7: Slot iklan Ringkasan — SATU banner, di bawah semua kad dan
+         betul-betul sebelum footer. Disembunyikan sepenuhnya bila iklan
+         dimatikan / tiada ID, supaya tiada ruang kosong. -->
+    <div class="slot-iklan" id="slotIklanRingkasan" hidden>
+      <p class="iklan-label" data-i18n="iklan.label">Iklan</p>
+      <div class="iklan-ruang" id="ruangIklanRingkasan"></div>
+    </div>
+  </section>
+
+  <!-- TETAPAN (v3.9) — semua kandungan bukan ringkasan dipindah ke sini
+       dari Ringkasan: Bahasa, Notifikasi, Akaun & Sandaran. Ringkasan
+       kini hanya panduan + statistik visual + slot iklan (di bawah).
+       Slot iklan kekal di Ringkasan kerana ia slot hasil, bukan tetapan. -->
+  <section id="view-tetapan" class="view">
+    <p class="eyebrow" data-i18n="tabhead.tetapan">Tetapan aplikasi</p>
+    <h2 data-i18n="tetapan.title">Tetapan</h2>
+    <div class="card" id="notifAndroidCard" hidden>
+      <h3 data-i18n="notif.androidTajuk">Benarkan notifikasi?</h3>
+      <p class="hint" data-i18n="notif.androidDesc">Benarkan notifikasi supaya KebunKu boleh ingatkan anda 2 hari sebelum kerja.</p>
+      <div class="row">
+        <button type="button" class="btn primary" id="notifAndroidBenarkanBtn" data-i18n="notif.benarkan">Benarkan Notifikasi</button>
+        <button type="button" class="btn secondary" id="notifAndroidNantiBtn" data-i18n="notif.androidNanti">Nanti</button>
+      </div>
+    </div>
+    <div class="card" id="tetapanCard">
+      <h3 data-i18n="tetapan.bahasa">Bahasa / Language</h3>
+      <label>
+        <select id="bahasaSelect" aria-label="Bahasa / Language">
+          <option value="ms">Bahasa Malaysia</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <p class="hint" data-i18n="tetapan.bahasaHint">Bahasa aplikasi ditukar serta-merta. Data anda (nama kebun, blok, bahan dan nota) tidak diterjemahkan.</p>
+    </div>
+
     <div class="card">
       <h3 data-i18n="notif.title">Notifikasi</h3>
       <p class="hint" data-i18n="notif.hint">Hantar peringatan 2 hari sebelum tarikh kerja. Di web, notifikasi pelayar hanya dihantar bila aplikasi dibuka — ia tidak berfungsi bila aplikasi ditutup sepenuhnya. Di Android, notifikasi tempatan akan berfungsi selepas build dengan plugin LocalNotifications.</p>
       <label class="toggle-row"><input type="checkbox" id="notiToggle" checked> <span data-i18n="notif.hidup">Hidupkan notifikasi</span></label>
       <p class="hint" id="notiStatus"></p>
+      <p class="hint" id="notifDitolakHint" data-i18n="notif.ditolakHint" hidden>Notifikasi ditolak. Hidupkan semula dalam Tetapan telefon &gt; Aplikasi &gt; KebunKu &gt; Notifikasi.</p>
       <button type="button" class="btn secondary" id="notiBenarkanBtn" data-i18n="notif.benarkan">Benarkan Notifikasi</button>
       <p class="hint" data-i18n="notif.benarkanHint">Butang ini hanya meminta izin pelayar bila anda tekan. Aplikasi tidak akan meminta izin automatik semasa dibuka.</p>
+      <p class="hint" id="notifAndroidHint" data-i18n="notif.androidHint" hidden>Di Android, notifikasi tempatan dihantar walaupun aplikasi ditutup.</p>
     </div>
 
     <div class="card">
@@ -531,36 +576,17 @@
       </div>
       <p class="hint" id="sbSyncHint" hidden></p>
       <p class="hint" data-i18n="akaun.padamSesiHint">Butang ini hanya memadam sesi daftar masuk dari peranti ini sahaja. Tetapan aplikasi kekal, dan data anda dalam akaun <b>tidak</b> dipadam. Untuk dapatkan data semula pada peranti baharu, daftar masuk dengan akaun yang sama dan tekan Sync Sekarang — kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.</p>
-    </div>
 
-    <div class="card">
-      <h3 data-i18n="data.title">Data Saya</h3>
-      <p class="hint" data-i18n="data.hint">Data disimpan dalam telefon / pelayar ini dahulu (offline-first). Jika anda sudah daftar masuk di atas, data tanpa gambar akan di-sync ke akaun anda. Eksport selalu sebagai sandaran.</p>
-      <div class="row">
-        <button type="button" class="btn primary" id="exportBtn" data-i18n="data.eksport">Eksport JSON (Tanpa Gambar)</button>
-        <button type="button" class="btn secondary" id="exportFullBtn" data-i18n="data.eksportPenuh">Eksport Penuh (Termasuk Gambar)</button>
-        <label class="btn secondary filebtn"><span data-i18n="data.import">Import JSON</span>
-          <input type="file" id="importFile" accept="application/json,.json" hidden>
-        </label>
+      <div class="row" style="margin-top:14px">
+        <button type="button" class="btn secondary small" id="deleteSampleBtn" data-i18n="data.padamContoh">Padam Data Contoh Sahaja</button>
+        <button type="button" class="btn danger small" id="deleteAllBtn" data-i18n="data.padamSemua">Padam Semua Data</button>
       </div>
-      <div class="row">
-        <button type="button" class="btn secondary" id="deleteSampleBtn" data-i18n="data.padamContoh">Padam Data Contoh Sahaja</button>
-        <button type="button" class="btn danger" id="deleteAllBtn" data-i18n="data.padamSemua">Padam Semua Data</button>
-      </div>
-    </div>
-
-    <!-- v3.7: Slot iklan Ringkasan — SATU banner, di bawah semua kad dan
-         betul-betul sebelum footer. Disembunyikan sepenuhnya bila iklan
-         dimatikan / tiada ID, supaya tiada ruang kosong. -->
-    <div class="slot-iklan" id="slotIklanRingkasan" hidden>
-      <p class="iklan-label" data-i18n="iklan.label">Iklan</p>
-      <div class="iklan-ruang" id="ruangIklanRingkasan"></div>
     </div>
   </section>
 </main>
 
 <footer>
-  <p id="footerUtama">KebunKu v3.8 — offline-first. Daftar masuk dalam Ringkasan &gt; Akaun untuk sync data anda ke akaun anda.</p>
+  <p id="footerUtama">KebunKu v3.9 — offline-first. Daftar masuk dalam Tetapan &gt; Akaun untuk sync data anda ke akaun anda.</p>
   <p><span data-i18n="footer.hak">© 2026 RJ TECH SOLUTIONS — Hak cipta terpelihara.</span> &nbsp;<a href="privacy.html" data-i18n="footer.privasi">Privasi</a></p>
 </footer>
 

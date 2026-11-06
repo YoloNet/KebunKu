@@ -1,6 +1,6 @@
 # KebunKu — Panduan Compile dalam Android Studio
 
-Panduan langkah demi langkah untuk compile KebunKu (v3.8.0) menjadi APK debug
+Panduan langkah demi langkah untuk compile KebunKu (v3.9.0) menjadi APK debug
 (untuk ujian di telefon) dan AAB release (untuk upload ke Google Play Store).
 
 Repo: https://github.com/YoloNet/KebunKu — branch `main`
@@ -174,8 +174,10 @@ android/app/build/outputs/bundle/release/app-release.aab
 6. Upload fail `.aab` itu dalam **Google Play Console** (Create app >
    Production > Create new release).
 7. Untuk setiap release baharu, naikkan `versionCode` (+1) dan `versionName`
-   dalam `android/app/build.gradle` (semasa: `versionCode 5`,
-   `versionName "3.8.0"`).
+   dalam `android/app/build.gradle` (semasa: `versionCode 6`,
+   `versionName "3.9.0"`).
+
+> Nota v3.9: gambar kerja dimatikan buat sementara sehingga hosting gambar sendiri disediakan — input gambar disembunyikan dalam aplikasi (bendera `GAMBAR_DIMATIKAN` dalam `www/app.js`); data gambar lama tidak dipadam.
 
 **Iklan AdMob (pilihan, masa depan):** Infrastruktur iklan sudah ada dalam aplikasi (v3.7) tetapi **dimatikan secara lalai** — AAB yang anda bina sekarang tiada iklan. Jika anda mahu hidupkan iklan AdMob kemudian, lihat seksyen v3.7 dalam README: dapatkan App ID + dua ID unit banner dari akaun AdMob, tambah meta-data `com.google.android.gms.ads.APPLICATION_ID` dalam `android/app/src/main/AndroidManifest.xml`, isi `www/ads-config.js`, tetapkan `diaktifkan: true`, jalankan `npx cap sync android`, dan build semula. Semasa menguji, guna test ad unit IDs Google dahulu — jangan klik iklan sendiri dalam aplikasi sebenar.
 
@@ -212,7 +214,7 @@ android/app/build/outputs/bundle/release/app-release.aab
 ## 10. Maklumat versi semasa
 
 - `applicationId`: `com.kebunku.app`
-- `versionName`: `3.8.0` — `versionCode`: `5`
+- `versionName`: `3.9.0` — `versionCode`: `6`
 - `compileSdk` / `targetSdk`: `34` — `minSdk`: `22`
 - Gradle: `8.2.1` — Capacitor: `6`
 - Pemilik apps: **© 2026 RJ TECH SOLUTIONS**

@@ -18,6 +18,14 @@ var PERINGKAT_LIST = ["Bibit / Anak", "Matang", "Berbuah", "Semua Peringkat"];
 var ZON_LIST = ["Semua Zon", "Atas", "Bawah", "Tengah", "Atas & Tengah", "Tengah & Bawah", "Atas & Bawah"];
 var DOS_UNIT_LIST = ["g", "kg", "ml", "L", "sudu", "karung", "pek", "botol"];
 var DOS_PER_LIST = ["", "/pokok", "/sprayer", "/kawasan", "/liter air"];
+/* ===== v3.9 — Gambar kerja DIMATIKAN buat sementara =====
+   Tiada hosting gambar sendiri lagi, jadi semua UI gambar disembunyikan
+   (input dalam borang Kerja + thumbnail pada kad kerja). Data gambar lama
+   yang tersimpan dalam medan `image` TIDAK dipadam — untuk hidupkan semula:
+   tukar bendera ini kepada false dan buang atribut `hidden` pada elemen
+   gambar dalam www/index.html. Sync Supabase memang sudah membuang gambar. */
+var GAMBAR_DIMATIKAN = true;
+function dalamCapacitor() { return !!(typeof window !== "undefined" && window.Capacitor); }
 var SYARAT_LIST = ["Tiada syarat", "Jika belum mula berbuah", "Jika masih ada simptom", "Jika masih ada rumput", "Jika hujan / cuaca tidak mengizinkan", "Lain-lain"];
 function dosPerLabel(p) { if (!p) return t("misc.tiada"); var v = t("per." + p); return v || p; }
 /* "Membersihkan" ialah nama lama untuk kerja ini — dipaparkan dan
@@ -118,7 +126,7 @@ function composeDos(k) {
 }
 function dosPaparan(k) { var c = composeDos(k); return c || "-"; }
 
-function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung", mod: "", namaPaparan: "", namaDitanya: false, bahasa: "ms" }; }
+function tetapanLalai() { return { notifikasiHidup: true, backend: "belum disambung", mod: "", namaPaparan: "", namaDitanya: false, bahasa: "ms", notifikasiDiminta: false, notifIzin: "" }; }
 /* mod: "" (belum pilih) | "tetamu" (guest, tempatan sahaja) | "akaun" (daftar masuk).
    namaPaparan: nama yang dipaparkan pada dashboard; namaDitanya: true bila
    prompt nama sudah ditunjuk / dilangkau / disimpan, supaya tidak mengganggu
@@ -171,6 +179,8 @@ function normalData(d) {
     if (typeof d.settings.namaPaparan === "string") r.settings.namaPaparan = d.settings.namaPaparan;
     if (typeof d.settings.namaDitanya === "boolean") r.settings.namaDitanya = d.settings.namaDitanya;
     if (d.settings.bahasa === "ms" || d.settings.bahasa === "en") r.settings.bahasa = d.settings.bahasa;
+    if (typeof d.settings.notifikasiDiminta === "boolean") r.settings.notifikasiDiminta = d.settings.notifikasiDiminta;
+    if (typeof d.settings.notifIzin === "string") r.settings.notifIzin = d.settings.notifIzin;
   }
   return r;
 }
@@ -617,7 +627,6 @@ var SB = {
   _autoTimer: null,
   jadualAutoSync: function () {
     if (this.syncSedangBerjalan) return;
-    if (this._lastSyncComplete && (Date.now() - this._lastSyncComplete < 5000)) return;
     var st = this.syncState();
     if (!st.autoSync) return;
     /* v3.5 Mod Tetamu: data tetamu tidak pernah dihantar ke awan. */
@@ -625,12 +634,20 @@ var SB = {
     if (!this.sesi() || !this.cfg().url) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     var self = this;
+    /* v3.9: jika sync baru sahaja selesai (<5 saat), jangan BUANG
+       permintaan ini — jadualkan semula selepas tempoh bertenang, supaya
+       simpanan yang dibuat sejurus selepas sync tetap dihantar (lewat
+       sedikit, bukan hilang). */
+    var lewat = 1500;
+    if (this._lastSyncComplete && (Date.now() - this._lastSyncComplete < 5000)) {
+      lewat = 5000 - (Date.now() - this._lastSyncComplete) + 200;
+    }
     if (this._autoTimer) clearTimeout(this._autoTimer);
     this._autoTimer = setTimeout(function () {
       self.syncPenuh(true).catch(function (e) {
         try { var el = $("sbStatus"); if (el) el.textContent = t("sb.syncAutoGagal", { e: (e.message || e) }); } catch (e2) {}
       });
-    }, 1500);
+    }, lewat);
   },
   syncPenuh: function (auto) {
     var self = this;
@@ -795,6 +812,9 @@ function save() {
   /* Sync automatik Supabase: dijadualkan (debounce), tidak menghalang
      simpanan tempatan, dan tidak berjalan semasa sync sedang berlangsung. */
   try { if (typeof SB !== "undefined" && SB && !SB.syncSedangBerjalan) SB.jadualAutoSync(); } catch (e) {}
+  /* v3.9: jadualkan semula notifikasi tempatan Android bila data berubah
+     (di web / tanpa plugin, panggilan ini tidak buat apa-apa). */
+  try { jadualNotifikasiAndroid(); } catch (e2) {}
 }
 
 function toast(msg) { var el = $("toast"); el.textContent = msg; el.hidden = false; setTimeout(function () { el.hidden = true; }, 3500); }
@@ -924,7 +944,7 @@ function jobCard(k) {
   div.className = "card job";
   div.innerHTML =
     "<div class=\"jobhead\"><img class=\"jobicon\" src=\"assets/icons/" + iconKerja(k.jenis) + "\" alt=\"\"><p class=\"title\">" + esc(jenisPaparan(k)) + " — " + esc(blokNama(k.blokId)) + "</p></div>" +
-    (k.image ? "<img class=\"jobimg\" src=\"" + esc(k.image) + "\" alt=\"" + t("job.gambarAlt") + "\">" : "") +
+    (GAMBAR_DIMATIKAN ? "" : (k.image ? "<img class=\"jobimg\" src=\"" + esc(k.image) + "\" alt=\"" + t("job.gambarAlt") + "\">" : "")) +
     "<p class=\"meta\">" + esc(kebunNama(k.kebunId)) + " • " + esc(tanamanPaparan(k.blokId)) + "<br>" +
     t("job.dirancang") + esc(fmtDate(k.tarikhRancang)) + (overdue ? " <span class=\"overdue\">" + t("job.tertunggak") + "</span>" : "") +
     (k.zon && k.zon !== "Semua Zon" ? "<br>" + t("job.zon") + esc(zonLabel(k.zon)) : "") +
@@ -977,10 +997,24 @@ function renderPeringatan() {
 function renderNotifikasiStatus() {
   var st = $("notiStatus"); if (!st) return;
   var hidup = data.settings && data.settings.notifikasiHidup;
-  var izin = (typeof Notification !== "undefined") ? Notification.permission : t("notif.tidakDisokong");
-  st.textContent = t("notif.status", { s: (hidup ? t("sb.hidup") : t("sb.mati")), izin: izin }) +
+  var izinLabel;
+  if (dalamCapacitor()) {
+    var iz = (data.settings && data.settings.notifIzin) || "";
+    izinLabel = iz === "granted" ? t("notif.izinDibenarkan") : iz === "denied" ? t("notif.izinDitolak") : t("notif.izinBelum");
+  } else {
+    var p = (typeof Notification !== "undefined") ? Notification.permission : "";
+    izinLabel = p === "granted" ? t("notif.izinDibenarkan") : p === "denied" ? t("notif.izinDitolak") : p === "default" ? t("notif.izinBelum") : t("notif.tidakDisokong");
+  }
+  st.textContent = t("notif.statusBaru", { s: (hidup ? t("sb.hidup") : t("sb.mati")), izin: izinLabel }) +
     (hidup ? t("notif.statusHidup") : t("notif.statusMati"));
   var tog = $("notiToggle"); if (tog) tog.checked = !!hidup;
+  /* v3.9: tunjuk panduan bila ditolak; sembunyi butang Benarkan bila sudah
+     dibenarkan; hint Android hanya dalam APK. */
+  var ditolak = dalamCapacitor() ? ((data.settings && data.settings.notifIzin) === "denied") : ((typeof Notification !== "undefined") && Notification.permission === "denied");
+  var dh = $("notifDitolakHint"); if (dh) dh.hidden = !ditolak;
+  var dibenarkan = dalamCapacitor() ? ((data.settings && data.settings.notifIzin) === "granted") : ((typeof Notification !== "undefined") && Notification.permission === "granted");
+  var bb = $("notiBenarkanBtn"); if (bb) bb.hidden = dibenarkan;
+  var ah = $("notifAndroidHint"); if (ah) ah.hidden = !dalamCapacitor();
 }
 function renderAkaunStatus() {
   var el = $("akaunStatus"); if (!el) return;
@@ -1012,22 +1046,118 @@ function renderAkaunStatus() {
 function semakNotifikasi() {
   try {
     if (!data.settings || !data.settings.notifikasiHidup) return;
-    /* Capacitor LocalNotifications — hanya berfungsi selepas build Android.
+    /* v3.9: Capacitor LocalNotifications — dijadualkan oleh
+       jadualNotifikasiAndroid() (09:00, 2 hari sebelum tarikh kerja).
        Dijaga supaya tidak buat apa-apa di web jika plugin tiada. */
-    try {
-      var LN = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) ? window.Capacitor.Plugins.LocalNotifications : null;
-      if (LN && LN.schedule) {
-        var lusa = addDays(todayStr(), 2);
-        var due = data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === lusa; }).slice(0, 5);
-        if (due.length) { LN.schedule({ notifications: due.map(function (k, i) { return { title: t("notif.tajuk"), body: jenisPaparan(k) + " — " + blokNama(k.blokId), id: 1000 + i, schedule: { at: new Date(todayStr() + "T08:00:00") } }; }) }).catch(function () {}); }
-      }
-    } catch (eCap) { /* abaikan di web */ }
+    try { jadualNotifikasiAndroid(); } catch (eCap) { /* abaikan di web */ }
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
     var lusa2 = addDays(todayStr(), 2);
     data.kerjas.filter(function (k) { return k.status !== "Siap" && k.tarikhRancang === lusa2; }).slice(0, 5).forEach(function (k) {
       try { new Notification(t("notif.tajuk"), { body: jenisPaparan(k) + " — " + blokNama(k.blokId) + " (" + fmtDate(k.tarikhRancang) + ")" }); } catch (eN) {}
     });
   } catch (e) {}
+}
+/* ===== v3.9 — Notifikasi tempatan Android (LocalNotifications) =====
+   Plugin @capacitor/local-notifications sudah dipasang (package.json
+   ^6.0.0, berdaftar dalam capacitor.plugins.json). Semua panggilan
+   dijaga (try/catch + semakan plugin) supaya web dan APK tanpa plugin
+   tidak pernah rosak.
+   - Izin HANYA diminta selepas kad penjelasan ditunjuk dan pengguna
+     tekan "Benarkan Notifikasi" — tidak pernah automatik. Ditanya
+     sekali sahaja (settings.notifikasiDiminta).
+   - Jadual: kerja Dirancang yang tarikhnya dalam 14 hari akan datang,
+     notifikasi pada 09:00 tempatan, 2 hari sebelum tarikh kerja.
+     Notifikasi lama (id 2000–2999) dibatalkan dahulu setiap kali
+     dijadualkan semula, supaya tiada notifikasi basi. Jika masa 09:00
+     hari itu sudah lepas (pengguna buka aplikasi petang), plugin akan
+     hantar notifikasi itu tidak lama kemudian pada hari yang sama.
+   - Status izin disimpan dalam settings.notifIzin ("granted" /
+     "denied" / "prompt") supaya kad Tetapan > Notifikasi boleh
+     memaparkannya tanpa panggilan async setiap kali render. */
+function lnPlugin() {
+  try {
+    return (typeof window !== "undefined" && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || null;
+  } catch (e) { return null; }
+}
+function idNotifikasi(k) {
+  var h = 0, s = String((k && k.id) || "");
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
+  return 2000 + h;
+}
+function jadualNotifikasiAndroid() {
+  try {
+    var LN = lnPlugin(); if (!LN || !LN.schedule) return;
+    if (!data.settings || !data.settings.notifikasiHidup) return;
+    if ((data.settings.notifIzin || "") === "denied") return;
+    var hr = todayStr(), had = addDays(hr, 14);
+    var senarai = data.kerjas.filter(function (k) {
+      return k.status === "Dirancang" && k.tarikhRancang && k.tarikhRancang >= hr && k.tarikhRancang <= had;
+    }).sort(function (a, b) { return a.tarikhRancang < b.tarikhRancang ? -1 : 1; }).slice(0, 10);
+    var notifs = senarai.map(function (k) {
+      return { id: idNotifikasi(k), title: t("notif.tajuk"),
+        body: t("notif.badan", { jenis: jenisPaparan(k), blok: blokNama(k.blokId) }),
+        schedule: { at: new Date(addDays(k.tarikhRancang, -2) + "T09:00:00") } };
+    });
+    var buat = function () { try { LN.schedule({ notifications: notifs }).catch(function () {}); } catch (e) {} };
+    if (LN.getPending && LN.cancel) {
+      LN.getPending().then(function (res) {
+        var ada = (res && res.notifications) || [];
+        var ids = ada.map(function (n) { return n.id; }).filter(function (id) { return id >= 2000 && id < 3000; });
+        if (ids.length) {
+          try { LN.cancel({ notifications: ids.map(function (id) { return { id: id }; }) }).catch(function () {}).then(buat, buat); }
+          catch (e) { buat(); }
+        } else buat();
+      }).catch(buat);
+    } else buat();
+  } catch (e) {}
+}
+/* Semak izin semasa dari plugin (sekali semasa mula) supaya status dalam
+   Tetapan > Notifikasi tepat walaupun pengguna ubah izin dalam Tetapan telefon. */
+function semakIzinNotifikasiAndroid() {
+  try {
+    var LN = lnPlugin(); if (!LN || !LN.checkPermissions) return;
+    LN.checkPermissions().then(function (res) {
+      var d = (res && res.display) || "";
+      if (d === "granted" || d === "denied" || d === "prompt") {
+        data.settings = data.settings || tetapanLalai();
+        if (data.settings.notifIzin !== d) { data.settings.notifIzin = d; save(); }
+        renderNotifikasiStatus();
+      }
+    }).catch(function () {});
+  } catch (e) {}
+}
+/* Minta izin Android — dipanggil HANYA dari butang selepas kad penjelasan. */
+function mintaIzinNotifikasiAndroid() {
+  var LN = lnPlugin();
+  if (!LN || !LN.requestPermissions) return false;
+  data.settings = data.settings || tetapanLalai();
+  data.settings.notifikasiDiminta = true; save();
+  kemaskiniKadNotifikasiAndroid();
+  LN.requestPermissions().then(function (res) {
+    var d = (res && res.display) || "";
+    data.settings = data.settings || tetapanLalai();
+    if (d === "granted" || d === "denied" || d === "prompt") data.settings.notifIzin = d;
+    save(); renderNotifikasiStatus();
+    if (d === "granted") jadualNotifikasiAndroid();
+    toast(d === "granted" ? t("msg.notifHidup") : t("msg.notifMati"));
+  }).catch(function () { renderNotifikasiStatus(); });
+  return true;
+}
+/* Kad penjelasan Android — hanya dalam Capacitor, hanya sekali (belum
+   ditanya) dan hanya bila notifikasi masih hidup. */
+function kemaskiniKadNotifikasiAndroid() {
+  var kad = $("notifAndroidCard"); if (!kad) return;
+  var tunjuk = dalamCapacitor() && !(data.settings && data.settings.notifikasiDiminta) && !!(data.settings && data.settings.notifikasiHidup);
+  kad.hidden = !tunjuk;
+}
+/* Selepas onboarding selesai dalam APK: tunjuk kad penjelasan dengan
+   pergi ke tab Tetapan sekali — supaya pengguna nampaknya. */
+function tunjukKadNotifikasiAndroid() {
+  if (!dalamCapacitor()) return;
+  if (!data.settings || data.settings.notifikasiDiminta) return;
+  if (!data.settings.notifikasiHidup) return;
+  kemaskiniKadNotifikasiAndroid();
+  setTab("tetapan");
 }
 /* v3.6: senarai Kerja dipaginasi 10 demi 10 (terkini dahulu). Kerja yang
    sudah Siap (100%) TIDAK dipaparkan di sini — ia hanya dalam Sejarah. */
@@ -1283,7 +1413,7 @@ function renderRingkasan() {
       }).join("") : "<p class=\"hint\">" + t("ring.bahanTiada") + "</p>");
   }
 }
-function renderAll() { refreshSelects(); refreshBahanSelect(); renderDashboard(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} tunjukOnboarding(); kemaskiniUiTetamu(); kemaskiniButangContoh(); renderPengumuman(); }
+function renderAll() { refreshSelects(); refreshBahanSelect(); renderDashboard(); renderHariIni(); renderPeringatan(); renderSemuaKerja(); renderKebunBlok(); renderSejarah(); renderRingkasan(); renderNotifikasiStatus(); renderAkaunStatus(); try { if (typeof SB !== "undefined" && SB) SB.renderStatus(); } catch (e) {} tunjukOnboarding(); kemaskiniUiTetamu(); kemaskiniButangContoh(); kemaskiniKadNotifikasiAndroid(); semakNamaWajib(); renderPengumuman(); }
 
 /* v3.6: butang "Padam Data Contoh Sahaja" hanya muncul bila masih ada
    data contoh (pengguna lama yang pernah muat contoh) — pengguna baharu
@@ -1598,12 +1728,22 @@ function perluOnboarding() {
 }
 function tunjukOnboarding() {
   var el = $("onboardingOverlay"); if (!el) return;
-  el.hidden = !perluOnboarding();
+  var perlu = perluOnboarding();
+  el.hidden = !perlu;
+  if (!perlu) return;
+  /* v3.9: langkah 1 (nama) dahulu jika belum ada nama; jika nama sudah
+     disimpan (cth. pengguna keluar kemudian buka semula), terus langkah 2. */
+  var adaNama = !!namaPaparan();
+  var s1 = $("onbStepNama"), s2 = $("onbStepPilih");
+  if (s1) s1.hidden = adaNama;
+  if (s2) s2.hidden = !adaNama;
+  if (!adaNama) { var r = $("onbNamaRalat"); if (r) r.hidden = true; }
 }
 function tutupOnboarding() { _onboardingDitutupSesi = true; var el = $("onboardingOverlay"); if (el) el.hidden = true; }
 function pilihTetamu() {
   data.settings = data.settings || tetapanLalai(); data.settings.mod = "tetamu"; save();
   tutupOnboarding(); renderAll(); toast(t("msg.tetamu"));
+  try { tunjukKadNotifikasiAndroid(); } catch (e) {}
 }
 /* Mod Tetamu dalam UI: Sync Sekarang dilumpuhkan dengan hint, suis sync
    automatik dilumpuhkan, dan kad Akaun menunjukkan butang daftar masuk. */
@@ -1618,29 +1758,47 @@ function kemaskiniUiTetamu() {
   var akaunTetamu = $("akaunTetamu");
   if (akaunTetamu) akaunTetamu.hidden = !tetamu;
 }
-/* Nama paparan — ditanya sekali selepas daftar masuk jika belum ada. */
+/* Nama paparan — WAJIB (v3.9). Modal ini tidak boleh ditutup tanpa nama:
+   tiada butang langkau, dan simpanNamaPaparan menolak nama kosong. */
 function tunjukNamaModal() {
   var m = $("namaModal"); if (!m) return;
   var inp = $("namaPaparanInput"); if (inp) inp.value = namaPaparan();
+  var r = $("namaRalat"); if (r) r.hidden = true;
   m.hidden = false;
 }
 function sembunyiNamaModal() { var m = $("namaModal"); if (m) m.hidden = true; }
+/* v3.9: pengguna sedia ada yang tiada nama disimpan (tetamu lama / pernah
+   tekan Langkau) nampak prompt nama yang tidak boleh ditutup sehingga
+   nama diisi. Pengguna baharu isi nama dalam langkah 1 onboarding, jadi
+   modal ini tidak muncul serentak dengan onboarding. */
+function semakNamaWajib() {
+  try {
+    if (perluOnboarding()) return;
+    if (namaPaparan()) { sembunyiNamaModal(); return; }
+    tunjukNamaModal();
+  } catch (e) {}
+}
 function simpanNamaPaparan(nama, senyap) {
   nama = (nama || "").trim();
+  /* v3.9: nama wajib — kosong ditolak, modal kekal terbuka. */
+  if (!nama) { if (!senyap) toast(t("msg.namaWajib")); return false; }
   data.settings = data.settings || tetapanLalai();
   data.settings.namaPaparan = nama; data.settings.namaDitanya = true; save();
   sembunyiNamaModal(); renderAll();
   var sesi = null; try { sesi = SB.sesi(); } catch (e) {}
-  if (nama && sesi && sesi.access_token) {
+  if (sesi && sesi.access_token) {
     /* Best effort — kegagalan tidak menghalang simpanan tempatan. */
     SB.simpanNamaKeAkaun(nama).catch(function () {});
   }
-  if (!senyap) toast(nama ? t("msg.namaSimpan") : t("msg.namaKosong"));
+  /* v3.9: selepas nama disimpan dan pengguna sudah daftar masuk, pastikan
+     sync automatik berjalan (backup nama + data) tanpa perlu tekan manual. */
+  try { syncAutoJikaMasuk(); } catch (e2) {}
+  if (!senyap) toast(t("msg.namaSimpan"));
+  return true;
 }
 /* Selepas daftar masuk: jika tiada nama paparan, cuba ambil daripada akaun
    (user_metadata.nama_paparan, atau full_name untuk Google); jika masih
-   tiada, tunjuk prompt sekali sahaja (namaDitanya dicatat bila dilangkau
-   atau disimpan, supaya tidak mengganggu setiap kali dibuka). */
+   tiada, tunjuk prompt nama yang WAJIB (v3.9 — tiada lagi langkau). */
 function semakNamaPaparan() {
   var sesi = null; try { sesi = SB.sesi(); } catch (e) {}
   if (!sesi) return;
@@ -1652,10 +1810,9 @@ function semakNamaPaparan() {
       data.settings = data.settings || tetapanLalai();
       data.settings.namaPaparan = nama; save(); renderAll(); return;
     }
-    if (data.settings && data.settings.namaDitanya) return;
     tunjukNamaModal();
   }).catch(function () {
-    if (data.settings && !data.settings.namaDitanya) tunjukNamaModal();
+    tunjukNamaModal();
   });
 }
 /* Daftar masuk Google yang berjaya — web (hash) dan APK (deep link) berkongsi
@@ -1671,6 +1828,7 @@ function selepasGoogleBerjaya(hasil) {
   sbSetStatus(t("msg.googleBerjaya", { e: ((hasil && hasil.email) || "") }));
   toast(t("msg.googleBerjayaPendek", { e: ((hasil && hasil.email) || "") }));
   try { muatPengumuman(); } catch (e) {}
+  try { tunjukKadNotifikasiAndroid(); } catch (e2) {}
 }
 /* Dipanggil oleh listener AppUrlOpen (plugin App) dalam APK selepas Google
    memulangkan pengguna melalui deep link com.kebunku.app://login-callback. */
@@ -1753,8 +1911,9 @@ $("bahanForm").addEventListener("submit", function (e) {
 
 // Gambar kerja: maksimum 1, dimampatkan, tempatan sahaja
 var gambarSemasa = null;
-function setGambarInfo(teks) { var el = $("gambarInfo"); if (el) el.textContent = teks || ""; }
+function setGambarInfo(teks) { if (GAMBAR_DIMATIKAN) return; var el = $("gambarInfo"); if (el) el.textContent = teks || ""; }
 function paparGambarSemasa() {
+  if (GAMBAR_DIMATIKAN) return;
   var img = $("gambarPreview"); if (!img) return;
   if (gambarSemasa) { img.src = gambarSemasa; img.hidden = false; } else { img.removeAttribute("src"); img.hidden = true; }
 }
@@ -2076,35 +2235,10 @@ $("qBtn").addEventListener("click", function () {
   $("qResult").textContent = t("sejarah.terakhirAda", { jenis: jenisLabel(jenis), blok: blokNama(blokId), tarikh: fmtDate(k.tarikhSiap || k.tarikhRancang) }) + (k.bahan ? t("sejarah.terakhirBahan", { bahan: k.bahan }) : "") + ".";
 });
 
-// Eksport / Import / Padam
-function muatTurunJSON(obj, nama) {
-  var blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
-  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nama; a.click();
-  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-}
-$("exportBtn").addEventListener("click", function () {
-  muatTurunJSON(Sync.toCloudPayload(data), "kebunku-export-tanpa-gambar-" + todayStr() + ".json");
-  toast(t("msg.eksport"));
-});
-var _expFull = $("exportFullBtn");
-if (_expFull) _expFull.addEventListener("click", function () {
-  if (!confirm(t("confirm.eksportPenuh"))) return;
-  muatTurunJSON(data, "kebunku-export-penuh-" + todayStr() + ".json");
-  toast(t("msg.eksportPenuh"));
-});
-$("importFile").addEventListener("change", function (e) {
-  var file = e.target.files[0]; if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function () {
-    try {
-      var d = JSON.parse(reader.result);
-      if (!d || !Array.isArray(d.kebuns) || !Array.isArray(d.bloks) || !Array.isArray(d.kerjas)) throw new Error("format");
-      if (!confirm(t("confirm.import"))) return;
-      data = normalData(d); save(); renderAll(); toast(t("msg.importOk"));
-    } catch (err) { toast(t("msg.importGagal")); }
-  };
-  reader.readAsText(file); e.target.value = "";
-});
+/* v3.9: Kad "Data Saya" (eksport/import JSON) DIBUANG — backup kini
+   automatik melalui sync Supabase sahaja (lihat jadualAutoSync /
+   syncAutoJikaMasuk). Butang padam data di bawah kekal, kini dalam
+   Tetapan > Akaun. */
 var _notiT = $("notiToggle");
 if (_notiT) _notiT.addEventListener("change", function () {
   data.settings = data.settings || tetapanLalai(); data.settings.notifikasiHidup = _notiT.checked; save(); renderAll();
@@ -2113,8 +2247,24 @@ if (_notiT) _notiT.addEventListener("change", function () {
 });
 var _notiB = $("notiBenarkanBtn");
 if (_notiB) _notiB.addEventListener("click", function () {
+  /* v3.9: dalam APK, minta izin LocalNotifications; di web, izin pelayar. */
+  if (dalamCapacitor()) {
+    if (mintaIzinNotifikasiAndroid()) return;
+    toast(t("msg.notifTiada"));
+    return;
+  }
   if (typeof Notification === "undefined") { toast(t("msg.notifTiada")); return; }
   Notification.requestPermission().then(function () { renderNotifikasiStatus(); semakNotifikasi(); });
+});
+/* v3.9: butang pada kad penjelasan Android (Tetapan) — izin hanya diminta
+   dari sini (atau dari butang Benarkan di atas), tidak pernah automatik. */
+var _nab = $("notifAndroidBenarkanBtn");
+if (_nab) _nab.addEventListener("click", function () { mintaIzinNotifikasiAndroid(); });
+var _nan = $("notifAndroidNantiBtn");
+if (_nan) _nan.addEventListener("click", function () {
+  data.settings = data.settings || tetapanLalai();
+  data.settings.notifikasiDiminta = true; save();
+  kemaskiniKadNotifikasiAndroid();
 });
 $("deleteSampleBtn").addEventListener("click", function () {
   var ada = data.kebuns.some(function (k) { return k.contoh; }) || data.bloks.some(function (k) { return k.contoh; }) || data.kerjas.some(function (k) { return k.contoh; });
@@ -2142,7 +2292,7 @@ $("deleteAllBtn").addEventListener("click", function () {
   data = emptyData(); save(); renderAll(); toast(t("msg.semuaPadam"));
 });
 
-/* ===== Supabase — butang dalam Ringkasan > Akaun & Sandaran ===== */
+/* ===== Supabase — butang dalam Tetapan > Akaun & Sandaran ===== */
 function sbSetStatus(teks) { var el = $("sbStatus"); if (el) el.textContent = teks; }
 function sbJalankanSync(manual) {
   sbSetStatus(t("msg.syncBerjalan"));
@@ -2161,6 +2311,17 @@ function sbJalankanSync(manual) {
        umum, jadi tulis semula mesej gagal selepas itu. */
     sbSetStatus(t("msg.syncGagal", { e: msg }));
   });
+}
+/* v3.9: sync automatik jika sudah daftar masuk (bukan tetamu) — dipanggil
+   selepas nama disimpan dan semasa mula aplikasi, supaya backup berjalan
+   tanpa perlu tekan Sync Sekarang. */
+function syncAutoJikaMasuk() {
+  try {
+    if (typeof SB === "undefined" || !SB) return;
+    if (data.settings && data.settings.mod === "tetamu") return;
+    if (!SB.sesi() || !SB.cfg().url) return;
+    SB.jadualAutoSync();
+  } catch (e) {}
 }
 /* ===== Daftar masuk — langkah yang ditunjukkan (satu pada satu masa) ===== */
 var sbLangkahSemasa = "utama";
@@ -2183,6 +2344,8 @@ function sbSelepasLogMasuk(kaedahLabel) {
   toast(t("msg.masukBerjaya2"));
   try { semakNamaPaparan(); } catch (e) {}
   try { muatPengumuman(); } catch (e2) {}
+  try { syncAutoJikaMasuk(); } catch (e3) {}
+  try { tunjukKadNotifikasiAndroid(); } catch (e4) {}
 }
 /* Google — butang di atas kad Supabase. */
 var _sbGoogle = $("sbGoogleBtn");
@@ -2320,15 +2483,36 @@ if (_sbClear) _sbClear.addEventListener("click", function () {
 // Mula
 $("todayLabel").textContent = fmtDate(todayStr());
 $("kerjaTarikh").value = todayStr();
-daftarGambarInput();
+/* v3.9: gambar dimatikan — jangan daftar input gambar. */
+if (!GAMBAR_DIMATIKAN) daftarGambarInput();
 var _gb = $("gambarBuangBtn"); if (_gb) _gb.addEventListener("click", buangGambar);
 var _kn = $("kerjaNext"); if (_kn) _kn.addEventListener("change", toggleNextCustom);
-toggleNextCustom(); syncPeratusStatus(); setGambarInfo(t("f.gambarTiada"));
-/* v3.5 — onboarding, nama paparan, mod tetamu. */
+toggleNextCustom(); syncPeratusStatus(); if (!GAMBAR_DIMATIKAN) setGambarInfo(t("f.gambarTiada"));
+/* v3.9 — onboarding 2 langkah (nama wajib dahulu, kemudian pilihan
+   Daftar Masuk / Tetamu), nama paparan wajib, mod tetamu. */
+var _onbNamaBtn = $("onbNamaTeruskanBtn");
+if (_onbNamaBtn) _onbNamaBtn.addEventListener("click", function () {
+  var nama = $("onbNamaInput") ? $("onbNamaInput").value.trim() : "";
+  var ralat = $("onbNamaRalat");
+  if (!nama) {
+    if (ralat) ralat.hidden = false;
+    var inp = $("onbNamaInput"); if (inp) inp.focus();
+    return;
+  }
+  if (ralat) ralat.hidden = true;
+  data.settings = data.settings || tetapanLalai();
+  data.settings.namaPaparan = nama; data.settings.namaDitanya = true; save();
+  try { syncAutoJikaMasuk(); } catch (e) {}
+  renderAll();
+});
+var _onbNamaInp = $("onbNamaInput");
+if (_onbNamaInp) _onbNamaInp.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); var b = $("onbNamaTeruskanBtn"); if (b) b.click(); }
+});
 var _onbLogin = $("onbLoginBtn");
 if (_onbLogin) _onbLogin.addEventListener("click", function () {
   tutupOnboarding();
-  setTab("ringkasan");
+  setTab("tetapan");
   sbTunjukLangkah("utama");
   var em = $("sbEmail"); if (em) em.focus();
 });
@@ -2341,12 +2525,14 @@ if (_guestLogin) _guestLogin.addEventListener("click", function () {
 });
 var _namaSimpan = $("namaSimpanBtn");
 if (_namaSimpan) _namaSimpan.addEventListener("click", function () {
-  simpanNamaPaparan($("namaPaparanInput") ? $("namaPaparanInput").value : "");
+  var v = $("namaPaparanInput") ? $("namaPaparanInput").value : "";
+  if (!v.trim()) { var r = $("namaRalat"); if (r) r.hidden = false; return; }
+  var r2 = $("namaRalat"); if (r2) r2.hidden = true;
+  simpanNamaPaparan(v);
 });
-var _namaLangkau = $("namaLangkauBtn");
-if (_namaLangkau) _namaLangkau.addEventListener("click", function () {
-  data.settings = data.settings || tetapanLalai(); data.settings.namaDitanya = true; save();
-  sembunyiNamaModal();
+var _namaInp = $("namaPaparanInput");
+if (_namaInp) _namaInp.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); var b = $("namaSimpanBtn"); if (b) b.click(); }
 });
 var _akaunNamaSimpan = $("akaunNamaSimpanBtn");
 if (_akaunNamaSimpan) _akaunNamaSimpan.addEventListener("click", function () {
@@ -2368,6 +2554,10 @@ SB.kendaliOAuthCallback().then(function (hasil) {
   terapkanBahasa();
   try { Iklan.init(); } catch (e) {}
   try { muatPengumuman(); daftarPushNotifications(); } catch (e) {}
+  /* v3.9: semak izin notifikasi Android dan sync automatik bila sudah
+     daftar masuk — kedua-duanya dijaga supaya tidak ganggu mula aplikasi. */
+  try { semakIzinNotifikasiAndroid(); } catch (e2) {}
+  try { syncAutoJikaMasuk(); } catch (e3) {}
   if (hasil && hasil.ok) {
     selepasGoogleBerjaya(hasil);
     sbJalankanSync(true);
@@ -2379,6 +2569,8 @@ SB.kendaliOAuthCallback().then(function (hasil) {
   terapkanBahasa();
   try { Iklan.init(); } catch (e2) {}
   try { daftarPushNotifications(); } catch (e2) {}
+  try { semakIzinNotifikasiAndroid(); } catch (e3) {}
+  try { syncAutoJikaMasuk(); } catch (e4) {}
   sbSetStatus(t("sb.googleGagal", { e: (e.message || e) }));
   semakNotifikasi();
 });

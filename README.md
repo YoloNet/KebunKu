@@ -57,14 +57,28 @@ Pengumuman dalam aplikasi (di atas) berfungsi SEKARANG selepas 003 dijalankan �
 
 `android/app/build.gradle`: `versionCode 3`, `versionName "3.6.0"`. `package.json` versi `3.6.0`.
 
+## KebunKu v3.9 — Nama wajib, tab Tetapan, tiada Data Saya, notifikasi Android, gambar dimatikan
+
+v3.9 menyusun semula aplikasi mengikut 5 permintaan Jean:
+
+1. **Nama wajib + salam bernama.** Nama paparan kini WAJIB: pemasangan baharu mesti isi nama dahulu (langkah 1 onboarding — kosong ditolak dengan mesej ralat, tiada langkau), barulah langkah 2 (Daftar Masuk / Tetamu). Pengguna lama yang tiada nama disimpan (tetamu lama / pernah tekan "Langkau") akan nampak prompt nama yang tidak boleh ditutup sehingga nama diisi. Pautan "Langkau" dibuang. Salam dashboard sentiasa bernama: "Selamat pagi, Jean" / "Good morning, Jean". Nama kekal boleh diubah dalam Tetapan > Akaun.
+2. **Tab Tetapan baharu (6 tab).** Navigasi bawah kini 6 item: Hari Ini, Kerja, Kebun, Sejarah, Ringkasan, Tetapan (ikon gear `www/assets/nav/tetapan.svg`). Semua kandungan bukan ringkasan dipindah keluar dari Ringkasan ke Tetapan: Bahasa, Notifikasi, dan Akaun & Sandaran (daftar masuk/sync). Ringkasan kini HANYA panduan Cara Guna + statistik visual (kad nombor, donut, bar 7 hari, ikut kebun, bahan). Slot iklan Ringkasan KEKAL di Ringkasan (bawah, di bawah statistik) kerana ia slot hasil, bukan tetapan; slot Sejarah juga kekal. Butang "Daftar Masuk" dalam onboarding kini membuka tab Tetapan.
+3. **Kad "Data Saya" dibuang.** Butang eksport/import JSON dan semua aliran eksport/import dibuang sepenuhnya. Backup kini automatik melalui sync Supabase sahaja: setiap simpanan tempatan menjadualkan auto-sync (debounce; jika sync baru sahaja selesai, permintaan tidak dibuang — ia dijadualkan semula selepas tempoh bertenang 5 saat), sync juga berjalan semasa mula aplikasi bila sudah daftar masuk, dan selepas nama disimpan. Butang "Sync Sekarang" kekal (kini dalam Tetapan > Akaun). Butang "Padam Data Contoh Sahaja" (hanya bila ada data contoh) dan "Padam Semua Data" (dengan dialog pengesahan) dipindah ke bawah kad Akaun dalam Tetapan. Langkah 5 panduan Cara Guna sudah menyatakan data tersimpan automatik bila daftar masuk.
+4. **Notifikasi Android (LocalNotifications).** Plugin `@capacitor/local-notifications` sudah dipasang (`^6.0.0`, berdaftar dalam `capacitor.plugins.json`) — tiada pemasangan baharu diperlukan. Aliran: selepas onboarding selesai dalam APK, aplikasi pergi ke tab Tetapan sekali dan tunjuk kad penjelasan ringkas ("Benarkan notifikasi supaya KebunKu boleh ingatkan anda 2 hari sebelum kerja" + butang Benarkan Notifikasi / Nanti). Izin natif HANYA diminta selepas pengguna tekan Benarkan — tidak pernah automatik — dan hanya sekali (`settings.notifikasiDiminta`). Kerja Dirancang yang tarikhnya dalam 14 hari akan datang dijadualkan notifikasi pada 09:00 tempatan, 2 hari sebelum tarikh kerja (tajuk/badan ikut bahasa semasa); notifikasi lama dibatalkan dahulu setiap kali dijadualkan semula, dan penjadualan diulang bila data berubah (simpan/padam/ubah/sync) dan semasa mula. Kad Tetapan > Notifikasi menunjukkan status izin (Dibenarkan / Ditolak / Belum ditanya) + suis hidup/mati + butang Benarkan bila belum dibenarkan + panduan hidupkan semula dalam Tetapan telefon bila ditolak. Semua panggilan plugin dijaga (try/catch + semakan plugin) — di web dan APK tanpa plugin, aplikasi tidak terjejas dan tiada permintaan dibuat. Laluan notifikasi web (izin pelayar, hanya bila aplikasi dibuka) kekal seperti sebelum ini. Nota: jika pengguna buka aplikasi selepas 09:00 pada hari notifikasi, plugin akan hantar notifikasi itu tidak lama kemudian pada hari yang sama.
+5. **Gambar kerja dimatikan buat sementara.** Input gambar dalam borang Kerja dan thumbnail pada kad kerja disembunyikan (bendera `GAMBAR_DIMATIKAN = true` di atas `www/app.js` — untuk hidupkan semula: tukar kepada `false` dan buang atribut `hidden` pada elemen gambar dalam `www/index.html`). Data gambar lama yang tersimpan dalam medan `image` TIDAK dipadam, dan mengedit kerja lama yang ada gambar tidak akan memadam gambarnya. Sync Supabase memang sudah membuang gambar. Gambar akan dihidupkan semula bila Jean ada hosting gambar sendiri.
+
+### Versi Android (v3.9)
+
+`android/app/build.gradle`: `versionCode 6`, `versionName "3.9.0"`. `package.json` versi `3.9.0`.
+
 ## KebunKu v3.8 — Bahasa (BM / English) + header diperkemas
 
 v3.8 menambah penukar bahasa dalam aplikasi dan memperkemas bahagian atas (header + tajuk tab), tanpa mengubah warna atau susunan sedia ada.
 
 ### Bahasa / Language
 
-- **Dua bahasa:** Bahasa Malaysia (lalai) dan English. Tukar dalam **Ringkasan > Tetapan > Bahasa / Language** — bahasa ditukar serta-merta, disimpan dalam peranti, dan kekal selepas aplikasi dibuka semula.
-- **Semua teks antara muka diterjemah:** label navigasi bawah, header, tajuk tab, borang Kerja (label, placeholder, pilihan status/peratus/jenis kerja/zon/tanaman/peringkat/syarat), salam dashboard, kalendar Sejarah (nama bulan + hari), kad Ringkasan, panduan Cara Guna, kad Notifikasi/Akaun/Data Saya, onboarding, dan mesej/toast.
+- **Dua bahasa:** Bahasa Malaysia (lalai) dan English. Tukar dalam **Tetapan > Bahasa / Language** — bahasa ditukar serta-merta, disimpan dalam peranti, dan kekal selepas aplikasi dibuka semula.
+- **Semua teks antara muka diterjemah:** label navigasi bawah, header, tajuk tab, borang Kerja (label, placeholder, pilihan status/peratus/jenis kerja/zon/tanaman/peringkat/syarat), salam dashboard, kalendar Sejarah (nama bulan + hari), kad Ringkasan, panduan Cara Guna, kad Tetapan (Bahasa, Notifikasi, Akaun), onboarding, dan mesej/toast.
 - **Data pengguna TIDAK diterjemah:** nama kebun, blok, bahan, nota dan nama paparan kekal seperti yang anda taip — hanya teks antara muka bertukar bahasa.
 - **Halaman privasi** (`www/privacy.html`) kekal dalam Bahasa Malaysia buat masa ini.
 - **Menambah bahasa ketiga (untuk developer):** tambah satu objek bahasa baharu dalam `www/i18n.js` (salin semua kunci dari `ms`/`en` — setiap kunci mesti wujud dalam semua bahasa), tambah satu `<option>` dalam dropdown `#bahasaSelect` di `www/index.html`, dan benarkan kod bahasa itu dalam `normalData()` (`www/app.js`). Semak dengan skrip kelengkapan kamus — tiada kunci boleh hilang.
@@ -166,7 +180,7 @@ v3.4 memuktamadkan Ringkasan untuk pengguna biasa — mereka hanya belajar guna 
 2. **Tetapan sambungan kini dalam fail `www/supabase-config.js`** (diisi SEKALI oleh pemilik): `window.KEBUNKU_SUPABASE = { url: "", anon: "" }`. Pemilik salin Project URL dan anon public key daripada Supabase Dashboard > Project Settings > API. Fail yang dihantar dalam repo ini dibiarkan KOSONG — jangan commit kunci sebenar. Jika fail kosong, aplikasi masih berfungsi dengan tetapan yang pernah disimpan dalam peranti itu (`kebunku_supabase_config_v1`); jika tiada langsung, pengguna nampak mesej mesra "Aplikasi ini belum dikonfigurasi oleh pemilik."
 3. **Butang "Log Keluar & Padam Sesi Dari Peranti Ini"** (dahulu "Padam Tetapan Supabase") kini hanya memadam SESI log masuk dari peranti itu. Tetapan aplikasi tidak disentuh dan data dalam akaun tidak dipadam.
 4. **Panduan "Cara Guna KebunKu"** di atas Ringkasan: 5 langkah bernombor — log masuk, tambah kebun & blok, rekod kerja (50% / 100%), semak Hari Ini, dan data tersimpan automatik.
-5. Kad Akaun, Notifikasi, dan Data Saya yang lain tidak berubah fungsi; Ringkasan visual (kad stat, donut, bar 7 hari, bar kebun/bahan) juga tidak berubah.
+5. Kad Akaun dan Notifikasi tidak berubah fungsi (sejak v3.9 ia berada dalam tab Tetapan, dan kad Data Saya dibuang — backup kini sync automatik sahaja); Ringkasan visual (kad stat, donut, bar 7 hari, bar kebun/bahan) juga tidak berubah.
 
 ### Nota jujur tentang anon key (penting untuk pemilik)
 
@@ -229,7 +243,7 @@ Membaja, Meracun Rumput, Racun Kulat, Racun Serangga, **Menuai, Pruning / Memang
 - Dalam borang kerja, satu ruangan fail gambar (terima `image/*`, kamera pada telefon).
 - Bila dipilih, gambar dimampatkan dengan canvas: dimensi maks 1280px, JPEG kualiti 0.82. Aplikasi memaparkan saiz asal vs saiz mampat (KB) dan pratonton. Memilih gambar baharu menggantikan gambar lama — hadnya tegas: 1 gambar sahaja.
 - Kad kerja memaparkan thumbnail jika ada.
-- **Gambar disimpan tempatan sahaja** dan tidak termasuk dalam eksport JSON biasa, untuk jimat storan. Pada masa depan, jika ada hosting, gambar boleh dibackup ke hosting — itu langkah seterusnya, bukan sekarang.
+- **Gambar kerja dimatikan buat sementara (sejak v3.9)** sehingga hosting gambar sendiri disediakan — input gambar disembunyikan dan data gambar lama yang tersimpan tidak dipadam. Pada masa depan, jika ada hosting, gambar boleh dibackup ke hosting — itu langkah seterusnya, bukan sekarang.
 
 ### Sandaran, database & retrieve selepas uninstall — penjelasan jujur
 
@@ -238,10 +252,10 @@ Data v2 disimpan dengan kunci `kebunku_data_v2` (migrasi automatik daripada `keb
 **Tetapi aplikasi peranti sahaja tidak boleh survive uninstall.** Yang dilaksanakan sekarang:
 
 - Model data berversi v2 + lapisan adapter sync dalam `app.js` (`Sync.toCloudPayload()` yang membuang gambar, `Sync.fromCloudPayload()` yang menggabung ikut id dengan last-updated-wins).
-- Ringkasan → Akaun memaparkan status sandaran dalam bahasa biasa. (Sejak v3.4, tiada lagi pilihan backend atau medan kunci dalam UI — tetapan sambungan kini dalam fail `www/supabase-config.js` yang diisi pemilik; lihat bahagian v3.4.)
-- Eksport JSON biasa sekarang **tanpa gambar** (label jelas). Ada juga butang berasingan "Eksport Penuh (Termasuk Gambar)" yang hanya berjalan selepas pengesahan eksplisit pengguna.
+- Tetapan → Akaun memaparkan status sandaran dalam bahasa biasa. (Sejak v3.4, tiada lagi pilihan backend atau medan kunci dalam UI — tetapan sambungan kini dalam fail `www/supabase-config.js` yang diisi pemilik; lihat bahagian v3.4.)
+- Sejak v3.9, eksport/import JSON dibuang — backup kini sync Supabase automatik sahaja (lihat bahagian v3.9).
 
-**Yang pengguna mesti putuskan sebelum retrieve selepas uninstall boleh berfungsi:** (1) backend awan mana (Supabase, Firebase, atau pelayan sendiri), (2) sistem akaun/log masuk, (3) hosting gambar jika gambar juga mahu dibackup. Sehingga itu diputuskan dan disambung, sandaran sebenar pengguna ialah fail eksport JSON (tanpa gambar) — eksport selalu sebelum uninstall / tukar telefon.
+**Yang pengguna mesti putuskan sebelum retrieve selepas uninstall boleh berfungsi:** (1) backend awan mana (Supabase, Firebase, atau pelayan sendiri), (2) sistem akaun/log masuk, (3) hosting gambar jika gambar juga mahu dibackup. Supabase + log masuk sudah disambung (v3.3–v3.5) dan eksport dibuang (v3.9) — sandaran pengguna kini ialah sync automatik ke akaun; pastikan sudah daftar masuk dan sync berjaya sebelum uninstall / tukar telefon.
 
 ## Supabase — sync awan (pilihan pengguna, dilaksanakan)
 
@@ -252,9 +266,9 @@ Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST te
 1. **Cipta projek Supabase percuma** di https://supabase.com (New project, pilih rantau terdekat, tetapkan kata laluan database).
 2. **Jalankan migrasi SQL** — dalam Supabase Dashboard, pergi ke **SQL Editor > New query**, tampal keseluruhan fail `supabase/migrations/001_kebunku.sql`, dan tekan **Run**. Fail ini mencipta jadual `kebuns`, `bloks`, `kerjas` dalam skema `public`, menghidupkan Row Level Security (RLS) pada ketiga-tiganya, menambah polisi "hanya baris sendiri" (`user_id = auth.uid()`), dan indeks `(user_id, updated_at)`. Ia idempotent untuk polisi/indeks (boleh dijalankan semula). **Kemudian jalankan fail kedua, `supabase/migrations/002_kebunku_v3.sql`, dengan cara yang sama** — ia menambah lajur v3 (`peringkat`, `zon`, dos berstruktur, syarat kerja seterusnya) dan jadual `public.bahans` dengan RLS owner-only. Fail 002 juga idempotent (ADD COLUMN IF NOT EXISTS) dan mesti dijalankan selepas 001.
 3. **Isi fail config pemilik (sekali sahaja)** — buka `www/supabase-config.js` dan isi `url` dan `anon` dengan Project URL dan anon public key daripada **Project Settings > API** (contoh URL: `https://abcxyz.supabase.co`). Anon key ini selamat untuk aplikasi client kerana RLS melindungi data. JANGAN letak `service_role` key di sini — kunci itu rahsia pelayan sahaja. Fail ini TIDAK disertakan dengan kunci sebenar dalam repo; isi ia dalam salinan deployment anda. (Peranti yang sudah pernah menyimpan tetapan sebelum v3.4 masih berfungsi melalui tetapan simpanan itu walaupun fail ini kosong.)
-4. **Log masuk dalam KebunKu** — buka **Ringkasan > Akaun**, kemudian log masuk: butang **Log Masuk dengan Google**, atau isi Email dan Kata Laluan dan tekan **Log Masuk**, atau tekan **Daftar (Kod Pengesahan)** untuk akaun baharu (lihat bahagian v3.3 di atas untuk setup Google/OTP dalam dashboard Supabase).
+4. **Log masuk dalam KebunKu** — buka **Tetapan > Akaun**, kemudian log masuk: butang **Log Masuk dengan Google**, atau isi Email dan Kata Laluan dan tekan **Log Masuk**, atau tekan **Daftar (Kod Pengesahan)** untuk akaun baharu (lihat bahagian v3.3 di atas untuk setup Google/OTP dalam dashboard Supabase).
 5. **Sync Sekarang** — tekan butang ini untuk sync pertama. Status akan memaparkan "Sync siap: X dihantar, Y diterima" atau mesej ralat yang jelas jika ada masalah.
-6. **Uji retrieve selepas uninstall** — pada peranti / pelayar lain (atau selepas memadam data tempatan — pastikan eksport JSON dibuat dahulu sebagai sandaran keselamatan), buka aplikasi yang sama (dengan fail config yang sama), log masuk dengan **akaun yang sama**, dan tekan **Sync Sekarang**. Kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.
+6. **Uji retrieve selepas uninstall** — pada peranti / pelayar lain (atau selepas memadam data tempatan — pastikan anda sudah daftar masuk dan sync berjaya sebelum itu), buka aplikasi yang sama (dengan fail config yang sama), log masuk dengan **akaun yang sama**, dan tekan **Sync Sekarang**. Kebun, blok dan kerja anda (tanpa gambar) akan dimuat turun semula.
 
 ### Apa yang di-sync, dan apa yang tidak
 
@@ -292,7 +306,7 @@ Pengguna memilih **Supabase** sebagai backend awan. Pelaksanaan ini guna REST te
 5. **Rekod pantas** — butang template untuk jenis kerja yang selalu diulang, dan butang “Salin kerja semalam ke hari ini”. Borang direka supaya siap dalam masa kurang 30 saat.
 6. **Sejarah & carian** — tapis ikut kebun, blok, tanaman, jenis kerja, tarikh, dan bahan/nota. Ada juga alat “Bila kali terakhir kerja ini dibuat?” — contohnya pilih Blok 1 + Membaja untuk jawab bila Blok 1 terakhir dibaja.
 7. **Ringkasan** — 7 hari terakhir dan bulan ini: kerja siap vs belum siap, dan jumlah kos kerja siap, termasuk pecahan ikut kebun.
-8. **Data contoh, eksport & import** — kali pertama dibuka, aplikasi memuatkan data contoh (Kebun Contoh, Blok 1 Koko, dll). Tekan “Padam Data Contoh Sahaja” untuk mula kosong tanpa memadam data anda. Eksport JSON untuk sandaran, dan import JSON untuk pulihkan data.
+8. **Data contoh** — (sejak v3.6) pemasangan baharu bermula kosong tanpa data contoh; pengguna lama yang pernah muat contoh boleh tekan "Padam Data Contoh Sahaja" dalam Tetapan > Akaun.
 
 ## Cara jalankan di web (tanpa build)
 
@@ -386,9 +400,9 @@ Kemudian bina dan jalankan dalam Xcode. Kod web yang sama dalam `www/` akan digu
 ## Offline-first — bagaimana data disimpan?
 
 - Semua data disimpan dalam `localStorage` pelayar / WebView, dengan kunci `kebunku_data_v3` (migrasi automatik daripada `kebunku_data_v2` dan `kebunku_data_v1`).
-- **Sync awan (jika dikonfigurasi pemilik):** jika pengguna log masuk dalam Ringkasan > Akaun, data tanpa gambar di-sync ke akaun pengguna (lihat bahagian Supabase di atas). Tetapan sambungan dibaca daripada `www/supabase-config.js`; sesi disimpan dalam kunci berasingan dan tidak dieksport.
+- **Sync awan (jika dikonfigurasi pemilik):** jika pengguna log masuk dalam Tetapan > Akaun, data tanpa gambar di-sync ke akaun pengguna (lihat bahagian Supabase di atas). Tetapan sambungan dibaca daripada `www/supabase-config.js`; sesi disimpan dalam kunci berasingan dan tidak dieksport.
 - Aplikasi berfungsi tanpa internet di kebun. Bila ada internet dan pengguna sudah log masuk dengan suis Sync Automatik HIDUP, sync dicuba automatik selepas simpanan tempatan; jika tidak, sync hanya berlaku bila pengguna tekan Sync Sekarang.
-- **Sandaran penting:** eksport JSON selalu, kerana data `localStorage` boleh hilang jika data pelayar dipadam atau aplikasi dinyahpasang — kecuali anda sudah sync ke Supabase dan boleh retrieve semula dengan log masuk yang sama.
+- **Sandaran penting:** pastikan anda daftar masuk dan sync automatik HIDUP — data `localStorage` boleh hilang jika data pelayar dipadam atau aplikasi dinyahpasang, tetapi boleh didapatkan semula dari Supabase dengan log masuk yang sama.
 
 ## Had / batasan MVP ini (jujur)
 
