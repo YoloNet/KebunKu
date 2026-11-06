@@ -218,7 +218,13 @@ android/app/build/outputs/bundle/release/app-release.aab
 ## 10. Maklumat versi semasa
 
 - `applicationId`: `com.kebunku.app`
-- `versionName`: `3.11.0` — `versionCode`: `9`
+- `versionName`: `3.11.1` — `versionCode`: `10`
 - `compileSdk` / `targetSdk`: `36` — `minSdk`: `24` (Android 7.0 ke atas)
 - Gradle: `9.8.2` — Capacitor: `8.6.0` — AGP: `9.5.0` — Kotlin: `2.4.10` — google-services: `4.5.0`
 - Pemilik apps: **© 2026 RJ TECH SOLUTIONS**
+
+### Laporan Problems (amaran deprecation) selepas build
+- Laporan `android/build/reports/problems/problems-report.html` hanya mengandungi **amaran (WARNING), bukan ralat (ERROR)** — build berjaya dan APK terhasil walaupun amaran disenaraikan. Jangan panik melihat jumlahnya.
+- Amaran *"Implicit lookup of properties in parent projects"* dalam `android/app/build.gradle` sudah dibaiki dalam v3.11.1 (kini guna `${rootProject.ext.…}` secara eksplisit).
+- Baki amaran yang sama datang daripada fail janaan Capacitor (`capacitor-cordova-android-plugins/cordova.variables.gradle` — jangan edit, ia dijana semula oleh `npx cap sync`) dan library dalam `node_modules` — tunggu patch Capacitor akan datang; ia tidak menghalang build.
+- Amaran *"Configuration.setVisible(boolean) has been deprecated"* datang daripada dalam AGP 9.5.0 sendiri — bukan kod projek; Google akan membaikinya sebelum Gradle 11.
