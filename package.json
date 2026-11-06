@@ -10,14 +10,16 @@
   },
   "description": "KebunKu — aplikasi rekod kerja kebun offline-first untuk petani solo (Android dahulu, WebView, iOS pada masa depan).",
   "devDependencies": {
-    "@capacitor/cli": "^8.6.0"
+    "@capacitor/cli": "^8.6.0",
+    "patch-package": "^8.0.1"
   },
   "name": "kebunku",
   "private": true,
   "scripts": {
     "cap:sync": "npx cap sync",
-    "serve": "python3 -m http.server 8000 --directory www"
+    "serve": "python3 -m http.server 8000 --directory www",
+    "postinstall": "patch-package"
   },
-  "version": "3.11.1",
+  "version": "3.11.2",
   "author": "RJ TECH SOLUTIONS"
 }

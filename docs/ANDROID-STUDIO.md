@@ -218,10 +218,14 @@ android/app/build/outputs/bundle/release/app-release.aab
 ## 10. Maklumat versi semasa
 
 - `applicationId`: `com.kebunku.app`
-- `versionName`: `3.11.1` — `versionCode`: `10`
+- `versionName`: `3.11.2` — `versionCode`: `11`
 - `compileSdk` / `targetSdk`: `36` — `minSdk`: `24` (Android 7.0 ke atas)
 - Gradle: `9.8.2` — Capacitor: `8.6.0` — AGP: `9.5.0` — Kotlin: `2.4.10` — google-services: `4.5.0`
 - Pemilik apps: **© 2026 RJ TECH SOLUTIONS**
+
+### Patch node_modules (patch-package)
+- Plugin AdMob perlu patch untuk AGP 9: `patches/@capacitor-community+admob+8.3.0.patch` (guard `kotlin-android` + `kotlin { jvmToolchain(21) }`). Patch dipakai automatik oleh skrip `postinstall` setiap kali `npm install` — **pastikan `npm install` dijalankan selepas `git pull`**, atau jalankan `npx patch-package` secara manual. Jika patch gagal dipakai selepas kemas kini plugin, maklumkan kepada Muse.
+- Jangan edit fail dalam `node_modules` secara terus — suntingan itu hilang apabila `npm install` dijalankan semula; edit melalui patch-package (`npx patch-package <nama-pakej>`) supaya patch baharu terhasil dalam folder `patches/`.
 
 ### Laporan Problems (amaran deprecation) selepas build
 - Laporan `android/build/reports/problems/problems-report.html` hanya mengandungi **amaran (WARNING), bukan ralat (ERROR)** — build berjaya dan APK terhasil walaupun amaran disenaraikan. Jangan panik melihat jumlahnya.

@@ -1,0 +1,31 @@
+diff --git a/node_modules/@capacitor-community/admob/android/build.gradle b/node_modules/@capacitor-community/admob/android/build.gradle
+index 3de6785..72874ad 100644
+--- a/node_modules/@capacitor-community/admob/android/build.gradle
++++ b/node_modules/@capacitor-community/admob/android/build.gradle
+@@ -22,7 +22,14 @@ buildscript {
+ }
+ 
+ apply plugin: 'com.android.library'
+-apply plugin: 'kotlin-android'
++// AGP 9 mempunyai sokongan Kotlin terbina dalam dan sudah mendaftarkan
++// extension 'kotlin' sendiri — jangan apply plugin 'kotlin-android' lagi
++// (ia bercanggah dengan Kotlin terbina dalam AGP 9 dan menyebabkan ralat
++// konfigurasi "does not specify compileSdk"). Guard ini sama seperti yang
++// digunakan oleh @capacitor/local-notifications.
++if (project.extensions.findByName('kotlin') == null) {
++    apply plugin: 'kotlin-android'
++}
+ 
+ android {
+     namespace = "com.getcapacitor.community.admob.admob"
+@@ -47,8 +54,8 @@ android {
+         sourceCompatibility JavaVersion.VERSION_21
+         targetCompatibility JavaVersion.VERSION_21
+     }
+-    kotlinOptions {
+-        jvmTarget = JavaVersion.VERSION_21
++    kotlin {
++        jvmToolchain(21)
+     }
+ }
+ 
