@@ -1,16 +1,16 @@
 {
   "dependencies": {
-    "@capacitor-community/admob": "^6.2.0",
-    "@capacitor/android": "^6.2.3",
-    "@capacitor/app": "^6.0.3",
-    "@capacitor/browser": "^6.0.6",
-    "@capacitor/core": "^6.0.0",
-    "@capacitor/local-notifications": "^6.0.0",
-    "@capacitor/push-notifications": "^6.0.5"
+    "@capacitor-community/admob": "^8.3.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/push-notifications": "^8.0.0"
   },
   "description": "KebunKu — aplikasi rekod kerja kebun offline-first untuk petani solo (Android dahulu, WebView, iOS pada masa depan).",
   "devDependencies": {
-    "@capacitor/cli": "^6.0.0"
+    "@capacitor/cli": "^8.0.0"
   },
   "name": "kebunku",
   "private": true,
@@ -18,6 +18,6 @@
     "cap:sync": "npx cap sync",
     "serve": "python3 -m http.server 8000 --directory www"
   },
-  "version": "3.9.1",
+  "version": "3.10.0",
   "author": "RJ TECH SOLUTIONS"
 }

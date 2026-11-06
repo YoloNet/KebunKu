@@ -155,8 +155,9 @@ footer { text-align: center; color: var(--muted); font-size: 13px; padding: 4px 
 .toggle-row { display: flex; gap: 10px; align-items: center; font-weight: 700; }
 .toggle-row input { width: 22px; height: 22px; accent-color: var(--green); }
 
-/* v3.5: onboarding + prompt nama + dashboard — warna sama, tiada gradient. */
-.overlay { position: fixed; inset: 0; z-index: 50; background: var(--cream); display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+/* v3.5: onboarding + prompt nama + dashboard — warna sama, tiada gradient.
+   v3.10: safe-area untuk edge-to-edge (API 35+). */
+.overlay { position: fixed; inset: 0; z-index: 50; background: var(--cream); display: flex; align-items: center; justify-content: center; padding: calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); overflow-y: auto; }
 .overlay-card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px 22px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 1px 2px rgba(31,42,33,.06); margin: auto; }
 .overlay-card h2 { font-size: 24px; margin: 12px 0 8px; }
 .overlay-card .logo { margin: 0 auto; }
@@ -215,8 +216,12 @@ footer a { color: var(--green); font-weight: 700; }
 
 /* v3.8: Header diperkemas (sticky, jubin logo + bayang lembut, hierarki
    tajuk/tagline lebih jelas, garis emas di bawah) + eyebrow tajuk tab.
-   Warna sama, tiada gradient, tiada glassmorphism. */
-.top { position: sticky; top: 0; z-index: 30; border-bottom: 3px solid #C08A1A; padding: 12px 16px 14px; }
+   Warna sama, tiada gradient, tiada glassmorphism.
+   v3.10 (Capacitor 8 / API 36): Android 15+ menguatkuasakan edge-to-edge —
+   padding-top mengambil kira safe-area supaya header tidak tersembunyi di
+   bawah bar status; env() = 0 pada pelayar tanpa sokongan, jadi web tidak
+   terjejas. */
+.top { position: sticky; top: 0; z-index: 30; border-bottom: 3px solid #C08A1A; padding: calc(12px + env(safe-area-inset-top)) 16px 14px; }
 .logo { background: #F7F4EC; box-shadow: 0 2px 8px rgba(0,0,0,.28); }
 .top h1 { font-size: 30px; font-weight: 700; }
 .subtitle { font-size: 12.5px; color: #C4D2BC; }

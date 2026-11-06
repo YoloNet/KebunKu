@@ -1,6 +1,13 @@
 {
 	"appId": "com.kebunku.app",
 	"appName": "KebunKu",
+	"plugins": {
+		"SplashScreen": {
+			"backgroundColor": "#F7F4EC",
+			"launchShowDuration": 1500,
+			"showSpinner": false
+		}
+	},
 	"server": {
 		"androidScheme": "https"
 	},

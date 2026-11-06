@@ -1,6 +1,6 @@
 # KebunKu — Panduan Compile dalam Android Studio
 
-Panduan langkah demi langkah untuk compile KebunKu (v3.9.1) menjadi APK debug
+Panduan langkah demi langkah untuk compile KebunKu (v3.10.0) menjadi APK debug
 (untuk ujian di telefon) dan AAB release (untuk upload ke Google Play Store).
 
 Repo: https://github.com/YoloNet/KebunKu — branch `main`
@@ -19,10 +19,10 @@ Repo: https://github.com/YoloNet/KebunKu — branch `main`
 
 | Perkara | Versi / nota |
 |---|---|
-| Android Studio | Versi stabil terkini (Ladybug atau lebih baharu). Muat turun dari https://developer.android.com/studio |
-| JDK | **17** — Android Studio sudah membundel JDK 17 (embedded JDK). Tidak perlu pasang JDK berasingan. |
-| Android SDK | API 34 (Android 14) + build-tools 34.0.0 — pasang melalui SDK Manager dalam Android Studio. |
-| Node.js | 20 LTS + npm (dari https://nodejs.org). Diperlukan untuk `npm install` dan `npx cap sync`. |
+| Android Studio | Otter 2025.2.1 atau lebih baharu (wajib untuk Capacitor 8). **Jean sudah ada Rabbit 2 | 2026.2.2 Patch 1 — lebih baharu daripada minimum, tiada perlu naik taraf.** Muat turun dari https://developer.android.com/studio |
+| JDK | **21** — Android Studio Otter+ sudah membundel JDK 21 (embedded JDK). Tidak perlu pasang JDK berasingan. |
+| Android SDK | API 36 (Android 16) + build-tools 36.0.0 — pasang melalui SDK Manager dalam Android Studio. **Penting: API 36 MESTI dipasang walaupun anda sudah ada API 37 (Android 17)** — `compileSdkVersion` projek ini ialah 36 dan Gradle memerlukan platform 36 yang tepat; API 37 tidak menggantikannya. Jangan tukar compile/target ke 37 (Capacitor 8 direka untuk 36). Jika build-tools yang sepadan tiada, Gradle sync akan menawarkan untuk memasangnya. |
+| Node.js | 22 LTS + npm (dari https://nodejs.org). Capacitor 8 memerlukan Node 22+. Diperlukan untuk `npm install` dan `npx cap sync`. |
 | Python 3 + Pillow | Pilihan sahaja — hanya jika anda mahu jana semula ikon/splash (langkah 5). |
 
 Semak versi selepas pasang (dalam terminal / Command Prompt):
@@ -110,12 +110,12 @@ lalai Capacitor.
 1. Buka Android Studio.
 2. Pilih **Open** dan pilih folder **`android/`** di dalam repo ini
    (BUKAN folder repo utama — buka folder `android` sebagai projek).
-3. Tunggu **Gradle sync** selesai. Sync pertama memuat turun Gradle 8.2.1
+3. Tunggu **Gradle sync** selesai. Sync pertama memuat turun Gradle 8.14.3
    dan dependencies — perlukan internet dan mengambil masa beberapa minit.
    Ini normal.
-4. Pastikan Gradle menggunakan JDK 17:
+4. Pastikan Gradle menggunakan JDK 21:
    File > Settings > Build, Execution, Deployment > Build Tools > Gradle >
-   **Gradle JDK** — pilih **17** (embedded JDK).
+   **Gradle JDK** — pilih **21** (embedded JDK).
 
 ---
 
@@ -176,8 +176,8 @@ android/app/build/outputs/bundle/release/app-release.aab
 6. Upload fail `.aab` itu dalam **Google Play Console** (Create app >
    Production > Create new release).
 7. Untuk setiap release baharu, naikkan `versionCode` (+1) dan `versionName`
-   dalam `android/app/build.gradle` (semasa: `versionCode 7`,
-   `versionName "3.9.1"`).
+   dalam `android/app/build.gradle` (semasa: `versionCode 8`,
+   `versionName "3.10.0"`).
 
 > Nota v3.9: gambar kerja dimatikan buat sementara sehingga hosting gambar sendiri disediakan — input gambar disembunyikan dalam aplikasi (bendera `GAMBAR_DIMATIKAN` dalam `www/app.js`); data gambar lama tidak dipadam.
 
@@ -203,8 +203,8 @@ android/app/build/outputs/bundle/release/app-release.aab
 
 | Masalah | Penyelesaian |
 |---|---|
-| Gradle sync gagal / ralat JDK | Gradle JDK mesti 17 (langkah 6, nombor 4). Jangan guna JDK 8 atau 21. |
-| "SDK location not found" | Buka SDK Manager dan pasang API 34; atau pastikan `local.properties` mengandungi `sdk.dir` (Android Studio menciptanya automatik). |
+| Gradle sync gagal / ralat JDK | Gradle JDK mesti 21 (langkah 6, nombor 4). Jangan guna JDK 8 atau 17. |
+| "SDK location not found" | Buka SDK Manager dan pasang API 36; atau pastikan `local.properties` mengandungi `sdk.dir` (Android Studio menciptanya automatik). |
 | `npx cap sync` gagal | Jalankan `npm install` semula, kemudian `npx cap sync android` semula. |
 | Apps tunjuk "belum dikonfigurasi" | `www/supabase-config.js` masih kosong — isi key (langkah 3), kemudian `npx cap sync android` semula dan build semula. |
 | Login Google tidak kembali ke apps | Pastikan redirect URL `com.kebunku.app://login-callback` ada dalam Supabase (langkah 3). |
@@ -216,7 +216,7 @@ android/app/build/outputs/bundle/release/app-release.aab
 ## 10. Maklumat versi semasa
 
 - `applicationId`: `com.kebunku.app`
-- `versionName`: `3.9.1` — `versionCode`: `7`
-- `compileSdk` / `targetSdk`: `34` — `minSdk`: `22`
-- Gradle: `8.2.1` — Capacitor: `6`
+- `versionName`: `3.10.0` — `versionCode`: `8`
+- `compileSdk` / `targetSdk`: `36` — `minSdk`: `24` (Android 7.0 ke atas)
+- Gradle: `8.14.3` — Capacitor: `8` — AGP: `8.13.0`
 - Pemilik apps: **© 2026 RJ TECH SOLUTIONS**
