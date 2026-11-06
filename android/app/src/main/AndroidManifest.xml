@@ -50,4 +50,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- v3.9.1: WAJIB untuk notifikasi tempatan (LocalNotifications) pada
+         Android 13+ — tanpa kebenaran runtime ini, peringatan kerja
+         (09:00, 2 hari sebelum tarikh) tidak akan muncul di telefon.
+         Aplikasi masih meminta kebenaran ini secara runtime selepas
+         onboarding (sekali sahaja), melalui plugin LocalNotifications. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

@@ -4,6 +4,10 @@
 
 > English summary: KebunKu is an offline-first farm work-log app for solo farmers. Android first (via Capacitor WebView), web now, iOS later. Supabase cloud sync + Google/email/OTP login (v3.3–v3.5) — all data is stored on the device first, then synced to the user's own account when logged in.
 
+## Platform utama: Android
+
+**Android ialah platform utama KebunKu.** Semua ciri terkini dibina dan disahkan untuk APK Android (Capacitor). Versi web ialah kod yang sama — ia dikekalkan untuk ujian pantas sahaja, bukan sasaran utama lagi. Panduan compile APK ada dalam `docs/ANDROID-STUDIO.md`.
+
 ## Untuk siapa?
 
 Petani solo dengan beberapa kebun — contohnya koko, sawit, durian dan lain-lain — yang pecahkan kerja ikut blok. Contoh: Blok 1 hari ini, Blok 2 esok atau lusa.
@@ -70,6 +74,10 @@ v3.9 menyusun semula aplikasi mengikut 5 permintaan Jean:
 ### Versi Android (v3.9)
 
 `android/app/build.gradle`: `versionCode 6`, `versionName "3.9.0"`. `package.json` versi `3.9.0`.
+
+### v3.9.1 — Audit Android: izin notifikasi + sync aset
+
+Audit projek Android penuh (v3.9.1): `POST_NOTIFICATIONS` ditambah dalam `android/app/src/main/AndroidManifest.xml` (wajib pada Android 13+ supaya peringatan kerja LocalNotifications muncul di telefon — sebelum ini hanya `INTERNET` diisytiharkan); aset Android (`android/app/src/main/assets/public/`) diselaraskan semula dengan `www/` terkini melalui `npx cap sync android` (sebelum ini aset terbina masih v3.6 — tiada `i18n.js`, tiada bendera `GAMBAR_DIMATIKAN`); disahkan semua plugin yang digunakan kod (`LocalNotifications`, `PushNotifications`, `AdMob`, `Browser`, `App`) berdaftar dalam `capacitor.plugins.json`, deep link `com.kebunku.app://login-callback` betul, dan SQL 001+002+003 merangkumi semua jadual/lajur yang digunakan kod sync (tiada migrasi 004 diperlukan). `versionCode 7`, `versionName "3.9.1"`.
 
 ## KebunKu v3.8 — Bahasa (BM / English) + header diperkemas
 

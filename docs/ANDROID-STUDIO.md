@@ -1,9 +1,11 @@
 # KebunKu — Panduan Compile dalam Android Studio
 
-Panduan langkah demi langkah untuk compile KebunKu (v3.9.0) menjadi APK debug
+Panduan langkah demi langkah untuk compile KebunKu (v3.9.1) menjadi APK debug
 (untuk ujian di telefon) dan AAB release (untuk upload ke Google Play Store).
 
 Repo: https://github.com/YoloNet/KebunKu — branch `main`
+
+> **Android ialah platform utama KebunKu** — semua ciri terkini dibina dan disahkan untuk APK. Versi web ialah kod yang sama dan dikekalkan untuk ujian pantas sahaja.
 
 > Nota: fail workflow GitHub Actions (`.github/workflows/build-apk.yml`) TIDAK ada
 > dalam repo ini — ia hanya wujud setempat kerana GitHub App yang digunakan
@@ -174,8 +176,8 @@ android/app/build/outputs/bundle/release/app-release.aab
 6. Upload fail `.aab` itu dalam **Google Play Console** (Create app >
    Production > Create new release).
 7. Untuk setiap release baharu, naikkan `versionCode` (+1) dan `versionName`
-   dalam `android/app/build.gradle` (semasa: `versionCode 6`,
-   `versionName "3.9.0"`).
+   dalam `android/app/build.gradle` (semasa: `versionCode 7`,
+   `versionName "3.9.1"`).
 
 > Nota v3.9: gambar kerja dimatikan buat sementara sehingga hosting gambar sendiri disediakan — input gambar disembunyikan dalam aplikasi (bendera `GAMBAR_DIMATIKAN` dalam `www/app.js`); data gambar lama tidak dipadam.
 
@@ -214,7 +216,7 @@ android/app/build/outputs/bundle/release/app-release.aab
 ## 10. Maklumat versi semasa
 
 - `applicationId`: `com.kebunku.app`
-- `versionName`: `3.9.0` — `versionCode`: `6`
+- `versionName`: `3.9.1` — `versionCode`: `7`
 - `compileSdk` / `targetSdk`: `34` — `minSdk`: `22`
 - Gradle: `8.2.1` — Capacitor: `6`
 - Pemilik apps: **© 2026 RJ TECH SOLUTIONS**
